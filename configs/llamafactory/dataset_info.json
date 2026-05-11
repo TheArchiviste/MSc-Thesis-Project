@@ -1,0 +1,18 @@
+{
+  "llmxcpg_q": {
+    "file_name": "../../data/q_train.jsonl",
+    "columns": {
+      "prompt": "instruction",
+      "query": "input",
+      "response": "output"
+    }
+  },
+  "llmxcpg_d": {
+    "file_name": "../../data/d_train.jsonl",
+    "columns": {
+      "prompt": "instruction",
+      "query": "input",
+      "response": "output"
+    }
+  }
+}

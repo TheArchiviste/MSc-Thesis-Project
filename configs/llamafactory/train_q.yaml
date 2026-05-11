@@ -1,0 +1,51 @@
+# LLaMA-Factory config for fine-tuning LLMxCPG-Q.
+# Run: llamafactory-cli train configs/llamafactory/train_q.yaml
+#
+# Hyperparameters match §4.2 of the LLMxCPG paper:
+#   - LoRA rank=8, alpha=4
+#   - learning rate 1e-4
+#   - context 32K (paper says fine-tuned at 32K due to compute)
+#   - bf16
+
+### Model
+model_name_or_path: Qwen/Qwen2.5-Coder-32B-Instruct
+trust_remote_code: true
+
+### Method
+stage: sft
+do_train: true
+finetuning_type: lora
+lora_target: all                # all linear layers — same as PEFT target_modules in our config
+lora_rank: 8
+lora_alpha: 4
+lora_dropout: 0.0
+
+### Dataset
+dataset: llmxcpg_q              # register data/q_train.jsonl as "llmxcpg_q" in dataset_info.json
+template: qwen
+cutoff_len: 32768
+overwrite_cache: true
+preprocessing_num_workers: 16
+
+### Output
+output_dir: checkpoints/llmxcpg-q
+logging_steps: 10
+save_steps: 500
+plot_loss: true
+overwrite_output_dir: true
+
+### Train
+per_device_train_batch_size: 1
+gradient_accumulation_steps: 8
+learning_rate: 1.0e-4
+num_train_epochs: 3.0
+lr_scheduler_type: cosine
+warmup_ratio: 0.05
+bf16: true
+gradient_checkpointing: true
+
+### Eval (optional — set eval data in dataset_info.json if you want this)
+# val_size: 0.05
+# per_device_eval_batch_size: 1
+# eval_strategy: steps
+# eval_steps: 500
