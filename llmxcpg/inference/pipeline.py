@@ -18,14 +18,16 @@ whether to fall back to whole-file classification or simply abstain.
 from __future__ import annotations
 
 import logging
-from dataclasses import dataclass, field
-from typing import Optional
+from dataclasses import dataclass
+from typing import TYPE_CHECKING, Callable, Optional
 
 from llmxcpg.config import Config, DEFAULT_THRESHOLDS
 from llmxcpg.joern.client import JoernClient
 from llmxcpg.slicing.extractor import Slice, SliceExtractor, SliceFailure
 from llmxcpg.inference.query_generator import QueryGenerator, QueryGenerationOutput
-from llmxcpg.inference.classifier import VulnerabilityClassifier, ClassificationOutput
+
+if TYPE_CHECKING:
+    from llmxcpg.inference.classifier import ClassificationOutput, VulnerabilityClassifier
 
 
 logger = logging.getLogger(__name__)
@@ -58,15 +60,21 @@ class LLMxCPGPipeline:
     def __init__(
         self,
         query_generator: QueryGenerator,
-        classifier: VulnerabilityClassifier,
+        classifier: VulnerabilityClassifier | None,
         joern: JoernClient,
         threshold: float = 0.5,
+        classifier_factory: Callable[[], VulnerabilityClassifier] | None = None,
+        release_local_query_model_before_detection: bool = False,
     ) -> None:
         self.q = query_generator
-        self.d = classifier
+        self._classifier = classifier
+        self._classifier_factory = classifier_factory
         self.joern = joern
         self.slicer = SliceExtractor(joern)
         self.threshold = threshold
+        self.release_local_query_model_before_detection = (
+            release_local_query_model_before_detection
+        )
 
     @classmethod
     def from_config(
@@ -85,10 +93,41 @@ class LLMxCPGPipeline:
             port=config.joern.port,
             auth_user=config.joern.auth_user,
             auth_pass=config.joern.auth_pass,
+            local_input_dir=config.joern.local_input_dir,
+            server_input_dir=config.joern.server_input_dir,
         )
         q = QueryGenerator.from_config(config.models)
-        d = VulnerabilityClassifier.from_config(config.models)
-        return cls(query_generator=q, classifier=d, joern=joern, threshold=thr)
+
+        def load_classifier() -> VulnerabilityClassifier:
+            from llmxcpg.inference.classifier import VulnerabilityClassifier
+
+            return VulnerabilityClassifier.from_config(config.models)
+
+        return cls(
+            query_generator=q,
+            classifier=None,
+            classifier_factory=load_classifier,
+            joern=joern,
+            threshold=thr,
+            release_local_query_model_before_detection=(
+                config.models.release_local_query_model_before_detection
+            ),
+        )
+
+    def _get_classifier(self) -> VulnerabilityClassifier:
+        if self._classifier is None:
+            if self.release_local_query_model_before_detection and self.q.uses_local_gpu:
+                logger.info("Releasing local query model before loading detector.")
+                self.q.close()
+            if self._classifier_factory is None:
+                raise RuntimeError("No detector or detector factory was configured.")
+            self._classifier = self._classifier_factory()
+        return self._classifier
+
+    @property
+    def d(self) -> VulnerabilityClassifier:
+        """Backward-compatible access to the lazily loaded detector."""
+        return self._get_classifier()
 
     # ------------------------------------------------------------------ #
     # Inference
@@ -126,11 +165,16 @@ class LLMxCPGPipeline:
             result.failure_reason = str(e)
             logger.warning("Slice failure: %s", e)
             return result
+        finally:
+            try:
+                self.joern.reset()
+            except Exception as exc:
+                logger.warning("Joern cleanup failed: %s", exc)
 
         result.slice = slc
 
         # Stage 3: classification on the slice
-        cls_out = self.d.classify(slc.code, threshold=thr)
+        cls_out = self._get_classifier().classify(slc.code, threshold=thr)
         result.classification = cls_out
         result.is_vulnerable = cls_out.is_vulnerable
         result.probability_vulnerable = cls_out.probability_vulnerable
@@ -144,10 +188,16 @@ class LLMxCPGPipeline:
     ) -> list[ClassificationResult]:
         """Process a batch. Query generation is batched in vLLM; slicing is
         sequential because it shares Joern session state."""
+        if not source_codes:
+            return []
         thr = threshold if threshold is not None else self.threshold
 
         # Stage 1: batch query generation.
         q_outs = self.q.generate_batch(source_codes)
+        if len(q_outs) != len(source_codes):
+            raise RuntimeError(
+                f"Query engine returned {len(q_outs)} outputs for {len(source_codes)} inputs."
+            )
 
         # Stages 2+3: per-sample (Joern session is per-sample anyway).
         results: list[ClassificationResult] = []
@@ -168,12 +218,21 @@ class LLMxCPGPipeline:
             except SliceFailure as e:
                 r.failure_stage = "slice"
                 r.failure_reason = str(e)
+            finally:
+                try:
+                    self.joern.reset()
+                except Exception as exc:
+                    logger.warning("Joern cleanup failed: %s", exc)
             results.append(r)
 
         # Stage 3: batch the classifier over all successful slices.
         if slices_for_d:
             indices, codes = zip(*slices_for_d)
-            cls_outs = self.d.classify_batch(list(codes), threshold=thr)
+            cls_outs = self._get_classifier().classify_batch(list(codes), threshold=thr)
+            if len(cls_outs) != len(codes):
+                raise RuntimeError(
+                    f"Detector returned {len(cls_outs)} outputs for {len(codes)} slices."
+                )
             for idx, cls_out in zip(indices, cls_outs):
                 results[idx].classification = cls_out
                 results[idx].is_vulnerable = cls_out.is_vulnerable

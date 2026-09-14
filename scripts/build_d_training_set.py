@@ -8,24 +8,20 @@ LLMxCPG-D is fine-tuned on (paper §3.3).
 from __future__ import annotations
 
 import argparse
-import json
 import logging
-from pathlib import Path
 
 from llmxcpg.config import Config, JoernConfig, ModelConfig
 from llmxcpg.data.prepare import build_d_training_set
 from llmxcpg.data.loaders import load_primevul, load_formai_v2
-from llmxcpg.inference.pipeline import LLMxCPGPipeline
+from llmxcpg.inference.query_generator import QueryGenerator
+from llmxcpg.joern.client import JoernClient
+from llmxcpg.slicing.extractor import SliceExtractor, SliceFailure
 
 
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--q-model", required=True,
                         help="Path or HF repo for the fine-tuned LLMxCPG-Q.")
-    parser.add_argument("--detector-model", required=True,
-                        help="Detector path. Pipeline will load it but the slicing "
-                             "stage can be done without — we just need a valid model "
-                             "object. For pure slice production you can stub D out.")
     parser.add_argument("--dataset", required=True, choices=("primevul", "formai"))
     parser.add_argument("--input", required=True)
     parser.add_argument("--out", required=True)
@@ -40,24 +36,42 @@ def main() -> int:
 
     cfg = Config(
         joern=JoernConfig(host=args.joern_host, port=args.joern_port),
-        models=ModelConfig(
-            query_model_path=args.q_model,
-            detector_model_path=args.detector_model,
-        ),
+        models=ModelConfig(query_model_path=args.q_model),
     )
-    pipeline = LLMxCPGPipeline.from_config(cfg)
+    query_generator = QueryGenerator.from_config(cfg.models)
+    joern = JoernClient(
+        host=cfg.joern.host,
+        port=cfg.joern.port,
+        local_input_dir=cfg.joern.local_input_dir,
+        server_input_dir=cfg.joern.server_input_dir,
+    )
+    slicer = SliceExtractor(joern)
 
     sliced = []
-    for s in samples:
-        result = pipeline.detect(s["code"])
-        if result.slice is None:
-            continue
-        sliced.append({
-            "id": s["id"],
-            "slice": result.slice.code,
-            "is_vulnerable": s["is_vulnerable"],
-            "cwe": s["cwe"],
-        })
+    try:
+        query_outputs = query_generator.generate_batch([s["code"] for s in samples])
+        for index, (s, query_output) in enumerate(zip(samples, query_outputs)):
+            if not query_output.parsed_ok:
+                continue
+            try:
+                result_slice = slicer.extract(
+                    s["code"], query_output.queries, project_name=f"d_train_{index}",
+                )
+            except SliceFailure:
+                logging.exception("Slicing failed for sample %s", s.get("id", index))
+                continue
+            sliced.append({
+                "id": s["id"],
+                "slice": result_slice.code,
+                "is_vulnerable": s["is_vulnerable"],
+                "cwe": s["cwe"],
+            })
+    finally:
+        query_generator.close()
+        try:
+            joern.reset()
+        except Exception as exc:
+            logging.warning("Joern cleanup failed: %s", exc)
 
     n = build_d_training_set(sliced, args.out)
     print(f"Wrote {n} D training records (from {len(samples)} samples; "

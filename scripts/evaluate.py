@@ -31,6 +31,10 @@ def main() -> int:
     parser.add_argument("--threshold", type=float, default=None)
     parser.add_argument("--dataset", choices=list(DEFAULT_THRESHOLDS), default=None)
     parser.add_argument("--out", required=True)
+    parser.add_argument(
+        "--failure-policy", choices=("exclude", "safe", "vulnerable", "error"),
+        default="exclude", help="How pipeline abstentions affect classification metrics.",
+    )
     args = parser.parse_args()
 
     logging.basicConfig(level=logging.INFO, format="%(asctime)s | %(levelname)s | %(message)s")
@@ -60,8 +64,8 @@ def main() -> int:
     slice_lengths: list[int] = []
     failures = {"query_parse": 0, "slice": 0}
 
-    for r in records:
-        result = pipeline.detect(r["code"], threshold=threshold)
+    results = pipeline.detect_batch([r["code"] for r in records], threshold=threshold)
+    for r, result in zip(records, results):
         predictions.append(result.is_vulnerable)
         labels.append(int(r["label"]))
         cwes.append(r.get("cwe", "UNKNOWN"))
@@ -71,12 +75,20 @@ def main() -> int:
         if result.failure_stage:
             failures[result.failure_stage] += 1
 
-    overall = classification_metrics(predictions, labels)
-    per_cwe = {k: v.as_dict() for k, v in metrics_by_cwe(predictions, labels, cwes).items()}
+    overall = classification_metrics(
+        predictions, labels, failure_policy=args.failure_policy,
+    )
+    per_cwe = {
+        k: v.as_dict()
+        for k, v in metrics_by_cwe(
+            predictions, labels, cwes, failure_policy=args.failure_policy,
+        ).items()
+    }
     reduction = reduction_ratio_stats(original_lengths, slice_lengths)
 
     report = {
         "threshold": threshold,
+        "failure_policy": args.failure_policy,
         "overall": overall.as_dict(),
         "per_cwe": per_cwe,
         "reduction_ratio": reduction,

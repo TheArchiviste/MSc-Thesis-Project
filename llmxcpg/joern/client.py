@@ -11,10 +11,9 @@ This module hides the protocol details and provides:
 - `JoernClient.run_many(queries)` — sequenced queries sharing scope, which is
   what slice construction needs (`val source = ...; val sink = ...; ...`).
 
-The implementation is intentionally synchronous. Joern itself serialises
-queries per session, so async wrappers buy nothing on a single session.
-Parallelism comes from running multiple Joern containers (see
-docker/docker-compose.yml), each with its own client.
+The implementation is intentionally synchronous. Joern serialises queries per
+session, so parallelism requires separately configured Joern workers and one
+client per worker.
 """
 
 from __future__ import annotations
@@ -24,16 +23,16 @@ import logging
 import re
 import shutil
 import tempfile
+import uuid
 from dataclasses import dataclass
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import Any, Iterable
 
 try:
     from cpgqls_client import CPGQLSClient, import_code_query
-except ImportError as e:  # pragma: no cover
-    raise ImportError(
-        "cpgqls-client is required. Install with `pip install cpgqls-client`."
-    ) from e
+except ImportError:  # pragma: no cover - handled at construction for light imports
+    CPGQLSClient = None
+    import_code_query = None
 
 
 logger = logging.getLogger(__name__)
@@ -74,7 +73,7 @@ class JoernClient:
     """Synchronous Joern WebSocket client.
 
     Usage:
-        with JoernClient("ws://localhost:8080") as joern:
+        with JoernClient(host="localhost", port=8080) as joern:
             joern.import_code("/path/to/file.c")
             res = joern.run('cpg.method.name("main").l')
             print(res.value)
@@ -87,11 +86,24 @@ class JoernClient:
         port: int = 8080,
         auth_user: str | None = None,
         auth_pass: str | None = None,
+        local_input_dir: str | Path | None = None,
+        server_input_dir: str | None = None,
     ) -> None:
+        if CPGQLSClient is None:
+            raise ImportError(
+                "cpgqls-client is required. Install the project with `pip install -e .`."
+            )
+        if bool(auth_user) != bool(auth_pass):
+            raise ValueError("auth_user and auth_pass must be provided together.")
         self.endpoint = endpoint or f"{host}:{port}"
         creds = (auth_user, auth_pass) if auth_user and auth_pass else None
         self._client = CPGQLSClient(self.endpoint, auth_credentials=creds)
         self._project_loaded: str | None = None
+        self.local_input_dir = Path(local_input_dir).resolve() if local_input_dir else None
+        self.server_input_dir = server_input_dir
+        self._staging_dirs: list[Path] = []
+        if self.local_input_dir:
+            self.local_input_dir.mkdir(parents=True, exist_ok=True)
 
     # ------------------------------------------------------------------ #
     # Core query execution
@@ -141,32 +153,49 @@ class JoernClient:
           - a path to an existing file or directory, or
           - a string of source code (we materialise it to a temp file).
         """
-        path = Path(code_or_path) if not code_or_path.startswith(("/", ".", "~")) is False else None
-
-        if Path(code_or_path).exists():
-            target_path = str(Path(code_or_path).absolute())
-        else:
-            tmp = tempfile.mkdtemp(prefix="llmxcpg_")
-            ext = self._guess_extension(code_or_path)
-            target = Path(tmp) / f"{project_name}{ext}"
-            target.write_text(code_or_path)
-            target_path = str(target)
-
-        # Drop any prior project of the same name so we get a clean CPG.
+        # Drop the prior CPG and its staged input before creating the next one.
         if self._project_loaded:
-            self.run(f'workspace.deleteProject("{self._project_loaded}")')
+            self.reset()
 
-        query = import_code_query(target_path, project_name)
+        safe_name = re.sub(r"[^A-Za-z0-9_.-]", "_", project_name).strip("._") or "snippet"
+        unique_project = f"{safe_name}_{uuid.uuid4().hex[:12]}"
+        staging = Path(tempfile.mkdtemp(
+            prefix="llmxcpg_",
+            dir=str(self.local_input_dir) if self.local_input_dir else None,
+        ))
+        self._staging_dirs.append(staging)
+
+        source_path = self._existing_path(code_or_path)
+        if source_path is not None:
+            target = staging / source_path.name
+            if source_path.is_dir():
+                shutil.copytree(source_path, target)
+            else:
+                shutil.copy2(source_path, target)
+        else:
+            target = staging / f"{safe_name}{self._guess_extension(code_or_path)}"
+            target.write_text(code_or_path, encoding="utf-8")
+
+        target_path = self._server_path(target)
+
+        query = import_code_query(target_path, unique_project)
         result = self.run(query)
         if not result.success:
+            self._cleanup_staging()
             raise JoernError(f"Failed to import code: {result.stdout}")
-        self._project_loaded = project_name
+        self._project_loaded = unique_project
 
     def reset(self) -> None:
         """Clear the current CPG. Cheaper than reconnecting."""
         if self._project_loaded:
-            self.run(f'workspace.deleteProject("{self._project_loaded}")')
+            # Current Joern exposes project deletion as a top-level command.
+            result = self.run(f"delete({json.dumps(self._project_loaded)})")
+            if not result.success:
+                raise JoernError(
+                    f"Failed to delete Joern project {self._project_loaded}: {result.stdout}"
+                )
             self._project_loaded = None
+        self._cleanup_staging()
 
     # ------------------------------------------------------------------ #
     # Helpers
@@ -179,6 +208,29 @@ class JoernClient:
         if "namespace " in code or "::" in code:
             return ".cpp"
         return ".c"
+
+    @staticmethod
+    def _existing_path(value: str) -> Path | None:
+        """Return an existing path without treating long source text as one."""
+        try:
+            candidate = Path(value).expanduser()
+            return candidate.resolve() if candidate.exists() else None
+        except (OSError, ValueError):
+            return None
+
+    def _server_path(self, target: Path) -> str:
+        if self.server_input_dir and self.local_input_dir:
+            relative = target.relative_to(self.local_input_dir)
+            return str(PurePosixPath(self.server_input_dir) / PurePosixPath(relative.as_posix()))
+        return str(target.resolve())
+
+    def _cleanup_staging(self) -> None:
+        while self._staging_dirs:
+            staging = self._staging_dirs.pop()
+            try:
+                shutil.rmtree(staging)
+            except OSError as exc:
+                logger.warning("Could not remove staged Joern input %s: %s", staging, exc)
 
     @staticmethod
     def _extract_value(stdout: str) -> Any:

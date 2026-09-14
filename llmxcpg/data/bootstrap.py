@@ -26,7 +26,7 @@ from pathlib import Path
 from typing import Iterable
 
 from llmxcpg.joern.client import JoernClient, JoernError
-from llmxcpg.joern.queries import COMMON_SYNTAX_ERRORS
+from llmxcpg.joern.queries import validate_generated_query
 
 
 logger = logging.getLogger(__name__)
@@ -185,6 +185,10 @@ def _validate_queries(
 
     last_result = None
     for q in queries:
+        try:
+            validate_generated_query(q)
+        except ValueError as exc:
+            return False, str(exc)
         last_result = joern.run(q)
         if not last_result.success:
             return False, f"query failed:\n  {q}\n  {last_result.stdout}"

@@ -16,6 +16,8 @@ the original source file.
 
 from __future__ import annotations
 
+import re
+
 
 # ---------------------------------------------------------------------------
 # Step 2: Interacters (Listing 2)
@@ -96,3 +98,33 @@ COMMON_SYNTAX_ERRORS = (
     "error: missing argument",
     "Compilation failed",
 )
+
+
+_UNSAFE_GENERATED_QUERY_PATTERNS = (
+    re.compile(r"\b(?:import|package)\s+"),
+    re.compile(r"\b(?:java\.|javax\.|sun\.|sys\.|os\.)"),
+    re.compile(r"\bscala\.(?:io|sys|reflect)\."),
+    re.compile(r"\b(?:Runtime|ProcessBuilder|System|ClassLoader)\b"),
+    re.compile(r"\b(?:new\s+)?(?:File|Files|Path|Paths|Socket|URL)\s*[.(]"),
+    re.compile(r"\b(?:Class\.forName|getClass|getClassLoader|loadClass)\b"),
+)
+
+
+def validate_generated_query(query: str, *, max_length: int = 20_000) -> None:
+    """Reject generated Scala that tries to escape the CPG traversal surface.
+
+    Joern executes CPGQL as Scala, so generated text must be treated as code.
+    This is a deliberately conservative guard, not a substitute for the
+    container boundary used by the supplied compose deployment.
+    """
+    if not query.strip():
+        raise ValueError("Generated CPGQL query is empty.")
+    if len(query) > max_length:
+        raise ValueError(f"Generated CPGQL query exceeds {max_length} characters.")
+    if "\x00" in query:
+        raise ValueError("Generated CPGQL query contains a NUL byte.")
+    for pattern in _UNSAFE_GENERATED_QUERY_PATTERNS:
+        if pattern.search(query):
+            raise ValueError(
+                f"Generated CPGQL query contains disallowed Scala/API syntax: {pattern.pattern}"
+            )

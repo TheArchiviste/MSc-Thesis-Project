@@ -43,8 +43,11 @@ class JoernConfig:
     port: int = 8080
     auth_user: str | None = None
     auth_pass: str | None = None
-    # Per-query timeout — long-running queries on big repos can exceed minutes.
-    query_timeout_s: float = 300.0
+    # Joern runs in another filesystem when Docker is used. Source is staged
+    # in this host directory and addressed through `server_input_dir` inside
+    # the container. The compose file mounts these two locations together.
+    local_input_dir: Path | None = None
+    server_input_dir: str | None = "/analysis/inputs"
     # The Joern docker image to spin up if you use docker compose.
     image: str = "ghcr.io/joernio/joern:v4.0.0"
 
@@ -57,21 +60,31 @@ class ModelConfig:
     inspectability that the architecture exists to provide.
     """
     # Query generator (LLMxCPG-Q). Paper fine-tunes Qwen2.5-Coder-32B-Instruct.
-    query_model_path: str = "qcri/llmxcpg-q"
+    query_model_path: str = "QCRI/LLMxCPG-Q"
+    query_model_revision: str | None = None
     query_max_context: int = 32_768  # 32K — paper §5 explains the limit.
     query_temperature: float = 0.0   # Deterministic CPGQL generation.
+    query_engine: str = "vllm"       # "vllm", "openai", or "dummy".
+    query_base_url: str | None = None
+    query_api_key_env: str = "LLMXCPG_QUERY_API_KEY"
+    query_gpu_memory_utilization: float = 0.85
+    query_tensor_parallel_size: int = 1
 
     # Detector (LLMxCPG-D). Paper fine-tunes QwQ-32B-Preview.
-    detector_model_path: str = "qcri/llmxcpg-d"
-    detector_max_context: int = 8_192  # Slices fit; 8K is enough at inference.
+    detector_model_path: str = "QCRI/LLMxCPG-D"
+    detector_model_revision: str | None = None
+    detector_max_context: int = 16_384  # Released inference configuration.
     detector_dtype: str = "bfloat16"
 
-    # Tokens we treat as the binary class outputs (§4.2 reduced lm_head).
-    # We reduce the LM head to just these two rows and softmax over them.
-    # Note: the paper's prompt says "VULNERABLE / SAFE" but earlier text mentions
-    # "Yes/No" as a generic formulation. We use the prompt's words literally.
-    vulnerable_token: str = "VULNERABLE"
-    safe_token: str = "SAFE"
+    # The released detector is trained and evaluated with Yes/No. Its reduced
+    # head is ordered [No, Yes], so the published thresholds apply to class 1.
+    vulnerable_token: str = "Yes"
+    safe_token: str = "No"
+
+    # A local 32B Q model and 32B D model do not fit in memory together on the
+    # paper's single A100. Release Q before lazily loading D. Batch callers
+    # should use detect_batch so all Q work finishes before the release.
+    release_local_query_model_before_detection: bool = True
 
 
 @dataclass
@@ -110,3 +123,8 @@ class Config:
     def __post_init__(self) -> None:
         self.work_dir = Path(self.work_dir)
         self.work_dir.mkdir(parents=True, exist_ok=True)
+        if self.joern.local_input_dir is None:
+            self.joern.local_input_dir = self.work_dir / "joern-inputs"
+        else:
+            self.joern.local_input_dir = Path(self.joern.local_input_dir)
+        self.joern.local_input_dir.mkdir(parents=True, exist_ok=True)

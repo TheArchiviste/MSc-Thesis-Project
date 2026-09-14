@@ -18,7 +18,7 @@ import json
 import logging
 from pathlib import Path
 
-from llmxcpg.config import SUPPORTED_CWES
+from llmxcpg.config import Config, JoernConfig, SUPPORTED_CWES
 from llmxcpg.data.bootstrap import bootstrap_query_dataset, DeepSeekQueryProposer
 from llmxcpg.data.loaders import (
     load_formai_v2, load_primevul, load_sven, load_reposvul,
@@ -43,6 +43,7 @@ def main() -> int:
     parser.add_argument("--joern-host", default="localhost")
     parser.add_argument("--joern-port", type=int, default=8080)
     parser.add_argument("--max-retries", type=int, default=3)
+    parser.add_argument("--work-dir", default="./work")
     parser.add_argument("--limit", type=int, default=None,
                         help="Stop after N samples (for smoke tests).")
     parser.add_argument("--vulnerable-only", action="store_true",
@@ -68,7 +69,16 @@ def main() -> int:
                 break
 
     proposer = DeepSeekQueryProposer()
-    with JoernClient(host=args.joern_host, port=args.joern_port) as joern:
+    config = Config(
+        joern=JoernConfig(host=args.joern_host, port=args.joern_port),
+        work_dir=Path(args.work_dir),
+    )
+    with JoernClient(
+        host=config.joern.host,
+        port=config.joern.port,
+        local_input_dir=config.joern.local_input_dir,
+        server_input_dir=config.joern.server_input_dir,
+    ) as joern:
         summary = bootstrap_query_dataset(
             samples=filtered(),
             joern=joern,

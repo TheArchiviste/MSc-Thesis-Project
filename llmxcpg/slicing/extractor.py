@@ -13,14 +13,17 @@ trades end-to-end convenience for.
 
 from __future__ import annotations
 
-import json
 import logging
 import re
 from dataclasses import dataclass, field
 from typing import Sequence
 
-from llmxcpg.joern.client import JoernClient, JoernError, QueryResult
-from llmxcpg.joern.queries import build_interacters_query, build_backward_slice_query
+from llmxcpg.joern.client import JoernClient, QueryResult
+from llmxcpg.joern.queries import (
+    build_backward_slice_query,
+    build_interacters_query,
+    validate_generated_query,
+)
 from llmxcpg.slicing.reconstruction import reconstruct_code_from_lines
 
 
@@ -80,6 +83,13 @@ class SliceExtractor:
         """
         if not cpgql_queries:
             raise SliceFailure("No CPGQL queries provided.")
+        if "reachableByFlows" not in cpgql_queries[-1]:
+            raise SliceFailure("The final generated query must use reachableByFlows.")
+        try:
+            for query in cpgql_queries:
+                validate_generated_query(query)
+        except ValueError as exc:
+            raise SliceFailure(str(exc)) from exc
 
         # 1. Load source into Joern.
         self.joern.import_code(source, project_name=project_name)

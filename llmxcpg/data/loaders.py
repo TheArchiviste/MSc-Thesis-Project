@@ -14,7 +14,7 @@ from __future__ import annotations
 import json
 import logging
 from pathlib import Path
-from typing import Iterable, Iterator
+from typing import Iterator
 
 from llmxcpg.data.esbmc_cwe_mapping import esbmc_error_to_cwe
 

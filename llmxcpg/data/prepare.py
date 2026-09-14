@@ -6,7 +6,8 @@ instruction-following:
     {"instruction": "...", "input": "", "output": "..."}
 
 For LLMxCPG-Q, the output is `{"queries": [...]}`.
-For LLMxCPG-D, the output is the literal word "VULNERABLE" or "SAFE".
+For LLMxCPG-D, the output is the literal word "Yes" or "No", matching the
+released detector head and the published calibration thresholds.
 """
 
 from __future__ import annotations
@@ -67,7 +68,7 @@ def build_d_training_set(
             if not slice_code:
                 continue
             instruction = render_detection_prompt(slice_code)
-            output = "VULNERABLE" if s.get("is_vulnerable") else "SAFE"
+            output = "Yes" if s.get("is_vulnerable") else "No"
             fout.write(json.dumps({
                 "instruction": instruction,
                 "input": "",

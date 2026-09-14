@@ -55,16 +55,17 @@ def main() -> int:
 
     probs: list[float] = []
     labels: list[int] = []
-    for r in sample:
-        # Run with a placeholder threshold; we only care about the probability.
-        result = pipeline.detect(r["code"], threshold=0.5)
+    results = pipeline.detect_batch([r["code"] for r in sample], threshold=0.5)
+    for r, result in zip(sample, results):
         if result.probability_vulnerable is None:
-            # Treat pipeline failures as P=0 — predicts SAFE, biases toward
-            # missed bugs which is worth knowing.
-            probs.append(0.0)
-        else:
-            probs.append(result.probability_vulnerable)
+            # A failed pipeline has no model probability and cannot calibrate
+            # the detector. Report it as missing coverage instead of inventing 0.
+            continue
+        probs.append(result.probability_vulnerable)
         labels.append(int(r["label"]))
+
+    if not probs:
+        raise RuntimeError("Every calibration sample abstained; no threshold can be fitted.")
 
     cal = calibrate_threshold(probs, labels, optimise_for=args.optimise_for)
     out_path = Path(args.out)
@@ -76,6 +77,9 @@ def main() -> int:
         "n_positive": cal.n_positive,
         "n_negative": cal.n_negative,
         "is_balanced": cal.is_balanced,
+        "attempted_samples": len(sample),
+        "abstentions": len(sample) - len(probs),
+        "coverage": len(probs) / len(sample) if sample else 0.0,
         "sweep": cal.sweep,
     }, indent=2))
     print(f"Best γ = {cal.best_threshold:.3f}  (acc={cal.best_accuracy:.3f}, f1={cal.best_f1:.3f})")

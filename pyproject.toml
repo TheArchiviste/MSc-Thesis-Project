@@ -8,7 +8,7 @@ version = "0.1.0"
 description = "Context-aware vulnerability detection via CPG-guided LLMs (Lekssays et al., USENIX Security 2025)."
 readme = "README.md"
 requires-python = ">=3.10"
-license = {text = "MIT"}
+license = {file = "LICENSE"}
 authors = [
     {name = "LLMxCPG reimplementation"}
 ]
@@ -16,32 +16,27 @@ dependencies = [
     # Joern integration
     "cpgqls-client>=0.0.5",        # WebSocket client for Joern's server mode
     "websocket-client>=1.6.0",
-    # LLM inference
-    "vllm>=0.6.0",                 # Q-model inference (paper §4.2)
-    "transformers>=4.45.0",
-    "torch>=2.4.0",
-    "accelerate>=0.34.0",
-    "peft>=0.13.0",                # LoRA adapters for inference
-    "unsloth>=2024.10",             # D-model inference (paper §4.2). Optional.
-    # Training (optional, see configs/llamafactory)
-    "datasets>=3.0.0",
-    "bitsandbytes>=0.44.0",
-    # Bootstrap loop calls DeepSeek API
-    "openai>=1.40.0",
-    # Data prep / parsing
-    "tree-sitter>=0.23.0",
-    "tree-sitter-c>=0.23.0",
-    "tree-sitter-cpp>=0.23.0",
-    # Misc
-    "pydantic>=2.0",
-    "tqdm",
     "numpy",
-    "scikit-learn",
-    "click",
-    "pyyaml",
 ]
 
 [project.optional-dependencies]
+inference = [
+    "vllm>=0.6.0",
+    "transformers>=4.45.0",
+    "torch>=2.4.0",
+    "accelerate>=0.34.0",
+    "peft>=0.13.0",
+    "openai>=1.40.0",
+]
+training = [
+    "transformers>=4.45.0",
+    "torch>=2.4.0",
+    "accelerate>=0.34.0",
+    "peft>=0.13.0",
+    "datasets>=3.0.0",
+    "bitsandbytes>=0.44.0",
+]
+bootstrap = ["openai>=1.40.0"]
 dev = ["pytest", "pytest-asyncio", "ruff"]
 
 [project.scripts]
@@ -50,3 +45,7 @@ llmxcpg = "llmxcpg.cli:main"
 [tool.setuptools.packages.find]
 where = ["."]
 include = ["llmxcpg*"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"

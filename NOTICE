@@ -1,0 +1,10 @@
+LLMxCPG reimplementation
+
+This project reimplements and incorporates prompt/query material from the
+original LLMxCPG project by Ismail Lekssays, Mohamed Amine Ferrag, Bilel
+Cherif, and Mourad Debbabi:
+
+https://github.com/qcri/llmxcpg
+
+The upstream project is licensed under GNU GPL version 3. This distribution
+is provided under the same license; see LICENSE.

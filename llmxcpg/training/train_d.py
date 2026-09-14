@@ -52,6 +52,7 @@ def main() -> None:
         "--per-device-batch-size", str(args.per_device_batch_size),
         "--grad-accum", str(args.grad_accum),
         "--learning-rate", str(args.learning_rate),
+        "--template", "raw",
     ]
     train_q.main()
 

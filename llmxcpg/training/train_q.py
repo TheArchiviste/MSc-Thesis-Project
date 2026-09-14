@@ -13,9 +13,7 @@ Run:
 from __future__ import annotations
 
 import argparse
-import json
 import logging
-from pathlib import Path
 
 from llmxcpg.config import TrainingConfig
 
@@ -36,6 +34,8 @@ def main() -> None:
     parser.add_argument("--learning-rate", type=float, default=1e-4)
     parser.add_argument("--lora-rank", type=int, default=8)
     parser.add_argument("--lora-alpha", type=int, default=4)
+    parser.add_argument("--template", choices=("qwen", "raw"), default="qwen",
+                        help="Q uses Qwen chat; the released D serialization is raw.")
     args = parser.parse_args()
 
     # Lazy imports — these are heavy and unnecessary unless you actually train.
@@ -44,7 +44,7 @@ def main() -> None:
     from peft import get_peft_model
     from transformers import (
         AutoModelForCausalLM, AutoTokenizer, TrainingArguments, Trainer,
-        DataCollatorForLanguageModeling,
+        DataCollatorForSeq2Seq,
     )
     from llmxcpg.training.lora_config import build_lora_config
 
@@ -76,28 +76,48 @@ def main() -> None:
     # Load alpaca-format data and collate as instruction → output.
     raw = load_dataset("json", data_files=args.train_data, split="train")
 
-    def to_text(example: dict) -> dict:
-        return {
-            "text": (
-                example["instruction"]
-                + ("\n" + example["input"] if example.get("input") else "")
-                + "\n\n" + example["output"] + tokenizer.eos_token
+    def to_prompt_response(example: dict) -> dict:
+        instruction = example["instruction"]
+        input_text = example.get("input") or ""
+        content = instruction + (
+            ("\n" if not instruction.endswith("\n") else "") + input_text
+            if input_text else ""
+        )
+        if args.template == "qwen":
+            if not tokenizer.chat_template:
+                raise ValueError("The selected Q tokenizer does not define a chat template.")
+            prompt = tokenizer.apply_chat_template(
+                [{"role": "user", "content": content}],
+                tokenize=False,
+                add_generation_prompt=True,
             )
-        }
+        else:
+            prompt = content
+        return {"prompt": prompt, "response": example["output"]}
 
-    raw = raw.map(to_text, remove_columns=raw.column_names)
+    raw = raw.map(to_prompt_response, remove_columns=raw.column_names)
 
     def tokenize(example):
-        out = tokenizer(
-            example["text"],
-            truncation=True,
-            max_length=args.max_seq_length,
-            padding=False,
-        )
-        out["labels"] = list(out["input_ids"])
-        return out
+        prompt_ids = tokenizer(
+            example["prompt"], add_special_tokens=False,
+        )["input_ids"]
+        response_ids = tokenizer(
+            example["response"] + tokenizer.eos_token,
+            add_special_tokens=False,
+        )["input_ids"]
+        if len(response_ids) >= args.max_seq_length:
+            response_ids = response_ids[:args.max_seq_length]
+            prompt_ids = []
+        else:
+            prompt_ids = prompt_ids[-(args.max_seq_length - len(response_ids)):]
+        input_ids = prompt_ids + response_ids
+        return {
+            "input_ids": input_ids,
+            "attention_mask": [1] * len(input_ids),
+            "labels": [-100] * len(prompt_ids) + response_ids,
+        }
 
-    tokenised = raw.map(tokenize, remove_columns=["text"])
+    tokenised = raw.map(tokenize, remove_columns=["prompt", "response"])
 
     training_args = TrainingArguments(
         output_dir=args.output_dir,
@@ -120,7 +140,12 @@ def main() -> None:
         args=training_args,
         train_dataset=tokenised,
         tokenizer=tokenizer,
-        data_collator=DataCollatorForLanguageModeling(tokenizer, mlm=False),
+        data_collator=DataCollatorForSeq2Seq(
+            tokenizer=tokenizer,
+            model=model,
+            label_pad_token_id=-100,
+            padding=True,
+        ),
     )
     trainer.train()
     trainer.save_model(args.output_dir)

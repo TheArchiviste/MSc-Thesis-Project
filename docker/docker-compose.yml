@@ -1,61 +1,20 @@
-version: "3.9"
-
-# A small Joern cluster. Each container exposes a CPGQL WebSocket server on
-# its own host port. Spread your code samples across them for parallelism;
-# Joern serialises queries within a session, so per-sample concurrency must
-# come from multiple sessions, not threads inside one.
-#
-# Tweak `replicas` or simply add more `joern_N:` blocks; the pipeline accepts
-# a list of endpoints (see scripts/run_pipeline.py).
+# One isolated Joern worker for the synchronous pipeline. Add explicitly
+# configured workers only when the caller also shards work across endpoints.
 
 services:
-  joern_0:
+  joern:
     image: ghcr.io/joernio/joern:v4.0.0
-    container_name: llmxcpg_joern_0
+    container_name: llmxcpg_joern
+    init: true
+    working_dir: /workspace
     command: >
       joern --server --server-host 0.0.0.0 --server-port 8080
     ports:
-      - "8080:8080"
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
+      - "127.0.0.1:8080:8080"
     volumes:
-      - joern_workspace_0:/workspace
-
-  joern_1:
-    image: ghcr.io/joernio/joern:v4.0.0
-    container_name: llmxcpg_joern_1
-    command: >
-      joern --server --server-host 0.0.0.0 --server-port 8080
-    ports:
-      - "8081:8080"
-    volumes:
-      - joern_workspace_1:/workspace
-
-  joern_2:
-    image: ghcr.io/joernio/joern:v4.0.0
-    container_name: llmxcpg_joern_2
-    command: >
-      joern --server --server-host 0.0.0.0 --server-port 8080
-    ports:
-      - "8082:8080"
-    volumes:
-      - joern_workspace_2:/workspace
-
-  joern_3:
-    image: ghcr.io/joernio/joern:v4.0.0
-    container_name: llmxcpg_joern_3
-    command: >
-      joern --server --server-host 0.0.0.0 --server-port 8080
-    ports:
-      - "8083:8080"
-    volumes:
-      - joern_workspace_3:/workspace
+      - joern_workspace:/workspace
+      # `Config.work_dir/joern-inputs` maps to `JoernConfig.server_input_dir`.
+      - ../work/joern-inputs:/analysis/inputs:ro
 
 volumes:
-  joern_workspace_0:
-  joern_workspace_1:
-  joern_workspace_2:
-  joern_workspace_3:
+  joern_workspace:

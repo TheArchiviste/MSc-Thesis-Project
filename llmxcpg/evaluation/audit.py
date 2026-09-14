@@ -25,9 +25,8 @@ samples; this harness records their judgements in the same shape.
 from __future__ import annotations
 
 import logging
-import re
 from collections import Counter
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Mapping, Sequence
 
 

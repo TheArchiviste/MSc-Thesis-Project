@@ -13,8 +13,8 @@ Reduction-ratio statistics for the slicing stage match §4.3.1 of the paper
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
-from typing import Iterable, Mapping, Sequence
+from dataclasses import dataclass
+from typing import Sequence
 
 import numpy as np
 
@@ -27,6 +27,9 @@ class Metrics:
     recall: float
     f1: float
     support: int
+    total: int
+    abstentions: int
+    coverage: float
     tp: int
     fp: int
     tn: int
@@ -39,6 +42,9 @@ class Metrics:
             "recall": self.recall,
             "f1": self.f1,
             "support": self.support,
+            "total": self.total,
+            "abstentions": self.abstentions,
+            "coverage": self.coverage,
             "tp": self.tp,
             "fp": self.fp,
             "tn": self.tn,
@@ -50,23 +56,32 @@ def classification_metrics(
     predictions: Sequence[int | bool | None],
     labels: Sequence[int],
     *,
-    abstain_value: int = 0,
+    failure_policy: str = "exclude",
 ) -> Metrics:
     """Compute the four headline metrics.
 
-    `None` predictions (e.g. pipeline failures) are treated as `abstain_value`
-    by default — i.e. counted as predicting "safe". This is the conservative
-    choice for vulnerability detection: we'd rather miss a bug than panic an
-    auditor with bad slices, and it matches how the paper reports failures.
+    `None` is an abstention, not a SAFE verdict. By default abstentions are
+    excluded from discrimination metrics and reported through coverage. Set
+    `failure_policy` to "safe" or "vulnerable" to include failures as an
+    explicit predicted class, or "error" to reject any failed samples.
     """
     if len(predictions) != len(labels):
         raise ValueError("predictions and labels must align in length.")
 
-    preds = np.array(
-        [abstain_value if p is None else int(bool(p)) for p in predictions],
-        dtype=np.int64,
-    )
-    y = np.array([int(l) for l in labels], dtype=np.int64)
+    if failure_policy not in {"exclude", "safe", "vulnerable", "error"}:
+        raise ValueError("failure_policy must be exclude, safe, vulnerable, or error.")
+
+    abstentions = sum(p is None for p in predictions)
+    if failure_policy == "error" and abstentions:
+        raise ValueError(f"Received {abstentions} abstaining predictions.")
+
+    pairs = [(p, l) for p, l in zip(predictions, labels) if p is not None]
+    if failure_policy in {"safe", "vulnerable"}:
+        fill = failure_policy == "vulnerable"
+        pairs = [(fill if p is None else p, l) for p, l in zip(predictions, labels)]
+
+    preds = np.array([int(bool(p)) for p, _ in pairs], dtype=np.int64)
+    y = np.array([int(l) for _, l in pairs], dtype=np.int64)
 
     tp = int(((preds == 1) & (y == 1)).sum())
     fp = int(((preds == 1) & (y == 0)).sum())
@@ -74,6 +89,7 @@ def classification_metrics(
     fn = int(((preds == 0) & (y == 1)).sum())
 
     support = tp + fp + tn + fn
+    total = len(labels)
     accuracy = (tp + tn) / support if support else 0.0
     precision = tp / (tp + fp) if (tp + fp) else 0.0
     recall = tp / (tp + fn) if (tp + fn) else 0.0
@@ -81,7 +97,11 @@ def classification_metrics(
 
     return Metrics(
         accuracy=accuracy, precision=precision, recall=recall, f1=f1,
-        support=support, tp=tp, fp=fp, tn=tn, fn=fn,
+        support=support,
+        total=total,
+        abstentions=abstentions,
+        coverage=((total - abstentions) / total if total else 0.0),
+        tp=tp, fp=fp, tn=tn, fn=fn,
     )
 
 
@@ -89,6 +109,8 @@ def metrics_by_cwe(
     predictions: Sequence[int | bool | None],
     labels: Sequence[int],
     cwes: Sequence[str],
+    *,
+    failure_policy: str = "exclude",
 ) -> dict[str, Metrics]:
     """Group metrics by CWE label, matching Tables 4 and 8 of the paper."""
     if not (len(predictions) == len(labels) == len(cwes)):
@@ -102,6 +124,7 @@ def metrics_by_cwe(
         cwe: classification_metrics(
             [predictions[i] for i in idxs],
             [labels[i] for i in idxs],
+            failure_policy=failure_policy,
         )
         for cwe, idxs in by_cwe.items()
     }

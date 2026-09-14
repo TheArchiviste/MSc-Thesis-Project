@@ -1,8 +1,8 @@
 # A guided tour of the LLMxCPG implementation
 
-This is a step-by-step walkthrough of the code in `/mnt/user-data/outputs/llmxcpg/`. It assumes you have the paper (Lekssays et al., USENIX Security 2025) and the literature review to hand, and that you want to understand not just *what* each file does but *why* it was written that way and how the pieces fit together at runtime.
+This is a step-by-step walkthrough of the repository. It assumes you have the paper (Lekssays et al., USENIX Security 2025) and the literature review to hand, and that you want to understand not just *what* each file does but *why* it was written that way and how the pieces fit together at runtime.
 
-The guide is organised by data flow rather than by alphabetical file listing. We start with a 30-second overview, then trace a single piece of code from "raw C file on disk" all the way to "VULNERABLE/SAFE verdict", touching each module as we go. Training, calibration, and evaluation come after, because they're things you do once to *produce* the artefacts that inference consumes.
+The guide is organised by data flow rather than by alphabetical file listing. We start with a 30-second overview, then trace a single piece of code from raw C input to the user-facing vulnerable/safe verdict, touching each module as we go. Training, calibration, and evaluation come after, because they're things you do once to *produce* the artefacts that inference consumes.
 
 ---
 
@@ -32,7 +32,7 @@ Slice reconstruction
     ▼
 LLMxCPG-D  (fine-tuned QwQ-32B-Preview, with a reduced LM head)
     │
-    │  one forward pass; we read only the logits for the tokens VULNERABLE and SAFE,
+    │  one forward pass through a two-output [No, Yes] head,
     │  softmax over those two values, threshold against γ
     ▼
 Verdict + probability + the full audit trail
@@ -72,7 +72,7 @@ Here is what happens, step by step, with the file responsible for each step:
 | 10 | Line numbers parsed out of Joern's textual output | `llmxcpg/slicing/extractor.py` |
 | 11 | Snippet reconstructed with structural anchors | `llmxcpg/slicing/reconstruction.py` |
 | 12 | Detection prompt rendered with the snippet | `llmxcpg/prompts.py` |
-| 13 | Tokeniser maps VULNERABLE/SAFE to single token IDs | `llmxcpg/inference/classifier.py` |
+| 13 | Tokeniser maps No/Yes to single token IDs and installs a two-row head | `llmxcpg/inference/classifier.py` |
 | 14 | One forward pass through D; last-position logits captured | `llmxcpg/inference/classifier.py` |
 | 15 | The two logits softmaxed; probability thresholded | `llmxcpg/inference/classifier.py` |
 | 16 | `ClassificationResult` returned with stage outputs attached | `llmxcpg/inference/pipeline.py` |
@@ -113,11 +113,11 @@ The other constant worth understanding here is `SUPPORTED_CWES`: nine memory-saf
 Two string constants, both pulled verbatim from Appendix E of the paper:
 
 - `QUERY_GENERATION_PROMPT` (Figure 8) is what Q is fine-tuned against. It tells the model that its job is to output a JSON object whose `queries` field is a sequence of CPGQL expressions ending in a `reachableByFlows` call.
-- `DETECTION_PROMPT` (Figure 10) is what D is fine-tuned against. It instructs the model to emit exactly the word `VULNERABLE` or `SAFE`.
+- `DETECTION_PROMPT` reproduces the released implementation's system text and `## Instruction/## Input/## Response` serialization. The instruction retains upstream's VULNERABLE/BENIGN wording, while the training targets and reduced head are `Yes`/`No`; this odd mismatch is part of the released contract.
 
 Both prompts contain a `<CODE>` placeholder; the helpers `render_query_prompt(code)` and `render_detection_prompt(slice)` substitute it.
 
-This module deliberately has zero logic. Its sole responsibility is to not be a place where prompt drift happens. The reduced LM head in the classifier depends on the exact words `VULNERABLE` and `SAFE`; if someone edits the prompt to say "VULN"/"OK" without also updating `ModelConfig.vulnerable_token`/`safe_token`, classification will silently degrade. Pinning the strings here, with a comment noting the paper section, is the smallest fence I can put around that footgun.
+This module deliberately has almost no logic. Its responsibility is to prevent prompt drift. The released model and calibrated thresholds depend on the exact `Yes`/`No` tokens and section markers; changing either requires retraining or recalibration.
 
 ---
 
@@ -129,7 +129,7 @@ Joern is a Java-based static-analysis platform written in Scala. It has a server
 
 `JoernClient` is a thin synchronous wrapper around `cpgqls-client`. Three things it does that the raw client doesn't:
 
-**1. Code import.** Joern needs source files on disk in its workspace. The `import_code` method accepts either a path or a literal string; if you pass a string it writes a temp file with a guessed extension (`.c` vs `.cpp`) and imports that. If a project of the same name already exists in the workspace it's dropped first — so successive `import_code` calls don't accumulate stale CPGs.
+**1. Code import.** Joern needs source files on disk in its own filesystem. The `import_code` method accepts either a path or literal source, copies it to `work/joern-inputs`, and passes the corresponding `/analysis/inputs` path to Dockerized Joern. Every CPG gets a collision-resistant project name and is removed with Joern's top-level `delete(...)` command.
 
 **2. Output parsing.** Joern returns results as a stdout string like `val42: List[Int] = List(12, 14, 15, 18)`. The client's `_extract_value` method regex-matches the `valN: T = ` prefix, attempts to JSON-decode the RHS, and falls back to the raw string if that fails. Why isn't this more clever? Because Joern's output format is technically unstable across versions and the queries we run are restricted enough that we can parse what we need (line numbers, list lengths) deterministically downstream.
 
@@ -224,33 +224,32 @@ This is the surgical core of the paper. `llmxcpg/inference/classifier.py` deserv
 
 ### The standard approach (which we're not using)
 
-If you wanted to use a fine-tuned LLM as a binary classifier, the obvious approach is: prompt it, do autoregressive generation, take the first token of the output, check if it's "VULNERABLE" or "SAFE". This works but it's wasteful: you run a full generation loop (with KV-cache, sampling, stopping logic) to produce a single token. It's also fragile: the model might emit a space first, or apologise, or hedge with "potentially VULNERABLE".
+If you wanted to use a fine-tuned LLM as a binary classifier, the obvious approach is to generate `Yes` or `No` and parse it. That is wasteful and fragile because a generative model can emit whitespace or extra prose.
 
 ### What we do instead
 
-We never call `generate()`. We call `model(input_ids)` once. We grab the logits at the *last position* of the prompt — that's the position where the model would generate its first token. We pick out the logits at the two token IDs corresponding to `VULNERABLE` and `SAFE`. We softmax over just those two values. We threshold.
+We never call `generate()`. At model load, the full vocabulary projection is replaced with two copied rows ordered `[No, Yes]`. A forward pass therefore produces only two logits per token. We take the last position, softmax the pair, and threshold the `Yes` probability.
 
 In code:
 
 ```python
 # At init time:
-self.vuln_token_id = tokenizer.encode("VULNERABLE", add_special_tokens=False)[0]
-self.safe_token_id = tokenizer.encode("SAFE", add_special_tokens=False)[0]
+safe_id = tokenizer.encode("No", add_special_tokens=False)[0]
+vuln_id = tokenizer.encode("Yes", add_special_tokens=False)[0]
+reduced_head.weight = original_head.weight[[safe_id, vuln_id]]
 
 # At inference time:
 out = model(input_ids)               # one forward pass, KV cache disabled
-last_logits = out.logits[0, -1, :]   # logits for "what comes next?"
-vuln = last_logits[self.vuln_token_id].item()
-safe = last_logits[self.safe_token_id].item()
-p_vuln, p_safe = softmax([vuln, safe])  # softmax over just two values
-is_vulnerable = p_vuln > gamma
+safe_logit, vuln_logit = out.logits[0, -1, :]
+p_safe, p_vuln = softmax([safe_logit, vuln_logit])
+is_vulnerable = p_vuln >= gamma
 ```
 
-This is mathematically equivalent to computing the model's probability of saying "VULNERABLE" vs "SAFE" as its first token, conditioned on that being the only two options. It's also dramatically cheaper than generation and impossible to confuse with any other output. The model literally cannot emit a third class.
+This is mathematically equivalent to computing the model's probability of saying `No` vs `Yes` as its first token, conditioned on those two options. It also avoids allocating full-vocabulary logits.
 
 ### The token-resolution subtlety
 
-The above assumes `VULNERABLE` and `SAFE` are each single tokens in the tokeniser. For Qwen-family models with ALL-CAPS in vocab this is the case, but BPE behaviour can vary based on whether there's a leading space.
+The above assumes `No` and `Yes` are each single tokens in the tokeniser. BPE behaviour can vary based on whether there is a leading space, so both spellings are tried and incompatible tokenisers fail loudly.
 
 `_resolve_token_ids` handles this by trying both `"VULNERABLE"` and `" VULNERABLE"` and picking the first one that encodes to a single token. If neither works it raises a clear error rather than silently using a multi-token sequence (which would give meaningless logits at that position). This is the one place where I would want to be loud rather than graceful — a multi-token label silently working would be the kind of bug that costs you a month of trust.
 
@@ -271,7 +270,7 @@ For `classify_batch`, we temporarily flip the tokeniser's `padding_side` to `"le
 `LLMxCPGPipeline` is the only class most callers ever instantiate. It holds:
 
 - A `QueryGenerator` (Q-model wrapper)
-- A `VulnerabilityClassifier` (D-model wrapper)
+- A lazily loaded `VulnerabilityClassifier` (D-model wrapper)
 - A `JoernClient`
 - A default threshold
 
@@ -290,13 +289,13 @@ failure_stage            # "query_parse" | "slice" | None
 failure_reason           # string explaining the failure
 ```
 
-The `is_vulnerable is None when failure_stage is not None` invariant is what makes audit reporting straightforward. The evaluation metrics function `classification_metrics` has a parameter `abstain_value=0` that controls whether failures are counted as predicted-safe (the conservative default) or skipped from the calculation. The paper counts them as predicted-safe in its main tables, so that's the default; but if you're trying to characterise the pipeline's reliability separately from its discrimination, you want the breakdown.
+The `is_vulnerable is None when failure_stage is not None` invariant is what makes audit reporting straightforward. Evaluation excludes these abstentions by default and reports both coverage and abstention count. Explicit `safe`, `vulnerable`, and `error` policies are available for sensitivity analyses.
 
-The `detect_batch` method is a small optimisation over looping `detect`: it batches the Q-model inference up front (vLLM benefits from this) and the D-model inference at the end (the reduced LM head is cheap but batching helps anyway). Joern is still per-sample because each sample needs its own CPG.
+The `detect_batch` method batches Q-model inference up front and D-model inference at the end. In the default single-GPU layout, Q is released before D is lazily loaded, so dataset callers must use this method rather than loop over `detect`. Joern remains sequential because each sample needs its own CPG in this client session.
 
 ### Why not async?
 
-Joern serialises queries within a session. Async wouldn't help on a single session. To parallelise, you spin up multiple Joern containers (see `docker/docker-compose.yml`) and shard samples across them — but that's a deployment concern, not an inference-API concern, so it's not in this class. If you wanted to use it, you'd instantiate one `LLMxCPGPipeline` per Joern instance and parallelise at the caller level.
+Joern serialises queries within a session, so async does not help this client. Parallel deployments must explicitly provision multiple isolated Joern workers and shard inputs across separate pipeline instances; the supplied compose file intentionally starts one worker because the library does not contain an endpoint pool.
 
 ---
 
@@ -359,7 +358,7 @@ After bootstrapping you have (code, queries) pairs. After running those queries 
 {"instruction": "<rendered prompt>", "input": "", "output": "<expected response>"}
 ```
 
-For Q the output is `{"queries": [...]}`; for D it's the literal word `VULNERABLE` or `SAFE`. The functions are `build_q_training_set(bootstrap_jsonl, output_path)` and `build_d_training_set(sliced_samples, output_path)`.
+For Q the output is `{"queries": [...]}`; for D it is the literal word `Yes` or `No`. The functions are `build_q_training_set(bootstrap_jsonl, output_path)` and `build_d_training_set(sliced_samples, output_path)`.
 
 ---
 
@@ -367,21 +366,21 @@ For Q the output is `{"queries": [...]}`; for D it's the literal word `VULNERABL
 
 ### `configs/llamafactory/`
 
-The reference path is LLaMA-Factory, which the paper uses. The two YAML files (`train_q.yaml`, `train_d.yaml`) encode the paper's hyperparameters:
+The reference path is LLaMA-Factory. The two YAML files (`train_q.yaml`, `train_d.yaml`) encode the configured hyperparameters:
 
 - LoRA rank=8, alpha=4, dropout=0
 - Learning rate 1e-4 with cosine schedule, 5% warmup
 - 3 epochs
 - BF16, gradient checkpointing on
-- Context: 32K for Q (paper §5 explains why this is the maximum they could fit), 8K for D (slices are short)
+- Context: 32K for Q, 8K for D training, and 16K for released D inference
 
 `dataset_info.json` is LLaMA-Factory's registry file — it tells the framework where the JSONL lives and how to map alpaca columns to its internal schema.
 
 ### `llmxcpg/training/train_q.py` and `train_d.py`
 
-These are stand-alone PEFT-based training scripts as a fallback if you don't want to install LLaMA-Factory. They're written to be readable end-to-end: load tokeniser, load base model, attach LoRA, format the alpaca data into causal-LM strings, tokenise with truncation, pass to `Trainer`, save.
+These are stand-alone PEFT-based training scripts as a fallback if you don't want to install LLaMA-Factory. Q applies the tokenizer's Qwen chat template; D uses the released raw section-marker format. Both mask prompt tokens so training loss is computed only on the expected response.
 
-`train_d.py` is implemented as a thin wrapper over `train_q.py` because the only differences are the base model name and the context length. Re-implementing the entire training loop twice would invite drift.
+`train_d.py` is a thin wrapper over `train_q.py` that changes the base model, context length, and prompt template. Re-implementing the entire training loop twice would invite drift.
 
 ### `llmxcpg/training/lora_config.py`
 
@@ -420,7 +419,7 @@ The companion CLI is `scripts/calibrate_threshold.py`, which:
 
 ### `llmxcpg/evaluation/metrics.py`
 
-`classification_metrics(predictions, labels)` returns a `Metrics` dataclass with accuracy, precision, recall, F1, support, and the full confusion matrix. The function tolerates `None` predictions (pipeline failures) by collapsing them to a configurable `abstain_value` — 0 by default, so failed samples are counted as predicted-safe. This matches how the paper reports its numbers.
+`classification_metrics(predictions, labels)` returns accuracy, precision, recall, F1, support, the confusion matrix, total inputs, abstentions, and coverage. `None` predictions are excluded by default; choose an explicit failure policy when reproducing a different reporting convention.
 
 `metrics_by_cwe(predictions, labels, cwes)` groups by CWE for the per-CWE breakdowns the paper reports in Tables 4 and 8.
 
@@ -527,8 +526,8 @@ Suppose you have the `examples/cve_2011_3359.c` file from the project. Here's wh
 ```bash
 python scripts/run_pipeline.py \
     --code examples/cve_2011_3359.c \
-    --query-model qcri/llmxcpg-q \
-    --detector-model qcri/llmxcpg-d \
+    --query-model QCRI/LLMxCPG-Q \
+    --detector-model QCRI/LLMxCPG-D \
     --dataset primevul
 ```
 
@@ -540,7 +539,7 @@ python scripts/run_pipeline.py \
 6. `SliceExtractor.extract` is called. It opens a Joern session, imports the C file (Joern parses it with its C/C++ frontend, builds AST + CFG + PDG = CPG), and runs Q's three queries in order. The first two bind `source` and `sink`; the third computes flows.
 7. The extractor normalises the binding (`execution_path` is already defined by Q, so nothing changes), then runs the interacters and backward-slice queries. The backward slice returns something like `List(15, 17, 18, 20, 21, 22)`.
 8. Reconstruction takes those line numbers plus the function header (line 17, `void process_beacon(...)`) and close-brace (line 26), emits them in order with blank lines for gaps. The result is a ~10-line snippet showing the read of `len` from attacker-controlled data, the `nla_data` call, and the bounds-check-free `memcpy`.
-9. The D-prompt is rendered with that snippet. The detector tokenises (well under 8K tokens), does one forward pass, and reads the logits for `VULNERABLE` and `SAFE` at the last position.
+9. The D-prompt is rendered with that snippet. The detector tokenises it, does one forward pass, and reads the `[No, Yes]` logits at the last position.
 10. Suppose those logits are 4.1 and -1.3. Softmax gives p_vuln ≈ 0.996, p_safe ≈ 0.004. Against γ=0.594 this is decisively VULNERABLE.
 11. The result object carries every artefact from every stage. The CLI prints:
 

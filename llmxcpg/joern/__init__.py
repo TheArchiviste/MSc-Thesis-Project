@@ -11,6 +11,7 @@ from llmxcpg.joern.queries import (
     BACKWARD_SLICE_QUERY_TEMPLATE,
     build_interacters_query,
     build_backward_slice_query,
+    validate_generated_query,
 )
 
 __all__ = [
@@ -21,6 +22,7 @@ __all__ = [
     "BACKWARD_SLICE_QUERY_TEMPLATE",
     "build_interacters_query",
     "build_backward_slice_query",
+    "validate_generated_query",
 ]
 
 

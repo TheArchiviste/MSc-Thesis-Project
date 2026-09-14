@@ -1,0 +1,16 @@
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+.venv/
+build/
+dist/
+checkpoints/
+data/*.jsonl
+results/
+work/*
+!work/joern-inputs/
+work/joern-inputs/*
+!work/joern-inputs/.gitkeep
+*.log

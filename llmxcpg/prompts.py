@@ -1,7 +1,8 @@
-"""Prompt templates.
+"""Prompt templates matching the released training/inference serialization.
 
-Lifted directly from Appendix E (Figures 8, 9, 10) of the paper. Do not freelance:
-fine-tuning was done against these exact strings, and drift will degrade results.
+The Q task follows the paper prompt. D includes the upstream system prompt,
+instruction text, and section markers. Drift from these strings changes the
+model contract and invalidates published calibration thresholds.
 """
 
 # ---------------------------------------------------------------------------
@@ -42,39 +43,98 @@ Input: <CODE>
 
 
 # ---------------------------------------------------------------------------
-# LLMxCPG-D: vulnerability classification (Figure 10 in the paper).
+# LLMxCPG-D: vulnerability classification.
 # ---------------------------------------------------------------------------
 #
-# Worth flagging: the paper's prompt has a small inconsistency — the body asks
-# for "VULNERABLE" or "BENIGN", then the closing instruction says "VULNERABLE"
-# or "SAFE". We use VULNERABLE/SAFE because (a) it's what the closing line
-# asserts and (b) it's what the reduced-LM-head logic in inference/classifier.py
-# extracts. If you fine-tune from a different prompt, change ModelConfig.
-#
-DETECTION_PROMPT = """\
-Instruction:
-You are a security code vulnerability analyzer. Your task is to carefully analyze the provided code snippet. Note that the provided code snippet might not be complete, but it has all the important context.
+# The released implementation does not feed Figure 10 directly to the model.
+# It prepends this system text and appends explicit Instruction/Input/Response
+# section markers. Upstream attempts a "Single word" Yes/No rewrite, but its
+# dataset says "One word", so that rewrite is a no-op. The target/output head
+# is nevertheless Yes/No; this intentional-looking mismatch is preserved for
+# checkpoint and threshold compatibility.
+# Keeping that wire format matters because the released adapter and calibrated
+# thresholds were trained against it.
+DETECTION_SYSTEM_PROMPT = """\
+You are a specialized vulnerability analyzer with deep expertise in taint analysis and secure coding practices.
 
+Core Functions:
+- Process sequential taint paths that show data flow from source to sink
+- Analyze each transformation's security implications
+- Detect missing input validations and sanitization
+- Identify potential memory, buffer, and integer vulnerabilities
+- Assess DMA operation safety
+- Evaluate resource management
+
+Behavioral Guidelines:
+- Focus exclusively on the provided taint path sequence
+- Track how data transforms through each step
+- Consider implicit type conversions and edge cases
+- Look for validation gaps between transformations
+- Evaluate final sink operation safety
+- Provide deterministic VULNERABLE/BENIGN classification
+
+Vulnerability Categories:
+- Buffer/Integer Operations
+- Overflow/Underflow potential
+- Sign conversion issues
+- Boundary checks
+- Memory Management
+- Use-after-free
+- Double free
+- Memory corruption
+- Uninitialized access
+- DMA Operations
+- Address validation
+- Boundary checking
+- Translation safety
+- Size verification
+- Input Processing
+- Validation completeness
+- Sanitization effectiveness
+- Type safety
+- Range checking
+
+Analysis Method:
+- Parse source-to-sink flow
+- Identify critical transformations
+- Detect validation gaps
+- Evaluate sink safety
+- Consider edge cases
+- Make binary decision
+
+Output: Exactly one word - VULNERABLE or BENIGN
+"""
+
+DETECTION_INSTRUCTION = """\
+You are a security code vulnerability analyzer. Your task is to carefully analyze the provided code snippet. Note that the provided code snippet might not be complete, but it has all the important context.
 Your output must be EXACTLY ONE WORD:
-  - If you detect any potential security vulnerability in the specified code segment, return: VULNERABLE
-  - If the code segment appears to be secure and free from obvious vulnerabilities, return: SAFE
+
+If you detect any potential security vulnerability in the specified code segment, return: VULNERABLE
+If the code segment appears to be secure and free from obvious vulnerabilities, return: BENIGN
 
 IMPORTANT GUIDELINES:
-Consider common vulnerability types such as:
-  - Buffer overflows
-  - Improper input validation
-  - Integer Overflow
-  - Memory corruption potential
-  - Double free
-  - Use after free
 
-Your response must be either 'VULNERABLE' or 'SAFE' - no additional explanation
+Consider common vulnerability types such as:
+
+- Buffer overflows
+- Improper input validation
+- Integer Overflow
+- Memory corruption potential
+- Double free
+- Use after free
+
+Your response must be either 'VULNERABLE' or 'BENIGN' - no additional explanation
 
 Output format:
-One word: VULNERABLE or SAFE
-
-Input: <CODE>
+One word: VULNERABLE or BENIGN
 """
+
+DETECTION_PROMPT = (
+    DETECTION_SYSTEM_PROMPT
+    + "\n\n## Instruction:\n"
+    + DETECTION_INSTRUCTION
+    + "\n## Input:\n<CODE>\n## Response:\n"
+)
 
 
 def render_query_prompt(code: str) -> str:

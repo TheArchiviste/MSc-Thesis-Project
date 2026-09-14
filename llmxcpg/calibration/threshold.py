@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
-from typing import Iterable, Sequence
+from typing import Sequence
 
 import numpy as np
 
@@ -88,7 +88,7 @@ def calibrate_threshold(
     best_f1 = 0.0
 
     for gamma in grid:
-        preds = (probs > gamma).astype(np.int64)
+        preds = (probs >= gamma).astype(np.int64)
         acc = float((preds == y).mean())
         f1 = _f1(preds, y)
         sweep.append((float(gamma), acc, f1))

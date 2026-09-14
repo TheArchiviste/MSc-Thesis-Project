@@ -20,7 +20,9 @@ lora_dropout: 0.0
 
 ### Dataset
 dataset: llmxcpg_d              # register data/d_train.jsonl as "llmxcpg_d" in dataset_info.json
-template: qwen
+# The released detector uses the literal ## Instruction/Input/Response wire
+# format produced by render_detection_prompt, not Qwen chat delimiters.
+template: empty
 cutoff_len: 8192
 overwrite_cache: true
 preprocessing_num_workers: 16
