@@ -6,10 +6,9 @@ so anyone tweaking them can trace the provenance.
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Mapping
-
 
 # Per-dataset thresholds γ from §4.2 of the paper (calibrated on 20 validation samples).
 # Note the wide spread — see Discussion in the literature review on portability cost.

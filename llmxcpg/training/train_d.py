@@ -20,7 +20,6 @@ from __future__ import annotations
 import argparse
 import logging
 
-
 logger = logging.getLogger(__name__)
 
 
@@ -40,6 +39,7 @@ def main() -> None:
     # The body is identical to train_q.py with a different default base model
     # and shorter max_seq_length. We delegate to the same helper.
     import sys
+
     from llmxcpg.training import train_q
 
     sys.argv = [

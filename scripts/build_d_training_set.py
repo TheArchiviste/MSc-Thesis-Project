@@ -11,11 +11,13 @@ import argparse
 import logging
 
 from llmxcpg.config import Config, JoernConfig, ModelConfig
+from llmxcpg.data.loaders import load_formai_v2, load_primevul
 from llmxcpg.data.prepare import build_d_training_set
-from llmxcpg.data.loaders import load_primevul, load_formai_v2
 from llmxcpg.inference.query_generator import QueryGenerator
 from llmxcpg.joern.client import JoernClient
 from llmxcpg.slicing.extractor import SliceExtractor, SliceFailure
+
+logger = logging.getLogger(__name__)
 
 
 def main() -> int:
@@ -58,7 +60,7 @@ def main() -> int:
                     s["code"], query_output.queries, project_name=f"d_train_{index}",
                 )
             except SliceFailure:
-                logging.exception("Slicing failed for sample %s", s.get("id", index))
+                logger.exception("Slicing failed for sample %s", s.get("id", index))
                 continue
             sliced.append({
                 "id": s["id"],
@@ -70,8 +72,8 @@ def main() -> int:
         query_generator.close()
         try:
             joern.reset()
-        except Exception as exc:
-            logging.warning("Joern cleanup failed: %s", exc)
+        except Exception as exc:  # noqa: BLE001 - best-effort cleanup
+            logger.warning("Joern cleanup failed: %s", exc)
 
     n = build_d_training_set(sliced, args.out)
     print(f"Wrote {n} D training records (from {len(samples)} samples; "

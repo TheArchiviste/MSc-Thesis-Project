@@ -7,7 +7,7 @@ from __future__ import annotations
 
 from llmxcpg.slicing.reconstruction import reconstruct_code_from_lines
 
-__all__ = ["SliceExtractor", "Slice", "SliceFailure", "reconstruct_code_from_lines"]
+__all__ = ["Slice", "SliceExtractor", "SliceFailure", "reconstruct_code_from_lines"]
 
 
 def __getattr__(name: str):

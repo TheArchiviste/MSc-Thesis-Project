@@ -18,13 +18,14 @@ whether to fall back to whole-file classification or simply abstain.
 from __future__ import annotations
 
 import logging
+from collections.abc import Callable
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Callable, Optional
+from typing import TYPE_CHECKING
 
-from llmxcpg.config import Config, DEFAULT_THRESHOLDS
+from llmxcpg.config import DEFAULT_THRESHOLDS, Config
+from llmxcpg.inference.query_generator import QueryGenerationOutput, QueryGenerator
 from llmxcpg.joern.client import JoernClient
 from llmxcpg.slicing.extractor import Slice, SliceExtractor, SliceFailure
-from llmxcpg.inference.query_generator import QueryGenerator, QueryGenerationOutput
 
 if TYPE_CHECKING:
     from llmxcpg.inference.classifier import ClassificationOutput, VulnerabilityClassifier
@@ -37,17 +38,17 @@ logger = logging.getLogger(__name__)
 class ClassificationResult:
     """Everything the pipeline knows about a single input."""
     source_code: str
-    is_vulnerable: Optional[bool]
-    probability_vulnerable: Optional[float] = None
-    probability_safe: Optional[float] = None
-    threshold: Optional[float] = None
+    is_vulnerable: bool | None
+    probability_vulnerable: float | None = None
+    probability_safe: float | None = None
+    threshold: float | None = None
     # Stage outputs
-    query_output: Optional[QueryGenerationOutput] = None
-    slice: Optional[Slice] = None
-    classification: Optional[ClassificationOutput] = None
+    query_output: QueryGenerationOutput | None = None
+    slice: Slice | None = None
+    classification: ClassificationOutput | None = None
     # Failure tracking
-    failure_stage: Optional[str] = None  # "query_parse" | "slice" | None
-    failure_reason: Optional[str] = None
+    failure_stage: str | None = None  # "query_parse" | "slice" | None
+    failure_reason: str | None = None
 
     @property
     def succeeded(self) -> bool:
@@ -81,7 +82,7 @@ class LLMxCPGPipeline:
         cls,
         config: Config,
         dataset_threshold_key: str | None = None,
-    ) -> "LLMxCPGPipeline":
+    ) -> LLMxCPGPipeline:
         """Build a pipeline from a `Config`. Picks the per-dataset threshold if asked."""
         thr = (
             DEFAULT_THRESHOLDS.get(dataset_threshold_key, config.threshold)
@@ -168,7 +169,7 @@ class LLMxCPGPipeline:
         finally:
             try:
                 self.joern.reset()
-            except Exception as exc:
+            except Exception as exc:  # noqa: BLE001 - cleanup must not mask the result
                 logger.warning("Joern cleanup failed: %s", exc)
 
         result.slice = slc
@@ -221,7 +222,7 @@ class LLMxCPGPipeline:
             finally:
                 try:
                     self.joern.reset()
-                except Exception as exc:
+                except Exception as exc:  # noqa: BLE001 - cleanup must not mask the result
                     logger.warning("Joern cleanup failed: %s", exc)
             results.append(r)
 

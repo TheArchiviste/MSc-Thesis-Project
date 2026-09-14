@@ -21,13 +21,12 @@ import json
 import logging
 import os
 import time
+from collections.abc import Iterable
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Iterable
 
 from llmxcpg.joern.client import JoernClient, JoernError
 from llmxcpg.joern.queries import validate_generated_query
-
 
 logger = logging.getLogger(__name__)
 
@@ -87,7 +86,7 @@ class DeepSeekQueryProposer:
 
     def __post_init__(self) -> None:
         if not self.api_key:
-            raise EnvironmentError(
+            raise OSError(
                 "DEEPSEEK_API_KEY is not set. Bootstrap requires API access."
             )
         # Lazy import; openai is an optional dep.
@@ -147,7 +146,10 @@ class DeepSeekQueryProposer:
                 if isinstance(queries, list) and all(isinstance(q, str) for q in queries):
                     return queries
                 return []
-            except Exception as e:  # pragma: no cover
+            # The OpenAI-compatible SDK can surface transport, timeout, HTTP,
+            # and response-validation failures through different exception
+            # hierarchies. Retrying all of them is intentional here.
+            except Exception as e:  # noqa: BLE001  # pragma: no cover
                 logger.warning("DeepSeek API attempt %d failed: %s", attempt + 1, e)
                 time.sleep(2 ** attempt)
         return []

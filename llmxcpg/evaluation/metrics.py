@@ -13,8 +13,8 @@ Reduction-ratio statistics for the slicing stage match §4.3.1 of the paper
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import Sequence
 
 import numpy as np
 

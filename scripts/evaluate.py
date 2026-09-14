@@ -13,9 +13,11 @@ import json
 import logging
 from pathlib import Path
 
-from llmxcpg.config import Config, JoernConfig, ModelConfig, DEFAULT_THRESHOLDS
+from llmxcpg.config import DEFAULT_THRESHOLDS, Config, JoernConfig, ModelConfig
 from llmxcpg.evaluation.metrics import (
-    classification_metrics, metrics_by_cwe, reduction_ratio_stats,
+    classification_metrics,
+    metrics_by_cwe,
+    reduction_ratio_stats,
 )
 from llmxcpg.inference.pipeline import LLMxCPGPipeline
 

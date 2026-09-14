@@ -20,7 +20,6 @@ from dataclasses import dataclass
 from llmxcpg.config import ModelConfig
 from llmxcpg.prompts import render_query_prompt
 
-
 logger = logging.getLogger(__name__)
 
 
@@ -81,7 +80,7 @@ class QueryGenerator:
             raise ValueError(f"Unknown engine: {engine}")
 
     @classmethod
-    def from_config(cls, cfg: ModelConfig, **kwargs) -> "QueryGenerator":
+    def from_config(cls, cfg: ModelConfig, **kwargs) -> QueryGenerator:
         return cls(
             model_path=cfg.query_model_path,
             max_context=cfg.query_max_context,
@@ -183,7 +182,7 @@ class QueryGenerator:
                     executor_shutdown = getattr(executor, "shutdown", None)
                     if callable(executor_shutdown):
                         executor_shutdown()
-            except Exception as exc:
+            except Exception as exc:  # noqa: BLE001 - vLLM exposes backend-specific errors
                 logger.warning("vLLM engine shutdown reported an error: %s", exc)
             del engine
             try:
@@ -194,7 +193,7 @@ class QueryGenerator:
 
                 destroy_model_parallel()
                 destroy_distributed_environment()
-            except Exception as exc:
+            except Exception as exc:  # noqa: BLE001 - helpers vary across vLLM releases
                 logger.debug("vLLM cleanup helpers were unavailable or already closed: %s", exc)
             gc.collect()
             try:

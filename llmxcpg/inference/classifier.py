@@ -29,8 +29,8 @@ Subtleties:
 from __future__ import annotations
 
 import logging
+from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import Sequence
 
 import torch
 import torch.nn.functional as F
@@ -38,7 +38,6 @@ from transformers import AutoModelForCausalLM, AutoTokenizer
 
 from llmxcpg.config import ModelConfig
 from llmxcpg.prompts import render_detection_prompt
-
 
 logger = logging.getLogger(__name__)
 
@@ -105,7 +104,7 @@ class VulnerabilityClassifier:
         self._install_reduced_head()
 
     @classmethod
-    def from_config(cls, cfg: ModelConfig, **kwargs) -> "VulnerabilityClassifier":
+    def from_config(cls, cfg: ModelConfig, **kwargs) -> VulnerabilityClassifier:
         return cls(
             model_path=cfg.detector_model_path,
             vulnerable_token=cfg.vulnerable_token,

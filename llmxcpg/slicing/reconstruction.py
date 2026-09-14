@@ -21,8 +21,7 @@ disembodied statements.
 from __future__ import annotations
 
 import re
-from typing import Iterable
-
+from collections.abc import Iterable
 
 # Lightweight regex for "function header" — works for C/C++ and is forgiving
 # enough not to over-fire on macros. Matches lines like:

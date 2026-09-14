@@ -17,7 +17,6 @@ import logging
 
 from llmxcpg.config import TrainingConfig
 
-
 logger = logging.getLogger(__name__)
 
 
@@ -43,9 +42,13 @@ def main() -> None:
     from datasets import load_dataset
     from peft import get_peft_model
     from transformers import (
-        AutoModelForCausalLM, AutoTokenizer, TrainingArguments, Trainer,
+        AutoModelForCausalLM,
+        AutoTokenizer,
         DataCollatorForSeq2Seq,
+        Trainer,
+        TrainingArguments,
     )
+
     from llmxcpg.training.lora_config import build_lora_config
 
     logging.basicConfig(level=logging.INFO,

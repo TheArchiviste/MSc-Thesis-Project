@@ -7,21 +7,21 @@ just the query-template helpers.
 from __future__ import annotations
 
 from llmxcpg.joern.queries import (
-    INTERACTERS_QUERY_TEMPLATE,
     BACKWARD_SLICE_QUERY_TEMPLATE,
-    build_interacters_query,
+    INTERACTERS_QUERY_TEMPLATE,
     build_backward_slice_query,
+    build_interacters_query,
     validate_generated_query,
 )
 
 __all__ = [
+    "BACKWARD_SLICE_QUERY_TEMPLATE",
+    "INTERACTERS_QUERY_TEMPLATE",
     "JoernClient",
     "JoernError",
     "QueryResult",
-    "INTERACTERS_QUERY_TEMPLATE",
-    "BACKWARD_SLICE_QUERY_TEMPLATE",
-    "build_interacters_query",
     "build_backward_slice_query",
+    "build_interacters_query",
     "validate_generated_query",
 ]
 

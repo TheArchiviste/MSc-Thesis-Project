@@ -24,9 +24,10 @@ import re
 import shutil
 import tempfile
 import uuid
+from collections.abc import Iterable
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
-from typing import Any, Iterable
+from typing import Any
 
 try:
     from cpgqls_client import CPGQLSClient, import_code_query
@@ -64,7 +65,7 @@ class QueryResult:
         # Joern textual reps that mean "no result"
         if isinstance(self.stdout, str):
             txt = self.stdout.strip()
-            if txt.endswith("List()") or txt.endswith("Iterator()"):
+            if txt.endswith(("List()", "Iterator()")):
                 return True
         return False
 
@@ -257,11 +258,11 @@ class JoernClient:
     # ------------------------------------------------------------------ #
     # Context manager
     # ------------------------------------------------------------------ #
-    def __enter__(self) -> "JoernClient":
+    def __enter__(self) -> JoernClient:  # noqa: PYI034 - Python 3.10 lacks typing.Self
         return self
 
     def __exit__(self, exc_type, exc, tb) -> None:
         try:
             self.reset()
-        except Exception:
-            pass
+        except Exception as cleanup_error:  # noqa: BLE001 - preserve the original error
+            logger.debug("Joern cleanup failed while leaving the context: %s", cleanup_error)

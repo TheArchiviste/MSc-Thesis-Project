@@ -12,8 +12,7 @@ are *substrings* matched case-insensitively against the ESBMC verdict text.
 
 from __future__ import annotations
 
-from typing import Mapping
-
+from collections.abc import Mapping
 
 # Substring → CWE. Order matters: more specific patterns first.
 ESBMC_TO_CWE: Mapping[str, str] = {

@@ -17,11 +17,10 @@ calibration samples; we do *not* re-run inference inside the sweep.
 from __future__ import annotations
 
 import logging
+from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import Sequence
 
 import numpy as np
-
 
 logger = logging.getLogger(__name__)
 

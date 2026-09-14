@@ -26,9 +26,8 @@ from __future__ import annotations
 
 import logging
 from collections import Counter
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
-from typing import Mapping, Sequence
-
 
 logger = logging.getLogger(__name__)
 

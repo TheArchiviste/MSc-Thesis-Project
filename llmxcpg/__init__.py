@@ -8,16 +8,16 @@ module-level `__getattr__`.
 
 from __future__ import annotations
 
-from llmxcpg.config import Config, ModelConfig, JoernConfig, DEFAULT_THRESHOLDS
+from llmxcpg.config import DEFAULT_THRESHOLDS, Config, JoernConfig, ModelConfig
 
 __version__ = "0.1.0"
 __all__ = [
-    "LLMxCPGPipeline",
+    "DEFAULT_THRESHOLDS",
     "ClassificationResult",
     "Config",
-    "ModelConfig",
     "JoernConfig",
-    "DEFAULT_THRESHOLDS",
+    "LLMxCPGPipeline",
+    "ModelConfig",
 ]
 
 

@@ -17,8 +17,8 @@ import logging
 import random
 from pathlib import Path
 
-from llmxcpg.config import Config, JoernConfig, ModelConfig
 from llmxcpg.calibration.threshold import calibrate_threshold
+from llmxcpg.config import Config, JoernConfig, ModelConfig
 from llmxcpg.inference.pipeline import LLMxCPGPipeline
 
 

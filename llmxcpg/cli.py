@@ -6,10 +6,10 @@ import argparse
 import json
 import logging
 import sys
+from collections.abc import Sequence
 from pathlib import Path
-from typing import Sequence
 
-from llmxcpg.config import Config, DEFAULT_THRESHOLDS, JoernConfig, ModelConfig
+from llmxcpg.config import DEFAULT_THRESHOLDS, Config, JoernConfig, ModelConfig
 
 
 def build_parser() -> argparse.ArgumentParser:

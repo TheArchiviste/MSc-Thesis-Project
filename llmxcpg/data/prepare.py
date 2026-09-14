@@ -14,11 +14,10 @@ from __future__ import annotations
 
 import json
 import logging
+from collections.abc import Iterable
 from pathlib import Path
-from typing import Iterable
 
-from llmxcpg.prompts import render_query_prompt, render_detection_prompt
-
+from llmxcpg.prompts import render_detection_prompt, render_query_prompt
 
 logger = logging.getLogger(__name__)
 

@@ -6,11 +6,11 @@ Imports are lazy so the rest of the package works without torch/vllm/transformer
 from __future__ import annotations
 
 __all__ = [
+    "ClassificationOutput",
+    "ClassificationResult",
+    "LLMxCPGPipeline",
     "QueryGenerator",
     "VulnerabilityClassifier",
-    "ClassificationOutput",
-    "LLMxCPGPipeline",
-    "ClassificationResult",
 ]
 
 

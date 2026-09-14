@@ -22,17 +22,18 @@ import pytest
 
 from llmxcpg.calibration.threshold import calibrate_threshold
 from llmxcpg.data.esbmc_cwe_mapping import esbmc_error_to_cwe
+from llmxcpg.data.prepare import build_d_training_set
 from llmxcpg.evaluation.audit import (
-    audit_queries, fleiss_kappa, _alignment_score,
+    _alignment_score,
+    audit_queries,
+    fleiss_kappa,
 )
 from llmxcpg.evaluation.metrics import classification_metrics, metrics_by_cwe
-from llmxcpg.data.prepare import build_d_training_set
 from llmxcpg.inference.pipeline import LLMxCPGPipeline
 from llmxcpg.inference.query_generator import QueryGenerationOutput, QueryGenerator
 from llmxcpg.joern.queries import build_interacters_query, validate_generated_query
-from llmxcpg.prompts import render_query_prompt, render_detection_prompt
+from llmxcpg.prompts import render_detection_prompt, render_query_prompt
 from llmxcpg.slicing.reconstruction import reconstruct_code_from_lines
-
 
 # --------------------------------------------------------------------------- #
 # Reconstruction

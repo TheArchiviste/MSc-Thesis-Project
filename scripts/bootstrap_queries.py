@@ -18,13 +18,15 @@ import json
 import logging
 from pathlib import Path
 
-from llmxcpg.config import Config, JoernConfig, SUPPORTED_CWES
-from llmxcpg.data.bootstrap import bootstrap_query_dataset, DeepSeekQueryProposer
+from llmxcpg.config import SUPPORTED_CWES, Config, JoernConfig
+from llmxcpg.data.bootstrap import DeepSeekQueryProposer, bootstrap_query_dataset
 from llmxcpg.data.loaders import (
-    load_formai_v2, load_primevul, load_sven, load_reposvul,
+    load_formai_v2,
+    load_primevul,
+    load_reposvul,
+    load_sven,
 )
 from llmxcpg.joern.client import JoernClient
-
 
 LOADERS = {
     "formai": load_formai_v2,

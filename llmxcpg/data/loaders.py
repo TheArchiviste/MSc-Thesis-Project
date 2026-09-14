@@ -13,11 +13,10 @@ from __future__ import annotations
 
 import json
 import logging
+from collections.abc import Iterator
 from pathlib import Path
-from typing import Iterator
 
 from llmxcpg.data.esbmc_cwe_mapping import esbmc_error_to_cwe
-
 
 logger = logging.getLogger(__name__)
 
