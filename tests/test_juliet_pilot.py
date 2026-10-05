@@ -8,6 +8,7 @@ from pathlib import Path
 
 from evidence_experiment.schema import load_cases
 from juliet_pilot.prepare import OUTPUT, ROOT, prepare
+from juliet_pilot.real_probe import preflight
 from juliet_pilot.smoke import run as smoke_run
 
 
@@ -52,6 +53,20 @@ class JulietPilotTests(unittest.TestCase):
             self.assertEqual(second["query_runs"], 12)
             self.assertEqual(second["joern_resets"], 0)
             self.assertEqual(second["resumed_from_detector"], 12)
+
+    def test_real_probe_requires_digest_and_never_accepts_dummy_mode(self):
+        config = ROOT / "real_probe.example.json"
+        self.assertEqual(preflight(config, check_runtime=False),
+                         ["Replace joern_digest with the deployed image's sha256 digest"])
+        with tempfile.TemporaryDirectory() as temp:
+            changed = json.loads(config.read_text())
+            changed["query_engine"] = "dummy"
+            changed["allow_dummy"] = True
+            changed["joern_digest"] = "sha256:" + "0" * 64
+            path = Path(temp) / "config.json"
+            path.write_text(json.dumps(changed))
+            self.assertIn("Use the local vLLM Q engine without dummy mode",
+                          preflight(path, check_runtime=False))
 
 
 if __name__ == "__main__":
