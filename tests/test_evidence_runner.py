@@ -17,7 +17,6 @@ from evidence_experiment.schema import REQUIRED_CHECKS, load_cases, read_jsonl
 from llmxcpg.inference.query_generator import QueryGenerationOutput
 from llmxcpg.joern.client import JoernError, QueryResult
 
-
 SOURCE = "void f0()\n{\n char buf[10];\n char *data = buf;\n memcpy(data, src, 100);\n}\n"
 QUERIES = [
     'val source = cpg.identifier.name("buf").l',
