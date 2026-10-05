@@ -1,0 +1,19 @@
+{
+  "kind": "simulation_only",
+  "pipeline_commit": "7023ff49fe7b800e8b26bcae52e2fcdafe95fa9b",
+  "cases": 4,
+  "query_runs": 12,
+  "slice_runs": 12,
+  "detector_runs": 12,
+  "blind_packets": 4,
+  "joern_resets": 12,
+  "resumed_from_slices": 0,
+  "resumed_from_detector": 0,
+  "baseline_adequacy": {
+    "uncertain": 4
+  },
+  "synthetic_q": "pipeline dummy query bundle, identical on every input",
+  "synthetic_joern": "returns all source lines without running CPGQL",
+  "synthetic_d": "fixed safe verdict and 0.25 vulnerable probability",
+  "research_results": false
+}

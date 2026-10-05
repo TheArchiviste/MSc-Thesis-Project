@@ -2,10 +2,13 @@
 
 import json
 import re
+import tempfile
 import unittest
+from pathlib import Path
 
 from evidence_experiment.schema import load_cases
 from juliet_pilot.prepare import OUTPUT, ROOT, prepare
+from juliet_pilot.smoke import run as smoke_run
 
 
 class JulietPilotTests(unittest.TestCase):
@@ -31,6 +34,24 @@ class JulietPilotTests(unittest.TestCase):
                 source = (OUTPUT / case["sources"].get(arm, case["control_source"])).read_text()
                 self.assertNotRegex(source, re.compile(r"CWE\d+|\b(?:bad|good|FLAW|FIX)\b", re.IGNORECASE))
                 self.assertIn("void case_entry(void)", source)
+
+    def test_four_case_smoke_and_resume_keep_review_uncertain(self):
+        prepare()
+        with tempfile.TemporaryDirectory() as temp:
+            work = Path(temp)
+            first = smoke_run(work)
+            self.assertEqual([first[k] for k in ("query_runs", "slice_runs",
+                                                 "detector_runs")], [12, 12, 12])
+            self.assertEqual(first["joern_resets"], 12)
+            self.assertEqual(first["baseline_adequacy"], {"uncertain": 4})
+            analysis = json.loads((work / "analysis.json").read_text())
+            self.assertEqual(analysis["rq2"]["n_pairs"], 0)
+            self.assertTrue(all(obs["earliest_observed_change"] == "evidence_uncertain"
+                                for obs in analysis["rq3"]["observations"]))
+            second = smoke_run(work)
+            self.assertEqual(second["query_runs"], 12)
+            self.assertEqual(second["joern_resets"], 0)
+            self.assertEqual(second["resumed_from_detector"], 12)
 
 
 if __name__ == "__main__":

@@ -78,7 +78,32 @@ not evidence shown to the blinded assessor.
 The sample has one baseline flow variant per chosen flaw and no paired TM/TN
 perturbations. It was selected by mechanism diversity and reproducible ASan
 witnesses, not randomly sampled. It does not yet establish Q miss rates,
-evidence adequacy rates, paired loss, or diagnostic attribution. After human
-review and frozen calibration, run all four U cases through Q → Joern → D,
-retaining misses and abstentions. Only then construct and validate matched
-target/control transforms for the eligible paired analysis.
+evidence adequacy rates, paired loss, or diagnostic attribution. For a real
+baseline run, freeze calibration before running all four U cases through
+Q → Joern → D, retaining misses and abstentions. Independent human review
+is needed before claiming adequacy results. Construct and validate matched
+target/control transforms for the later paired analysis.
+
+## Pipeline integration smoke run without human ratings
+
+```bash
+python juliet_pilot/prepare.py
+python juliet_pilot/smoke.py --work /tmp/juliet-pilot-smoke
+```
+
+This invokes the pinned pipeline's **dummy Q mode**, then the experiment's
+query, slice, reconstruction, detector, packet, and analysis stages for all
+four U cases, three repeats each. A simulated Joern interface returns the
+entire source instead of evaluating CPGQL, and a simulated D interface emits
+a fixed score. The raw stage traces and report are written to the work
+directory. Rerunning the same command resumes without duplicating runs.
+`smoke_summary.json` records the local execution.
+
+The analysis receives empty assessment and adjudication files, so all four
+baseline adequacy decisions remain **uncertain**. The fixed verdicts are test
+values, not detector misses. This smoke run checks wiring, source handling,
+line reconstruction, output bookkeeping, and unresolved-review behavior.
+It does not test Q's query quality, Joern's graph semantics, D's predictions,
+threshold calibration, or the research questions. Run the actual Q/Joern/D
+configuration on suitable hardware to test those stages; human review can
+remain pending while preserving the raw stage outputs.
