@@ -110,6 +110,10 @@ remain pending while preserving the raw stage outputs.
 
 ## Acquire real Q and Joern traces on the four cases
 
+For the Windows laptop and university GPU node setup, use the
+[four-case runbook](RUNBOOK.md). It creates a local config, pins the running
+Joern image, and checks the source bind mount and GPU before downloading Q.
+
 `real_probe.example.json` pins the published Q checkpoint and records the
 D adapter revision for later use. Copy it to a local config, replace the Joern
 image digest with the digest actually deployed, and set the Joern host and
