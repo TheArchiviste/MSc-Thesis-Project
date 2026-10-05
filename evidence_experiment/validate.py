@@ -6,7 +6,6 @@ prove semantic equivalence over all inputs or correctness of a mechanism map.
 
 from __future__ import annotations
 
-import json
 import os
 import re
 import subprocess
@@ -21,7 +20,7 @@ def _run(argv: list[str], *, cwd: Path, input_text: str = "", timeout: int = 20,
          env: dict[str, str] | None = None) -> dict[str, Any]:
     try:
         result = subprocess.run(argv, cwd=cwd, input=input_text, text=True,
-                                stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                                capture_output=True,
                                 timeout=timeout, check=False, env=env)
         return {"status": "ok", "exit_code": result.returncode,
                 "stdout": result.stdout, "stderr": result.stderr}
@@ -75,10 +74,10 @@ def validate_witnesses(cases: list[Case], manifest: Path, plan_path: Path,
                                                          for run in runs.values()) else "fail")
         if checks["compile"] == "pass":
             expected = plan["asan_class"]
-            def triggered(run):
+            def triggered(run, expected_class=expected):
                 t = run["trigger"]
                 return (t["status"] == "ok" and t["exit_code"] != 0 and
-                        re.search(r"ERROR: AddressSanitizer:\s*" + re.escape(expected),
+                        re.search(r"ERROR: AddressSanitizer:\s*" + re.escape(expected_class),
                                   t["stderr"]) is not None)
 
             checks["trigger"] = ("pass" if all(triggered(r) for r in runs.values())

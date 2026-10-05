@@ -231,7 +231,7 @@ def analyze(cases: list[Case], work: Path, assessments: Path, adjudications: Pat
         "rq1": {"cases": len(cases), "adequacy": dict(baseline),
                 "adequacy_by_cwe": {family: dict(counts) for family, counts in by_family.items()},
                 "verdicts_repeat0": dict(baseline_verdicts),
-                "adequacy_by_verdict": [dict(adequacy=a, verdict=v, count=count)
+                "adequacy_by_verdict": [{"adequacy": a, "verdict": v, "count": count}
                                         for (a, v), count in sorted(cross.items())],
                 "unmodified_cases_with_assessment_variation": u_instability},
         "rq2": {"n_pairs": n, "n_clusters": len({p["cluster_id"] for p in paired}),
@@ -239,7 +239,7 @@ def analyze(cases: list[Case], work: Path, assessments: Path, adjudications: Pat
                 "paired_risk_difference": delta, "cluster_bootstrap_95_ci": ci,
                 "correct_verdict_despite_TM_evidence_loss": retained_correct_after_loss,
                 "exclusions": dict(exclusions), "pairs": paired},
-        "rq3": {"status_counts": [dict(arm=a, status=s, count=count)
+        "rq3": {"status_counts": [{"arm": a, "status": s, "count": count}
                                   for (a, s), count in sorted(failures.items())],
                 "observations": diagnostics},
         "run_evidence": list(outcomes.values()),

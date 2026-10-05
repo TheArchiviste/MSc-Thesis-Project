@@ -9,8 +9,7 @@ from pathlib import Path
 
 from evidence_experiment.analysis import analyze
 from evidence_experiment.runner import _failure_status, packet_index
-from evidence_experiment.schema import (REQUIRED_CHECKS, append_jsonl, load_cases,
-                                        run_specs)
+from evidence_experiment.schema import REQUIRED_CHECKS, append_jsonl, load_cases, run_specs
 
 
 class ExperimentAnalysisTests(unittest.TestCase):
@@ -69,8 +68,8 @@ class ExperimentAnalysisTests(unittest.TestCase):
                 "relationships": ["eight bytes into four"] if adequate else [],
                 "explanation": "bound and sink visible" if adequate else "bound not established",
             })
-        for cid, rid in set((s["case_id"], joins[s["run_id"]])
-                            for s in run_specs(self.cases)):
+        for cid, rid in {(s["case_id"], joins[s["run_id"]])
+                         for s in run_specs(self.cases)}:
             append_jsonl(self.adjudications, {
                 "case_id": cid, "review_id": rid, "match": "yes",
                 "reason": "Checked against documented mechanism",

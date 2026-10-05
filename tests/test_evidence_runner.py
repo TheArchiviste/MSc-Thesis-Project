@@ -1,18 +1,21 @@
 """Interface test against the actual llmxcpg modules, without Joern/GPU."""
 
-import unittest
-import tempfile
 import json
+import tempfile
+import unittest
 from pathlib import Path
 from types import SimpleNamespace
 
+from evidence_experiment.calibrate import calibrate
+from evidence_experiment.runner import (
+    classify_slices,
+    extract_one,
+    extract_slices,
+    generate_queries,
+)
+from evidence_experiment.schema import REQUIRED_CHECKS, load_cases, read_jsonl
 from llmxcpg.inference.query_generator import QueryGenerationOutput
 from llmxcpg.joern.client import JoernError, QueryResult
-
-from evidence_experiment.runner import (classify_slices, extract_one, extract_slices,
-                                        generate_queries)
-from evidence_experiment.calibrate import calibrate
-from evidence_experiment.schema import REQUIRED_CHECKS, load_cases, read_jsonl
 
 
 SOURCE = "void f0()\n{\n char buf[10];\n char *data = buf;\n memcpy(data, src, 100);\n}\n"

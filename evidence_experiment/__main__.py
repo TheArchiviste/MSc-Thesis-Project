@@ -10,8 +10,13 @@ from pathlib import Path
 
 from .analysis import analyze
 from .calibrate import calibrate
-from .runner import (classify_slices, extract_slices, generate_queries, load_config,
-                     review_packets)
+from .runner import (
+    classify_slices,
+    extract_slices,
+    generate_queries,
+    load_config,
+    review_packets,
+)
 from .schema import digest, index_jsonl, load_cases, read_jsonl
 from .validate import validate_witnesses
 
