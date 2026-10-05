@@ -1,0 +1,28 @@
+{
+  "source_file": "cwe122_terminator.c",
+  "source_sha256": "686521509b8ab270b8ee18e47a82966ea433d5c2905e5e361541924f9df60ea1",
+  "upstream_line_for_generated_line": [
+    17,
+    20,
+    24,
+    49,
+    50,
+    51,
+    52,
+    54,
+    55,
+    56,
+    57,
+    59,
+    60,
+    61,
+    62,
+    63,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null
+  ]
+}

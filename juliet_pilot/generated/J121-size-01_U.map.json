@@ -1,0 +1,24 @@
+{
+  "source_file": "cwe121_size.c",
+  "source_sha256": "21360550d9686c59b7264937bf9c1630ebde0b7139ba520c3375d4353c3b75a6",
+  "upstream_line_for_generated_line": [
+    17,
+    21,
+    22,
+    23,
+    24,
+    26,
+    27,
+    28,
+    30,
+    31,
+    32,
+    33,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null
+  ]
+}
