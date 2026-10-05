@@ -3,6 +3,7 @@
 import json
 import re
 import unittest
+
 from evidence_experiment.schema import load_cases
 from juliet_pilot.prepare import OUTPUT, ROOT, prepare
 
@@ -28,7 +29,7 @@ class JulietPilotTests(unittest.TestCase):
                                     for n in element["upstream_lines"]))
             for arm in ("U", "control"):
                 source = (OUTPUT / case["sources"].get(arm, case["control_source"])).read_text()
-                self.assertNotRegex(source, re.compile(r"CWE\d+|\b(?:bad|good|FLAW|FIX)\b", re.I))
+                self.assertNotRegex(source, re.compile(r"CWE\d+|\b(?:bad|good|FLAW|FIX)\b", re.IGNORECASE))
                 self.assertIn("void case_entry(void)", source)
 
 

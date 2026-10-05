@@ -14,7 +14,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent
 SPEC = ROOT / "spec.json"
 OUTPUT = ROOT / "generated"
-LEAKS = re.compile(r"CWE\d+|(?:^|\W)(?:bad|good|FLAW|FIX)(?:\W|$)", re.I)
+LEAKS = re.compile(r"CWE\d+|(?:^|\W)(?:bad|good|FLAW|FIX)(?:\W|$)", re.IGNORECASE)
 
 
 def _strip_comment(line: str, in_block: bool) -> tuple[str, bool]:
@@ -72,7 +72,7 @@ def _render(source: str, control: str, arm: str) -> tuple[str, list[int | None]]
     lines = source.splitlines()
     prefix = lines[:next(i for i, line in enumerate(lines) if line == "#ifndef OMITBAD")]
     directives = [(line, i + 1) for i, line in enumerate(prefix)
-                  if line.startswith("#include ") or line.startswith("#define ")]
+                  if line.startswith(("#include ", "#define "))]
     bad_name = next(re.search(r"^void\s+([^ (]+)\(", line).group(1)
                     for line in lines if re.search(r"^void\s+[^ (]+_bad\(", line))
     selected = bad_name if arm == "U" else control
