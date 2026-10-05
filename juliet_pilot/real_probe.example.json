@@ -1,0 +1,16 @@
+{
+  "pipeline_commit": "7023ff49fe7b800e8b26bcae52e2fcdafe95fa9b",
+  "query_model": "QCRI/LLMxCPG-Q",
+  "query_revision": "1f48ab60420d90277207394f1254d27d3375b07e",
+  "query_engine": "vllm",
+  "query_temperature": 0.0,
+  "detector_model": "QCRI/LLMxCPG-D",
+  "detector_revision": "91e6c0d0e8ea645047c237166b1403262d116a92",
+  "threshold": 0.5,
+  "joern_digest": "REPLACE_WITH_SHA256_IMAGE_DIGEST",
+  "joern_host": "127.0.0.1",
+  "joern_port": 8080,
+  "joern_input_dir": "work/joern-inputs",
+  "server_input_dir": "/analysis/inputs",
+  "exploratory_probe_only": true
+}

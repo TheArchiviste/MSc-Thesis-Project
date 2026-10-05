@@ -107,3 +107,34 @@ It does not test Q's query quality, Joern's graph semantics, D's predictions,
 threshold calibration, or the research questions. Run the actual Q/Joern/D
 configuration on suitable hardware to test those stages; human review can
 remain pending while preserving the raw stage outputs.
+
+## Acquire real Q and Joern traces on the four cases
+
+`real_probe.example.json` pins the published Q checkpoint and records the
+D adapter revision for later use. Copy it to a local config, replace the Joern
+image digest with the digest actually deployed, and set the Joern host and
+input mount. On a GPU runtime with the pinned pipeline dependencies installed:
+
+```bash
+python juliet_pilot/real_probe.py --config real_probe.json
+python juliet_pilot/real_probe.py --config real_probe.json --work work/real-probe
+```
+
+The first command checks model dependencies, GPU visibility, Joern reachability,
+and provenance **without downloading weights**. The second runs real Q then
+real Joern on the four U cases, three repeats each. It writes raw
+`queries.jsonl`, `slices.jsonl` with Joern traces, numbered blind packets,
+and `probe_summary.json`. It never runs D. The example's `threshold: 0.5`
+is an unused parser placeholder for this Q/Joern probe; it must not be treated
+as calibrated. Keep this exploratory work directory separate from a frozen
+main run.
+
+The D release is a LoRA adapter whose `adapter_config.json` names
+`unsloth/qwq-32b-preview-bnb-4bit` as its base. Before D is used, pin and
+verify the base snapshot and confirm that the repository's classifier loads
+the adapter and reduced Yes/No head correctly on the selected GPU runtime.
+Select RQ2 target/control candidates only after inspecting **real original
+slices**; both locations must have been selected in the original slice.
+Separately construct a disjoint vulnerable/safe calibration cohort for the
+full Q → Joern → D scoring run. The four pilot cases and their fixed controls
+cannot serve as their own independent calibration split.
