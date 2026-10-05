@@ -210,6 +210,8 @@ def analyze(cases: list[Case], work: Path, assessments: Path, adjudications: Pat
                 earliest = "query_bundle_changed"  # a difference, not necessarily a failure
             elif decision(case.case_id, arm) == "inadequate":
                 earliest = "evidence_inadequate_stage_unresolved"
+            elif decision(case.case_id, arm) == "uncertain":
+                earliest = "evidence_uncertain"
             elif first["verdict"] is False:
                 earliest = "classifier_disagreement_with_adequate_evidence"
             else:

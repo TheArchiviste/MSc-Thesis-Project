@@ -1,0 +1,7 @@
+{
+  "pipeline_commit": "7023ff49fe7b800e8b26bcae52e2fcdafe95fa9b",
+  "query_engine": "dummy",
+  "allow_dummy": true,
+  "threshold": 0.5,
+  "smoke_only": true
+}
