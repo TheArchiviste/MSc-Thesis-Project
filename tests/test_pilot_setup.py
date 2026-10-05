@@ -7,8 +7,8 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from scripts.pilot_setup import _docker_digest, _gpu, pin_joern
 from juliet_pilot.real_probe import preflight
+from scripts.pilot_setup import _docker_digest, _gpu, pin_joern
 
 
 class PilotSetupTests(unittest.TestCase):
