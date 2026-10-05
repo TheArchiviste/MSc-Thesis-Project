@@ -94,7 +94,9 @@ allocation expires. Do not commit checkpoints, local configs, or raw results.
 Use the same `ghcr.io/joernio/joern@sha256:...` OCI image digest and bind the
 repo's `work/joern-inputs` to `/analysis/inputs` read-only. The server and
 Python client must share the node and port 8080. For an interactive allocation,
-the shape of the command is:
+set `JOERN_DIGEST` to the full `sha256:...` value recorded on the laptop (or
+obtain the exact image digest through the university's OCI registry tooling).
+The shape of the command is:
 
 ```bash
 mkdir -p work/joern-inputs work/joern-server
