@@ -54,6 +54,23 @@ def preflight(config: Path, *, check_runtime: bool = True) -> list[str]:
                 blockers.append(f"Install {package} in the model runtime")
         if shutil.which("nvidia-smi") is None:
             blockers.append("A visible NVIDIA GPU is needed for this vLLM configuration")
+        if importlib.util.find_spec("torch") is not None:
+            try:
+                import torch
+
+                if not torch.cuda.is_available():
+                    blockers.append("PyTorch cannot see a CUDA GPU")
+                else:
+                    vram_gib = torch.cuda.get_device_properties(0).total_memory / 2**30
+                    if vram_gib < 70:
+                        blockers.append(
+                            f"GPU 0 has {vram_gib:.1f} GiB; this unquantized Q probe needs "
+                            "an approximately 80 GB GPU with runtime headroom"
+                        )
+                    if not torch.cuda.is_bf16_supported():
+                        blockers.append("GPU 0 does not support the BF16 model runtime")
+            except (OSError, RuntimeError, ImportError) as exc:
+                blockers.append(f"Could not inspect CUDA runtime: {exc}")
         host, port = cfg.get("joern_host", "127.0.0.1"), cfg.get("joern_port", 8080)
         try:
             with socket.create_connection((host, int(port)), timeout=2):
