@@ -1,0 +1,24 @@
+{
+  "source_file": "cwe416_uaf.c",
+  "source_sha256": "262dee1d39243c944a55b4b967ab6a56524977dc88a684ff0b7150cacf0b5a61",
+  "upstream_line_for_generated_line": [
+    18,
+    20,
+    45,
+    46,
+    47,
+    49,
+    50,
+    51,
+    52,
+    53,
+    56,
+    58,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null
+  ]
+}

@@ -7,6 +7,12 @@ manufacture vulnerability ground truth or claim that finite tests prove source
 equivalence. The study needs a separately prepared Juliet corpus, independent
 mechanism annotations, admissible paired changes, and human review.
 
+The four-case, source-first preparation pilot is in
+[`juliet_pilot/`](../juliet_pilot/README.md). It supplies baseline U cases,
+fixed controls, source line maps, a proposed adequacy rubric, and reproducible
+ASan witnesses. It does not yet supply paired transformations or detector
+outcomes.
+
 ## Research questions and estimands
 
 * **RQ1:** All included documented vulnerable originals enter the baseline,
