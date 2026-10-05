@@ -87,7 +87,7 @@ def _joern_import(config: dict) -> tuple[bool, str]:
             if not result.success or not re.search(r"=\s*1\s*$", result.stdout.strip()):
                 return False, f"Joern imported source but the CPG check failed: {result.stdout[:250]}"
         return True, "Joern imported staged C source and found main"
-    except Exception as exc:  # server and client errors differ between Joern versions
+    except Exception as exc:  # noqa: BLE001 - external Joern client has varied error types
         return False, f"Joern import/query failed: {exc}"
 
 
