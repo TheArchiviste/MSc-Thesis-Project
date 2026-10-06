@@ -3,13 +3,13 @@
 from __future__ import annotations
 
 import random
-import re
 from collections import Counter, defaultdict
 from pathlib import Path
 from typing import Any
 
-from .runner import packet_index
-from .schema import Case, index_jsonl, read_jsonl, run_specs
+from .review import duplicate_packets, packet_index, packet_lines
+from .schema import DECOY_ARM, Case, digest, index_jsonl, read_jsonl, run_specs
+from .stats import agreement_summary, mcnemar_exact_p, newcombe_paired
 
 SEMANTIC_FAILURES = {"query_parse", "query_invalid", "query_exec", "path_binding",
                      "joern_import", "context_exec", "slice_exec", "empty_slice"}
@@ -18,13 +18,16 @@ INFRA_FAILURES = {"joern_transport", "timeout", "context_overflow",
 
 
 def _assessments(path: Path, packets: dict[str, dict[str, str]], resolutions: Path | None,
-                 min_reviewers: int = 2) -> tuple[dict[str, str], dict[str, int]]:
+                 min_reviewers: int = 2
+                 ) -> tuple[dict[str, str], dict[str, int], dict[str, dict[str, str]]]:
     """Require independent ratings; resolve disagreements only with a logged decision.
 
     The review export does not expose case labels or intervention arm. An
     assessor must justify an adequate judgement with lines and relationships.
+    Returns final decisions, counts, and the raw ratings by packet and assessor.
     """
     by_review: dict[str, list[str]] = defaultdict(list)
+    ratings: dict[str, dict[str, str]] = defaultdict(dict)
     assessors: dict[str, set[str]] = defaultdict(set)
     seen: set[tuple[str, str]] = set()
     for row in read_jsonl(path):
@@ -42,10 +45,10 @@ def _assessments(path: Path, packets: dict[str, dict[str, str]], resolutions: Pa
         if decision == "adequate" and (not row.get("cited_lines") or
                                        not row.get("relationships")):
             raise ValueError(f"Adequate judgement requires lines and relationships: {rid}")
-        available = {int(n) for n in re.findall(r"(?m)^L(\d+):", packets[rid]["code"])}
-        if not set(row.get("cited_lines", [])) <= available:
+        if not set(row.get("cited_lines", [])) <= packet_lines(packets[rid]["code"]):
             raise ValueError(f"Assessment cites lines absent from the packet: {rid}")
         by_review[rid].append(decision)
+        ratings[rid][assessor] = decision
     resolved: dict[str, dict[str, Any]] = {}
     for row in read_jsonl(resolutions) if resolutions else []:
         rid = row["review_id"]
@@ -56,11 +59,10 @@ def _assessments(path: Path, packets: dict[str, dict[str, str]], resolutions: Pa
         if row["method"] == "third_review" and (
                 not row.get("assessor_id") or row["assessor_id"] in assessors[rid]):
             raise ValueError(f"Third reviewer must be independent for {rid}")
-        if row["adequacy"] == "adequate":
-            available = {int(n) for n in re.findall(r"(?m)^L(\d+):", packets[rid]["code"])}
-            if (not row.get("cited_lines") or not row.get("relationships") or
-                    not set(row["cited_lines"]) <= available):
-                raise ValueError(f"Adequate resolution needs visible lines and relationship: {rid}")
+        if row["adequacy"] == "adequate" and (
+                not row.get("cited_lines") or not row.get("relationships") or
+                not set(row["cited_lines"]) <= packet_lines(packets[rid]["code"])):
+            raise ValueError(f"Adequate resolution needs visible lines and relationship: {rid}")
         resolved[rid] = row
     decisions: dict[str, str] = {}
     stats = Counter()
@@ -79,7 +81,7 @@ def _assessments(path: Path, packets: dict[str, dict[str, str]], resolutions: Pa
     if set(resolved) - {rid for rid, values in by_review.items()
                         if len(values) >= min_reviewers and len(set(values)) > 1}:
         raise ValueError("Resolution supplied without an independently rated disagreement")
-    return decisions, dict(stats)
+    return decisions, dict(stats), dict(ratings)
 
 
 def _majority(values: list[str]) -> str:
@@ -133,7 +135,9 @@ def analyze(cases: list[Case], work: Path, assessments: Path, adjudications: Pat
     slices = index_jsonl(work / "slices.jsonl", "run_id")
     detector = index_jsonl(work / "detector.jsonl", "run_id")
     packets, joins = packet_index(cases, work, repeats)
-    decisions, review_stats = _assessments(assessments, packets, resolutions)
+    duplicates = duplicate_packets(cases, work, repeats)
+    decisions, review_stats, ratings = _assessments(assessments, {**packets, **duplicates},
+                                                    resolutions)
     adjudicated: dict[tuple[str, str], str] = {}
     for row in read_jsonl(adjudications):
         key = (row["case_id"], row["review_id"])
@@ -155,7 +159,10 @@ def analyze(cases: list[Case], work: Path, assessments: Path, adjudications: Pat
         status = slc["status"]
         if status == "ok" and det["status"] == "context_overflow":
             status = "context_overflow"
-        if status == "ok":
+        if spec["arm"] == DECOY_ARM:
+            # A decoy has no documented flaw to match: the blind rating is the outcome.
+            adequacy = decisions.get(joins[rid], "uncertain") if status == "ok" else "not_shown"
+        elif status == "ok":
             blind = decisions.get(joins[rid], "uncertain")
             match = adjudicated.get((spec["case_id"], joins[rid]), "uncertain")
             adequacy = ("inadequate" if blind == "inadequate" or match == "no" else
@@ -218,7 +225,7 @@ def analyze(cases: list[Case], work: Path, assessments: Path, adjudications: Pat
                   set(slices[groups[case.case_id, "U"][0]["run_id"]].get("slice_lines", []))):
             exclusions["control_not_in_original_slice"] += 1
         elif decision(case.case_id, "U") != "adequate":
-            exclusions["original_evidence_not_adequate_or_uncertain"] += 1
+            exclusions[f"original_evidence_{decision(case.case_id, 'U')}"] += 1
         else:
             tm, tn = (decision(case.case_id, arm) for arm in ("TM", "TN"))
             eligible.append((tm, tn))
@@ -257,6 +264,8 @@ def analyze(cases: list[Case], work: Path, assessments: Path, adjudications: Pat
                            sum((tm != "adequate") - (tn == "inadequate")
                                for tm, tn in eligible) / n_eligible],
         }
+    one_per_cluster = _one_per_cluster(paired, seed)
+    coverage = _coverage_all_admissible(cases, groups, slices)
 
     failures = Counter((r["arm"], r["status"]) for r in outcomes.values())
     # The fixed and rule arms are probes. Different outputs alone do not prove
@@ -323,8 +332,10 @@ def analyze(cases: list[Case], work: Path, assessments: Path, adjudications: Pat
                 "n_clusters": n_clusters,
                 "TM_adequacy_loss_rate": tm_rate, "TN_adequacy_loss_rate": tn_rate,
                 "paired_risk_difference": delta, "cluster_bootstrap_95_ci": ci,
+                "one_case_per_cluster": one_per_cluster,
                 "unresolved_outcome_bounds": bounds,
                 "coverage_change_is_descriptive": True,
+                "coverage_change_all_admissible": coverage,
                 "correct_verdict_despite_TM_evidence_loss": retained_correct_after_loss,
                 "exclusions": dict(exclusions), "pairs": paired},
         "rq3": {"status_counts": [{"arm": a, "status": s, "count": count}
@@ -334,5 +345,144 @@ def analyze(cases: list[Case], work: Path, assessments: Path, adjudications: Pat
                      "rule_adequacy": q, "verdict": v, "count": count}
                     for (a, r, f, q, v), count in sorted(diagnostic_patterns.items())],
                 "observations": diagnostics},
+        "review_quality": _review_quality(cases, specs, joins, decisions, ratings, duplicates,
+                                          groups, decision, verdict_label),
         "run_evidence": list(outcomes.values()),
     }
+
+
+def _one_per_cluster(paired: list[dict[str, Any]], seed: int) -> dict[str, Any] | None:
+    """Independent-pairs analysis: one seeded pair per cluster, exact paired inference."""
+    if not paired:
+        return None
+    chosen: dict[str, tuple[str, dict[str, Any]]] = {}
+    for pair in paired:
+        rank = digest(f"{seed}|{pair['cluster_id']}|{pair['case_id']}")
+        current = chosen.get(pair["cluster_id"])
+        if current is None or rank < current[0]:
+            chosen[pair["cluster_id"]] = (rank, pair)
+    pairs = [pair for _, pair in chosen.values()]
+    both = sum(p["loss_TM"] and p["loss_TN"] for p in pairs)
+    tm_only = sum(p["loss_TM"] and not p["loss_TN"] for p in pairs)
+    tn_only = sum(p["loss_TN"] and not p["loss_TM"] for p in pairs)
+    neither = len(pairs) - both - tm_only - tn_only
+    return {"seed": seed, "n_pairs": len(pairs),
+            "case_ids": sorted(p["case_id"] for p in pairs),
+            "loss_both": both, "loss_TM_only": tm_only, "loss_TN_only": tn_only,
+            "loss_neither": neither,
+            "TM_adequacy_loss_rate": (both + tm_only) / len(pairs),
+            "TN_adequacy_loss_rate": (both + tn_only) / len(pairs),
+            "paired_risk_difference": (tm_only - tn_only) / len(pairs),
+            "newcombe_95_ci": list(newcombe_paired(both, tm_only, tn_only, neither)),
+            "mcnemar_exact_p": mcnemar_exact_p(tm_only, tn_only)}
+
+
+def _coverage_all_admissible(cases: list[Case], groups, slices) -> dict[str, Any]:
+    """Reviewer-free referent coverage change for every admissible pair.
+
+    Uses repeat 0 and source-coordinate mappings. A failed transformed slice
+    counts as zero coverage; a failed original slice leaves no baseline.
+    """
+    rows, skipped = [], Counter()
+    for case in cases:
+        if not case.admissible:
+            continue
+        u = groups[case.case_id, "U"][0]
+        if u["status"] != "ok":
+            skipped["original_slice_failed"] += 1
+            continue
+        tm, tn = groups[case.case_id, "TM"][0], groups[case.case_id, "TN"][0]
+        if None in (u["element_recall"], tm["element_recall"], tn["element_recall"]):
+            skipped["unmapped_elements"] += 1
+            continue
+        selected = set(slices[u["run_id"]].get("slice_lines", []))
+        rows.append({"case_id": case.case_id, "cluster_id": case.cluster_id,
+                     "operator": case.operator,
+                     "in_primary_population": bool(
+                         set(case.referent.get("target_lines", [])) & selected and
+                         set(case.referent.get("control_lines", [])) & selected),
+                     "U": u["element_recall"], "TM": tm["element_recall"],
+                     "TN": tn["element_recall"],
+                     "change_TM": tm["element_recall"] - u["element_recall"],
+                     "change_TN": tn["element_recall"] - u["element_recall"]})
+
+    def summary(items: list[dict[str, Any]]) -> dict[str, Any]:
+        if not items:
+            return {"n": 0}
+        n = len(items)
+        tm = sum(r["change_TM"] for r in items) / n
+        tn = sum(r["change_TN"] for r in items) / n
+        return {"n": n, "n_clusters": len({r["cluster_id"] for r in items}),
+                "mean_change_TM": tm, "mean_change_TN": tn,
+                "mean_paired_difference": tm - tn}
+
+    return {"all": summary(rows),
+            "primary_population": summary([r for r in rows if r["in_primary_population"]]),
+            "skipped": dict(skipped), "pairs": rows}
+
+
+def _review_quality(cases, specs, joins, decisions, ratings, duplicates, groups,
+                    decision, verdict_label) -> dict[str, Any]:
+    """Reviewer agreement by arm, fixed-variant decoys and disguised duplicates."""
+    arms_for: dict[str, set[str]] = defaultdict(set)
+    for spec in specs:
+        rid = joins.get(spec["run_id"])
+        if rid:
+            arm = spec["arm"]
+            arms_for[rid].add("probe" if arm.endswith(("_fixed", "_rule")) else arm)
+    by_group: dict[str, list[list[str]]] = defaultdict(list)
+    for rid, rated in ratings.items():
+        values = list(rated.values())
+        if rid in duplicates:
+            group = "duplicate"
+        else:
+            arms = arms_for.get(rid, set())
+            group = next(iter(arms)) if len(arms) == 1 else "shared_excerpt"
+        by_group[group].append(values)
+    agreement = {"all_packets": agreement_summary([v for g in by_group.values() for v in g]),
+                 "by_arm": {group: agreement_summary(items)
+                            for group, items in sorted(by_group.items())}}
+
+    decoy_cases = [case for case in cases if DECOY_ARM in case.sources]
+    decoy_status, decoy_rating, cross, decoy_verdicts = Counter(), Counter(), Counter(), Counter()
+    identical = 0
+    for case in decoy_cases:
+        f_run = groups[case.case_id, DECOY_ARM][0]
+        u_run = groups[case.case_id, "U"][0]
+        decoy_status[f_run["status"]] += 1
+        decoy_verdicts[verdict_label(f_run)] += 1
+        if f_run["status"] != "ok":
+            continue
+        decoy_rating[f_run["adequacy"]] += 1
+        cross[(decision(case.case_id, "U"), f_run["adequacy"])] += 1
+        identical += f_run["review_id"] is not None and f_run["review_id"] == u_run["review_id"]
+    shown = sum(decoy_rating.values())
+    decided = decoy_rating["adequate"] + decoy_rating["inadequate"]
+    decoys = {
+        "cases_with_fixed_variant": len(decoy_cases),
+        "slice_status": dict(decoy_status),
+        "shown_to_reviewers": shown,
+        "ratings": dict(decoy_rating),
+        "false_adequacy_rate": decoy_rating["adequate"] / shown if shown else None,
+        "false_adequacy_rate_excluding_uncertain": (decoy_rating["adequate"] / decided
+                                                    if decided else None),
+        "excerpt_identical_to_vulnerable": identical,
+        "vulnerable_by_fixed_rating": [{"vulnerable_adequacy": u, "fixed_rating": f,
+                                        "count": count} for (u, f), count in sorted(cross.items())],
+        "detector_verdicts_on_fixed": dict(decoy_verdicts),
+        "interpretation": ("A fixed variant rated adequate means the excerpt or the "
+                           "reviewers do not discriminate the documented flaw."),
+    }
+
+    retest_items, final_pairs = [], Counter()
+    for rid, dup in duplicates.items():
+        original = dup["duplicate_of"]
+        for assessor, value in ratings.get(rid, {}).items():
+            if assessor in ratings.get(original, {}):
+                retest_items.append([ratings[original][assessor], value])
+        if rid in decisions and original in decisions:
+            final_pairs["agree" if decisions[rid] == decisions[original] else "disagree"] += 1
+    retest = {"duplicates_issued": len(duplicates),
+              "same_assessor_retest": agreement_summary(retest_items),
+              "final_decision_agreement": dict(final_pairs)}
+    return {"agreement": agreement, "decoys": decoys, "duplicates": retest}

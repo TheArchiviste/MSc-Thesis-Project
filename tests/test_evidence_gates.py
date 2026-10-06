@@ -6,7 +6,12 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from evidence_experiment.__main__ import _lock_detector, _lock_inputs, _require_witnesses
+from evidence_experiment.__main__ import (
+    _lock_detector,
+    _lock_inputs,
+    _require_calibration,
+    _require_witnesses,
+)
 from evidence_experiment.calibration_runner import score_and_calibrate
 from evidence_experiment.schema import append_jsonl, load_cases, run_specs
 from evidence_experiment.validate import validate_witnesses
@@ -117,6 +122,70 @@ class EvidenceGateTests(unittest.TestCase):
         first = json.loads((self.work / "calibration_scores.jsonl").read_text().splitlines()[0])
         self.assertIn("run_id", first)
         self.assertIn("source_sha256", first)
+
+    def _stage_patches(self, empty_slice_for=()):
+        def write_q(cases, work, cfg, repeats):
+            for spec in run_specs(cases, repeats):
+                append_jsonl(work / "queries.jsonl", {"run_id": spec["run_id"], "status": "ok"})
+
+        def write_slice(cases, work, cfg, repeats):
+            for spec in run_specs(cases, repeats):
+                status = "empty_slice" if spec["case_id"] in empty_slice_for else "ok"
+                append_jsonl(work / "slices.jsonl", {"run_id": spec["run_id"], "status": status})
+
+        def write_d(cases, work, cfg, repeats):
+            slices = {json.loads(x)["run_id"]: json.loads(x)
+                      for x in (work / "slices.jsonl").read_text().splitlines()}
+            for spec in run_specs(cases, repeats):
+                ok = slices[spec["run_id"]]["status"] == "ok"
+                append_jsonl(work / "detector.jsonl", {
+                    "run_id": spec["run_id"], "status": "ok" if ok else "abstain",
+                    "p_vulnerable": .9 if spec["case_id"].startswith("v") else .1})
+
+        return (patch("evidence_experiment.calibration_runner.generate_queries", side_effect=write_q),
+                patch("evidence_experiment.calibration_runner.extract_slices", side_effect=write_slice),
+                patch("evidence_experiment.calibration_runner.classify_slices", side_effect=write_d))
+
+    def _calibration_manifest(self):
+        manifest = self.root / "calibration.jsonl"
+        for sid, split, label in (("v1", "calibration", 1), ("v2", "calibration", 1),
+                                  ("s1", "calibration", 0), ("s2", "calibration", 0),
+                                  ("held", "specificity", 0)):
+            append_jsonl(manifest, {"sample_id": sid, "cluster_id": sid,
+                                    "split": split, "label": label, "source": "u.c"})
+        return manifest
+
+    def test_abstentions_follow_a_predeclared_policy(self):
+        manifest = self._calibration_manifest()
+        q, s, d = self._stage_patches(empty_slice_for={"s2"})
+        cfg = {k: v for k, v in self.cfg.items() if k != "threshold"}  # no placeholder needed
+        with q, s, d, self.assertRaisesRegex(RuntimeError, "detector_calibration_abstentions"):
+            score_and_calibrate(self.cases, manifest, self.root / "cal-fail", cfg)
+        q, s, d = self._stage_patches(empty_slice_for={"s2"})
+        with q, s, d:
+            result = score_and_calibrate(self.cases, manifest, self.root / "cal-exclude",
+                                         {**cfg, "detector_calibration_abstentions": "exclude"})
+        self.assertEqual(result["abstention_policy"], "exclude")
+        self.assertEqual(result["abstentions"]["by_split_and_label"]["calibration"]["0"],
+                         {"enrolled": 2, "scored": 1, "abstained": 1})
+        self.assertEqual(result["n_calibration"], 3)
+
+    def test_detection_accepts_calibration_from_its_own_directory(self):
+        manifest = self._calibration_manifest()
+        q, s, d = self._stage_patches()
+        calibration_work = self.root / "calibration-001"
+        with q, s, d:
+            result = score_and_calibrate(self.cases, manifest, calibration_work, self.cfg)
+        calibration = calibration_work / "calibration.json"
+        cfg = {**self.cfg, "threshold": result["threshold"]}
+        _require_calibration(calibration, cfg, self.manifest)
+        _lock_detector(self.work, self.config, calibration)
+        lock = json.loads((self.work / "detector_lock.json").read_text())
+        self.assertEqual(lock["calibration_path"], str(calibration))
+        with (calibration_work / "calibration_scores.jsonl").open("a") as stream:
+            stream.write("{}\n")
+        with self.assertRaisesRegex(ValueError, "scores changed"):
+            _require_calibration(calibration, cfg, self.manifest)
 
 
 if __name__ == "__main__":

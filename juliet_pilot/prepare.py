@@ -11,6 +11,11 @@ import json
 import re
 from pathlib import Path
 
+try:  # imported as juliet_pilot.prepare, or run/imported from this directory
+    from .templates import template_cluster
+except ImportError:  # pragma: no cover - script execution
+    from templates import template_cluster
+
 ROOT = Path(__file__).resolve().parent
 SPEC = ROOT / "spec.json"
 OUTPUT = ROOT / "generated"
@@ -127,7 +132,8 @@ def prepare() -> list[dict]:
             maps[arm] = mapping
         referent = {"elements": [], "relations": case["relations"],
                     "mechanism": case["mechanism"], "reference_basis": "source_and_control",
-                    "control_upstream_lines": case["control_upstream_lines"]}
+                    "control_upstream_lines": case["control_upstream_lines"],
+                    "review_claim": case["review_claim"]}
         for element in case["elements"]:
             upstream = element["upstream_lines"]
             if not all(1 <= line <= len(source_lines) for line in upstream):
@@ -136,8 +142,9 @@ def prepare() -> list[dict]:
             if len(mapped) != len(upstream):
                 raise ValueError(f"Unmapped mechanism lines in {case['case_id']}: {upstream}")
             referent["elements"].append({**element, "lines": mapped})
-        # Group flow variants of the same flaw template across splits.
-        cluster_id = re.sub(r"-\d{2}$", "", case["cluster_id"])
+        # One cluster per flaw template: source, data type, allocation style and
+        # flow variants of the same template must not cross splits.
+        cluster_id = template_cluster(case["upstream_path"])
         manifest.append({
             "case_id": case["case_id"], "cluster_id": cluster_id, "cwe": case["cwe"],
             "sources": {"U": rendered["U"]}, "referent": referent,

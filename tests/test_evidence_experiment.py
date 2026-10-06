@@ -87,6 +87,18 @@ class ExperimentAnalysisTests(unittest.TestCase):
         self.assertIsNone(report["rq2"]["cluster_bootstrap_95_ci"])
         self.assertEqual(report["rq2"]["paired_risk_difference"], 1.0)
         self.assertEqual(report["rq2"]["correct_verdict_despite_TM_evidence_loss"], 1)
+        independent = report["rq2"]["one_case_per_cluster"]
+        self.assertEqual((independent["n_pairs"], independent["loss_TM_only"],
+                          independent["loss_TN_only"]), (1, 1, 0))
+        self.assertEqual(independent["mcnemar_exact_p"], 1.0)  # one discordant pair proves nothing
+        low, high = independent["newcombe_95_ci"]
+        self.assertLess(low, 0)
+        self.assertEqual(high, 1.0)
+        coverage = report["rq2"]["coverage_change_all_admissible"]
+        self.assertEqual(coverage["all"]["n"], 1)
+        self.assertEqual((coverage["pairs"][0]["change_TM"], coverage["pairs"][0]["change_TN"]),
+                         (-0.5, 0.0))
+        self.assertIn("all_packets", report["review_quality"]["agreement"])
 
     def test_adjudication_uncertainty_excludes_pair(self):
         rows = [json.loads(x) for x in self.adjudications.read_text().splitlines()]

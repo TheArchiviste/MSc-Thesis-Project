@@ -9,7 +9,7 @@
   "cases": [
     {
       "case_id": "J121-size-01",
-      "cluster_id": "CWE121-CWE131-memcpy-01",
+      "review_claim": {"flaw_class": "stack buffer overflow", "operation": "memcpy call"},
       "cwe": "CWE121",
       "source_file": "cwe121_size.c",
       "upstream_path": "testcases/CWE121_Stack_Based_Buffer_Overflow/s01/CWE121_Stack_Based_Buffer_Overflow__CWE131_memcpy_01.c",
@@ -30,7 +30,7 @@
     },
     {
       "case_id": "J121-index-01",
-      "cluster_id": "CWE121-CWE129-fgets-01",
+      "review_claim": {"flaw_class": "stack buffer overflow", "operation": "array index write"},
       "cwe": "CWE121",
       "source_file": "cwe121_index.c",
       "upstream_path": "testcases/CWE121_Stack_Based_Buffer_Overflow/s01/CWE121_Stack_Based_Buffer_Overflow__CWE129_fgets_01.c",
@@ -56,7 +56,7 @@
     },
     {
       "case_id": "J122-nul-01",
-      "cluster_id": "CWE122-CWE193-strcpy-01",
+      "review_claim": {"flaw_class": "heap buffer overflow", "operation": "strcpy call"},
       "cwe": "CWE122",
       "source_file": "cwe122_terminator.c",
       "upstream_path": "testcases/CWE122_Heap_Based_Buffer_Overflow/s06/CWE122_Heap_Based_Buffer_Overflow__c_CWE193_char_cpy_01.c",
@@ -79,7 +79,7 @@
     },
     {
       "case_id": "J416-free-01",
-      "cluster_id": "CWE416-malloc-free-char-01",
+      "review_claim": {"flaw_class": "use after free", "operation": "printLine call"},
       "cwe": "CWE416",
       "source_file": "cwe416_uaf.c",
       "upstream_path": "testcases/CWE416_Use_After_Free/CWE416_Use_After_Free__malloc_free_char_01.c",
