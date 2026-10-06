@@ -9,16 +9,21 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import sys
 from pathlib import Path
 from types import SimpleNamespace
 
+# Let `python juliet_pilot/<script>.py` import the experiment from a checkout
+# whose editable install predates the evidence_experiment package entry.
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
 from evidence_experiment.analysis import analyze
+from evidence_experiment.review import build_queue, write_queue
 from evidence_experiment.runner import (
     classify_slices,
     extract_slices,
     generate_queries,
     load_config,
-    review_packets,
 )
 from evidence_experiment.schema import load_cases, read_jsonl
 from llmxcpg.joern.client import QueryResult
@@ -84,10 +89,8 @@ def run(work: Path) -> dict:
     generate_queries(cases, work, cfg, repeats=repeats)
     extract_slices(cases, work, cfg, repeats=repeats, joern=graph)
     classify_slices(cases, work, cfg, repeats=repeats, classifier=detector)
-    packets = review_packets(cases, work, repeats=repeats)
-    (work / "blind_review_packets.jsonl").write_text(
-        "".join(json.dumps(packet, sort_keys=True) + "\n" for packet in packets),
-        encoding="utf-8")
+    packets, key = build_queue(cases, work, repeats)
+    write_queue(work, packets, key, {"duplicate_fraction": 0.0, "seed": 0, "repeats": repeats})
 
     # No invented human decisions. Successfully produced slices stay uncertain.
     assessments = work / "assessments.jsonl"

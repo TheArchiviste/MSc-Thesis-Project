@@ -68,6 +68,8 @@ class VulnerabilityClassifier:
         device: str = "auto",
         max_context: int = 16_384,
         revision: str | None = None,
+        base_model_path: str | None = None,
+        base_model_revision: str | None = None,
     ) -> None:
         self.model_path = model_path
         self.vuln_label = vulnerable_token
@@ -89,13 +91,26 @@ class VulnerabilityClassifier:
         )
         if self.tokenizer.pad_token is None:
             self.tokenizer.pad_token = self.tokenizer.eos_token
-        self.model = AutoModelForCausalLM.from_pretrained(
-            model_path,
-            torch_dtype=torch_dtype,
-            device_map=device,
-            trust_remote_code=True,
-            revision=revision,
-        )
+        if bool(base_model_path) != bool(base_model_revision):
+            raise ValueError("Pin both the detector base model and its revision")
+        if base_model_path:
+            from peft import PeftConfig, PeftModel
+
+            adapter = PeftConfig.from_pretrained(model_path, revision=revision)
+            if adapter.base_model_name_or_path != base_model_path:
+                raise ValueError("Pinned detector base differs from adapter_config.json")
+            base = AutoModelForCausalLM.from_pretrained(
+                base_model_path, revision=base_model_revision,
+                torch_dtype=torch_dtype, device_map=device, trust_remote_code=True,
+            )
+            self.model = PeftModel.from_pretrained(base, model_path, revision=revision)
+        else:
+            # Legacy callers may let Transformers resolve the adapter's base.
+            # The experiment engine requires explicit base pins for real runs.
+            self.model = AutoModelForCausalLM.from_pretrained(
+                model_path, torch_dtype=torch_dtype, device_map=device,
+                trust_remote_code=True, revision=revision,
+            )
         self.model.eval()
 
         # Replace the full-vocabulary projection once. The class order matches
@@ -112,6 +127,8 @@ class VulnerabilityClassifier:
             dtype=cfg.detector_dtype,
             max_context=cfg.detector_max_context,
             revision=cfg.detector_model_revision,
+            base_model_path=cfg.detector_base_model_path,
+            base_model_revision=cfg.detector_base_model_revision,
             **kwargs,
         )
 

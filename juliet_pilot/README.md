@@ -110,6 +110,10 @@ remain pending while preserving the raw stage outputs.
 
 ## Acquire real Q and Joern traces on the four cases
 
+For the Windows laptop and university GPU node setup, use the
+[four-case runbook](RUNBOOK.md). It creates a local config, pins the running
+Joern image, and checks the source bind mount and GPU before downloading Q.
+
 `real_probe.example.json` pins the published Q checkpoint and records the
 D adapter revision for later use. Copy it to a local config, replace the Joern
 image digest with the digest actually deployed, and set the Joern host and
@@ -121,20 +125,45 @@ python juliet_pilot/real_probe.py --config real_probe.json --work work/real-prob
 ```
 
 The first command checks model dependencies, GPU visibility, Joern reachability,
-and provenance **without downloading weights**. The second runs real Q then
-real Joern on the four U cases, three repeats each. It writes raw
-`queries.jsonl`, `slices.jsonl` with Joern traces, numbered blind packets,
-and `probe_summary.json`. It never runs D. The example's `threshold: 0.5`
-is an unused parser placeholder for this Q/Joern probe; it must not be treated
-as calibrated. Keep this exploratory work directory separate from a frozen
-main run.
+and provenance **without downloading weights**. Run the exploratory probe with
+the four predeclared safe controls in the blind packet pool:
+
+```bash
+python juliet_pilot/real_probe.py --config real_probe.json --work work/real-probe-controls --include-fixed-controls
+```
+
+This runs real Q then real Joern on the four vulnerable cases (three repeats
+each) and on each fixed control once as that case's decoy (`F`) arm: 16 query
+and 16 slice rows. It writes raw `queries.jsonl`, `slices.jsonl` with Joern
+traces, the blind queue (`blind_review_packets.jsonl`) with its private
+`review_key.jsonl`, `probe_readouts.json`, and `probe_summary.json`. The
+readouts show the share of function lines selected, coverage by referent
+element role, and the discriminability check: whether the lines that differ
+between the vulnerable and fixed programs (`fix_site_lines_*`) were selected in
+each slice, and whether the two rendered excerpts are identical. Rate the
+packets blind and compute false adequacy on the fixed examples by joining the
+private key. A near-complete U slice, an unselected fix site or an identical
+fixed excerpt is a warning that these `_01` cases are insensitive; evaluate
+cross-function flow variants before freezing the analysis corpus. This probe
+never runs D. The example's `threshold: 0.5` is an unused parser placeholder
+for this Q/Joern probe; it must not be treated as calibrated. Keep this
+exploratory work directory separate from a frozen main run.
+
+Each case's review claim lives in `spec.json` as a templated
+`{"flaw_class", "operation"}` pair, written source-first like the referent.
+`prepare.py` derives `cluster_id` from the upstream path with
+[`templates.py`](templates.py), which also counts how many independent
+templates the full suite offers (`python juliet_pilot/templates.py census --help`).
 
 The D release is a LoRA adapter whose `adapter_config.json` names
 `unsloth/qwq-32b-preview-bnb-4bit` as its base. Before D is used, pin and
 verify the base snapshot and confirm that the repository's classifier loads
 the adapter and reduced Yes/No head correctly on the selected GPU runtime.
-Select RQ2 target/control candidates only after inspecting **real original
-slices**; both locations must have been selected in the original slice.
+Predeclare RQ2 target and matched control *candidates* from the source-first
+referent and operator placement rules. Inspect the original slices only for
+the prespecified eligibility check: both locations must occur in the selected
+U slice. Report how many pairs this check excludes; do not redesign candidate
+locations after viewing their outcomes.
 Separately construct a disjoint vulnerable/safe calibration cohort for the
 full Q → Joern → D scoring run. The four pilot cases and their fixed controls
 cannot serve as their own independent calibration split.

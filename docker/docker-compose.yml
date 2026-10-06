@@ -3,7 +3,8 @@
 
 services:
   joern:
-    image: ghcr.io/joernio/joern:v4.0.0
+    # Set JOERN_IMAGE to the inspected OCI digest for a reproducible run.
+    image: ${JOERN_IMAGE:-ghcr.io/joernio/joern:v4.0.0}
     container_name: llmxcpg_joern
     init: true
     working_dir: /workspace
@@ -13,7 +14,6 @@ services:
       - "127.0.0.1:8080:8080"
     volumes:
       - joern_workspace:/workspace
-      # `Config.work_dir/joern-inputs` maps to `JoernConfig.server_input_dir`.
       - ../work/joern-inputs:/analysis/inputs:ro
 
 volumes:

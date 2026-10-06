@@ -60,9 +60,11 @@ def validate_witnesses(cases: list[Case], manifest: Path, plan_path: Path,
         if case.case_id not in plans:
             raise ValueError(f"Missing witness plan for paired case {case.case_id}")
         plan = plans[case.case_id]
-        if (not plan.get("build_argv") or not plan.get("benign_inputs") or
+        if (not plan.get("build_argv") or not isinstance(plan.get("benign_inputs"), list) or
                 "trigger_input" not in plan or not plan.get("asan_class")):
             raise ValueError(f"Incomplete witness plan for {case.case_id}")
+        if not plan["benign_inputs"] and not plan.get("benign_reason"):
+            raise ValueError(f"Document why {case.case_id} has no benign execution")
         with tempfile.TemporaryDirectory(prefix="evidence-witness-") as temp:
             work = Path(temp)
             runs = {arm: _build_and_run(case, arm, plan, manifest.parent, work)
@@ -83,11 +85,19 @@ def validate_witnesses(cases: list[Case], manifest: Path, plan_path: Path,
             checks["trigger"] = ("pass" if all(triggered(r) for r in runs.values())
                                  else "indeterminate" if any(r["trigger"]["status"] != "ok"
                                                              for r in runs.values()) else "fail")
-            if any(b["status"] != "ok" for r in runs.values() for b in r["benign"]):
+            if not plan["benign_inputs"]:
+                checks["benign_behavior"] = "not_applicable"
+            elif any(b["status"] != "ok" for r in runs.values() for b in r["benign"]):
                 checks["benign_behavior"] = "indeterminate"
+            elif any("ERROR: AddressSanitizer:" in b["stderr"]
+                     for r in runs.values() for b in r["benign"]):
+                checks["benign_behavior"] = "fail"
             else:
                 def signature(b):
-                    return b["stdout"], b["stderr"], b["exit_code"]
+                    # Runtime metadata may vary; preserve the diagnostic text.
+                    stderr = re.sub(r"==\d+==", "==PID==", b["stderr"])
+                    stderr = re.sub(r"\b0x[0-9a-fA-F]+\b", "0xADDR", stderr)
+                    return b["stdout"], stderr, b["exit_code"]
                 checks["benign_behavior"] = (
                     "pass" if all([signature(b) for b in r["benign"]] ==
                                   [signature(b) for b in base["benign"]]
@@ -95,6 +105,7 @@ def validate_witnesses(cases: list[Case], manifest: Path, plan_path: Path,
         else:
             checks.update(trigger="indeterminate", benign_behavior="indeterminate")
         row = {"case_id": case.case_id, "checks": checks, "runs": runs,
+               "benign_reason": plan.get("benign_reason"),
                "source_sha256": {arm: digest(case.sources[arm]) for arm in ("U", "TM", "TN")},
                "limits": "Finite input witnesses; source mapping and control matching need adjudication."}
         append_jsonl(output, row)

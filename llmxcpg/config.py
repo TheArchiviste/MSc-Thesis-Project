@@ -72,6 +72,8 @@ class ModelConfig:
     # Detector (LLMxCPG-D). Paper fine-tunes QwQ-32B-Preview.
     detector_model_path: str = "QCRI/LLMxCPG-D"
     detector_model_revision: str | None = None
+    detector_base_model_path: str | None = None
+    detector_base_model_revision: str | None = None
     detector_max_context: int = 16_384  # Released inference configuration.
     detector_dtype: str = "bfloat16"
 
