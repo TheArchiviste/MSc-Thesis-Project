@@ -136,8 +136,10 @@ def prepare() -> list[dict]:
             if len(mapped) != len(upstream):
                 raise ValueError(f"Unmapped mechanism lines in {case['case_id']}: {upstream}")
             referent["elements"].append({**element, "lines": mapped})
+        # Group flow variants of the same flaw template across splits.
+        cluster_id = re.sub(r"-\d{2}$", "", case["cluster_id"])
         manifest.append({
-            "case_id": case["case_id"], "cluster_id": case["cluster_id"], "cwe": case["cwe"],
+            "case_id": case["case_id"], "cluster_id": cluster_id, "cwe": case["cwe"],
             "sources": {"U": rendered["U"]}, "referent": referent,
             "provenance": {"repository": specification["upstream_repository"],
                            "commit": specification["upstream_commit"],

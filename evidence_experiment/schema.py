@@ -8,7 +8,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-ARMS = ("U", "TM", "TN", "TM_fixed", "TN_fixed", "TM_rule", "TN_rule")
+ARMS = ("U", "TM", "TN", "TM_fixed", "TN_fixed", "U_rule", "TM_rule", "TN_rule")
 REQUIRED_CHECKS = ("compile", "benign_behavior", "trigger", "mechanism_preserved",
                    "line_map", "match", "control_purity")
 
@@ -48,7 +48,7 @@ class Case:
     sources: dict[str, str]
     source_paths: dict[str, str]
     referent: dict[str, Any]
-    rule_queries: list[str]
+    rule_queries: dict[str, list[str]]
     validation: dict[str, str]
     control_in_slice: bool | None
     operator: str | None
@@ -59,12 +59,14 @@ class Case:
 
     @property
     def admissible(self) -> bool:
-        return self.paired and all(self.validation.get(k) == "pass" for k in REQUIRED_CHECKS)
+        return self.paired and all(
+            self.validation.get(k) in ({"pass", "not_applicable"} if k == "benign_behavior"
+                                       else {"pass"})
+            for k in REQUIRED_CHECKS
+        )
 
     def source_for(self, arm: str) -> str:
-        return self.sources[{"U": "U", "TM": "TM", "TN": "TN",
-                             "TM_fixed": "TM", "TN_fixed": "TN",
-                             "TM_rule": "TM", "TN_rule": "TN"}[arm]]
+        return self.sources[arm.split("_")[0]]
 
 
 def load_cases(manifest: Path) -> list[Case]:
@@ -98,10 +100,24 @@ def load_cases(manifest: Path) -> list[Case]:
                                      for arm in ("TM", "TN")):
                 raise ValueError(f"{cid}: transformed mechanism elements require both line mappings")
         validation = obj.get("validation", {})
-        if set(validation.values()) - {"pass", "fail", "indeterminate"}:
-            raise ValueError(f"{cid}: validation statuses must be pass/fail/indeterminate")
+        if set(validation.values()) - {"pass", "fail", "indeterminate", "not_applicable"}:
+            raise ValueError(f"{cid}: invalid validation status")
+        if any(value == "not_applicable" and key != "benign_behavior"
+               for key, value in validation.items()):
+            raise ValueError(f"{cid}: only benign_behavior may be not_applicable")
+        if validation.get("benign_behavior") == "not_applicable" and not obj.get("benign_reason"):
+            raise ValueError(f"{cid}: benign_reason required for not_applicable")
+        rules = obj.get("rule_queries", {})
+        if rules == []:  # older baseline-only manifests
+            rules = {}
+        if (not isinstance(rules, dict) or set(rules) - {"U", "TM", "TN"} or
+                any(not isinstance(items, list) or not items or
+                    not all(isinstance(item, str) for item in items)
+                    for items in rules.values()) or
+                (not {"TM", "TN"} <= set(paths) and set(rules) - {"U"})):
+            raise ValueError(f"{cid}: rule_queries must map available arms to nonempty query lists")
         cases.append(Case(cid, obj["cluster_id"], obj["cwe"], sources, paths,
-                          referent, obj.get("rule_queries", []), validation,
+                          referent, rules, validation,
                           obj.get("control_in_slice"), obj.get("operator")))
     return cases
 
@@ -112,11 +128,10 @@ def run_specs(cases: list[Case], repeats: int = 3) -> list[dict[str, Any]]:
         raise ValueError("repeats must be a positive odd number")
     specs: list[dict[str, Any]] = []
     for case in cases:
-        arms = ["U"] + (["TM", "TN", "TM_fixed", "TN_fixed",
-                         "TM_rule", "TN_rule"] if case.admissible else [])
+        arms = ["U"] + (["TM", "TN", "TM_fixed", "TN_fixed"] if case.admissible else [])
+        arms += [f"{base}_rule" for base in ("U", "TM", "TN")
+                 if base in case.rule_queries and (base == "U" or case.admissible)]
         for arm in arms:
-            if arm.endswith("_rule") and not case.rule_queries:
-                continue  # rule probe is diagnostic, not required for inclusion
             for rep in range(repeats if arm in ("U", "TM", "TN") else 1):
                 source = case.source_for(arm)
                 identity = f"{case.case_id}|{arm}|{rep}|{digest(source)}"

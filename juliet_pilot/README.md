@@ -125,10 +125,23 @@ python juliet_pilot/real_probe.py --config real_probe.json --work work/real-prob
 ```
 
 The first command checks model dependencies, GPU visibility, Joern reachability,
-and provenance **without downloading weights**. The second runs real Q then
-real Joern on the four U cases, three repeats each. It writes raw
+and provenance **without downloading weights**. Run the exploratory probe with
+the four predeclared safe controls in the blind packet pool:
+
+```bash
+python juliet_pilot/real_probe.py --config real_probe.json --work work/real-probe-controls --include-fixed-controls
+```
+
+This runs real Q then real Joern on four vulnerable and four fixed cases,
+three repeats each (24 query and 24 slice rows). It writes raw
 `queries.jsonl`, `slices.jsonl` with Joern traces, numbered blind packets,
-and `probe_summary.json`. It never runs D. The example's `threshold: 0.5`
+`probe_readouts.json`, and `probe_summary.json`. The readouts show the share
+of function lines selected, coverage by referent element role, and whether
+the fixed slice text differs from U. Rate the mixed packets blind and compute
+false adequacy on the four fixed examples separately from RQ1. An unchanged
+fixed excerpt or near-complete U slice is a warning that these `_01` cases
+are insensitive; evaluate larger cross-function flow variants before freezing
+the analysis corpus. This probe never runs D. The example's `threshold: 0.5`
 is an unused parser placeholder for this Q/Joern probe; it must not be treated
 as calibrated. Keep this exploratory work directory separate from a frozen
 main run.
@@ -137,8 +150,11 @@ The D release is a LoRA adapter whose `adapter_config.json` names
 `unsloth/qwq-32b-preview-bnb-4bit` as its base. Before D is used, pin and
 verify the base snapshot and confirm that the repository's classifier loads
 the adapter and reduced Yes/No head correctly on the selected GPU runtime.
-Select RQ2 target/control candidates only after inspecting **real original
-slices**; both locations must have been selected in the original slice.
+Predeclare RQ2 target and matched control *candidates* from the source-first
+referent and operator placement rules. Inspect the original slices only for
+the prespecified eligibility check: both locations must occur in the selected
+U slice. Report how many pairs this check excludes; do not redesign candidate
+locations after viewing their outcomes.
 Separately construct a disjoint vulnerable/safe calibration cohort for the
 full Q → Joern → D scoring run. The four pilot cases and their fixed controls
 cannot serve as their own independent calibration split.

@@ -1,7 +1,8 @@
 # Evidence retrieval experiment
 
 This package runs a source-to-evidence study against LLMxCPG at
-`7023ff49fe7b800e8b26bcae52e2fcdafe95fa9b` without changing the detector.
+`7023ff49fe7b800e8b26bcae52e2fcdafe95fa9b`, with an explicit pinned
+adapter/base loader for the released detector.
 It is an **experiment engine for a curated, documented corpus**. It does not
 manufacture vulnerability ground truth or claim that finite tests prove source
 equivalence. The study needs a separately prepared Juliet corpus, independent
@@ -12,6 +13,7 @@ The four-case, source-first preparation pilot is in
 fixed controls, source line maps, a proposed adequacy rubric, and reproducible
 ASan witnesses. It does not yet supply paired transformations or detector
 outcomes.
+The ordered execution checklist is in [NEXT_ACTIONS.md](NEXT_ACTIONS.md).
 
 ## Research questions and estimands
 
@@ -26,7 +28,10 @@ outcomes.
   Pr(adequacy(U)=1, adequacy(TN)=0 | adequate U)`. In this conditional population
   this reduces to `mean(loss_TM - loss_TN)`. The analysis reports both absolute
   rates, exclusions, unmodified assessment variation, and a cluster bootstrap
-  interval. Correct verdicts despite evidence loss remain in the analysis.
+  interval where at least two independent clusters remain. Unresolved
+  transformed outcomes stay in the eligible denominator for worst-case bounds;
+  the point estimate and CI use resolved pairs. Correct verdicts despite
+  evidence loss remain in the analysis.
 * **RQ3:** Preserve generated queries, CPGQL calls and responses, raw failures,
   selected and rendered lines, detector results, and fixed-query/rule probes.
   The diagnostic table calls its labels *observed changes*. Different queries
@@ -48,19 +53,26 @@ the originally selected target and proposed control, an operator name, and
 admissibility checks. `cluster_id` must group related Juliet flow variants.
 
 ```json
-{"case_id":"c1","cluster_id":"functional_variant_1","cwe":"CWE-121","sources":{"U":"src/c1.c","TM":"src/c1_alias_target.c","TN":"src/c1_alias_control.c"},"operator":"alias","referent":{"elements":[{"id":"allocation","role":"allocation","lines":[12],"mapped_lines":{"TM":[13],"TN":[12]}},{"id":"sink","role":"sink","lines":[23],"mapped_lines":{"TM":[24],"TN":[24]}}],"relations":["write length exceeds destination bound under input condition"],"target_lines":[23],"control_lines":[18]},"validation":{"compile":"pass","benign_behavior":"pass","trigger":"pass","mechanism_preserved":"pass","line_map":"pass","match":"pass","control_purity":"pass"},"control_in_slice":true,"rule_queries":[]}
+{"case_id":"c1","cluster_id":"functional_variant_1","cwe":"CWE-121","sources":{"U":"src/c1.c","TM":"src/c1_alias_target.c","TN":"src/c1_alias_control.c"},"operator":"alias","referent":{"review_claim":"Does this excerpt establish an out-of-bounds write?","elements":[{"id":"allocation","role":"allocation","lines":[12],"mapped_lines":{"TM":[13],"TN":[12]}},{"id":"sink","role":"sink","lines":[23],"mapped_lines":{"TM":[24],"TN":[24]}}],"relations":["write length exceeds destination bound under input condition"],"target_lines":[23],"control_lines":[18]},"validation":{"compile":"pass","benign_behavior":"pass","trigger":"pass","mechanism_preserved":"pass","line_map":"pass","match":"pass","control_purity":"pass"},"control_in_slice":true,"rule_queries":{"U":["VALIDATED_BASELINE_CPGQL"],"TM":["VALIDATED_TRANSFORMED_CPGQL"],"TN":["VALIDATED_CONTROL_CPGQL"]}}
 ```
 
 The example coordinates are illustrative. The prepared corpus must remove
 Juliet label leaks before Q or D sees the code. Produce element accounts from
 annotations, execution evidence, and human adjudication **without requiring
 agreement with Joern**. A CPG rule is a diagnostic probe, not the ground truth;
-`rule_queries` may be empty if no validated rule is available. Map moved and
+`rule_queries` may be `{}` if no validated rule is available. Each available
+rule is written for its own arm and executed once on that arm; a baseline
+rule cannot be assumed to have the same source coordinates after a transform.
+Map moved and
 newly introduced mechanism roles explicitly. Review absent guards and other
 relations in the adequacy rubric, rather than pretending they are source lines.
 
 The `validation` statuses require retained evidence. `compile`, `trigger` and
-`benign_behavior` must additionally pass the executable witness command. The
+`benign_behavior` must additionally pass the executable witness command when
+benign inputs exist. If none are feasible, use `"benign_behavior":"not_applicable"`
+with a documented `benign_reason`, and set `benign_inputs` to `[]` in the
+witness plan. This reduces the strength of the validation claim and should be
+reported as such. The
 other checks require a documented review of line mapping, control purity,
 matching, and mechanism preservation. If any is uncertain, mark
 `indeterminate`, and the case will not enter the paired arms. Prefer controls
@@ -89,39 +101,55 @@ Create a JSON config with the exact pipeline commit, threshold frozen on a
 server configuration, and inference engine:
 
 ```json
-{"pipeline_commit":"7023ff49fe7b800e8b26bcae52e2fcdafe95fa9b","threshold":0.5,"query_model":"QCRI/LLMxCPG-Q","query_revision":"FULL_HF_SHA","detector_model":"QCRI/LLMxCPG-D","detector_revision":"FULL_HF_SHA","joern_digest":"sha256:PINNED_DIGEST","query_engine":"vllm","joern_host":"localhost","joern_port":8080,"joern_input_dir":"work/joern-inputs","server_input_dir":"/analysis/inputs"}
+{"pipeline_commit":"7023ff49fe7b800e8b26bcae52e2fcdafe95fa9b","threshold":0.5,"query_model":"QCRI/LLMxCPG-Q","query_revision":"FULL_HF_SHA","detector_model":"QCRI/LLMxCPG-D","detector_revision":"FULL_ADAPTER_SHA","detector_base_model":"unsloth/qwq-32b-preview-bnb-4bit","detector_base_revision":"FULL_BASE_SHA","joern_digest":"sha256:PINNED_DIGEST","query_engine":"vllm","joern_host":"localhost","joern_port":8080,"joern_input_dir":"work/joern-inputs","server_input_dir":"/analysis/inputs"}
 ```
 
-The numeric threshold above is only a placeholder. Collect Q → slice → D
-scores on a disjoint, mixed-label calibration split and a held-out safe
-specificity split. Each row has `sample_id`, `cluster_id`, `split`, `label`,
-and `p_vulnerable`. Run `python -m evidence_experiment calibrate --manifest
-corpus/cases.jsonl --work run --calibration-scores corpus/calibration_scores.jsonl`.
-This rejects cluster overlap, reports the full threshold sweep and a detector
-usability screen, and writes `calibration.json`. Freeze its threshold in the
-config **before** the main run. The adequacy estimand does not require a
-correct classifier verdict for inclusion.
+The numeric threshold above is only a placeholder. Before D detection, write
+`corpus/calibration_manifest.jsonl` with one predeclared source per row:
+`sample_id`, `cluster_id`, `split` (`calibration` or `specificity`), `label`
+(`0` safe or `1` vulnerable), and `source` (path relative to this manifest).
+The calibration split needs both labels; the held-out specificity split must
+be safe. Neither split may share a template cluster with the analysis corpus
+or each other. Use the *same* Q → Joern → D stages to score every enrolled
+sample and retain their traces. The command fails if any stage does not yield
+a score:
+
+```bash
+python -m evidence_experiment score-calibration --manifest corpus/cases.jsonl --calibration-manifest corpus/calibration_manifest.jsonl --config corpus/config.json --work run
+```
+
+Inspect `run/calibration_run/{queries,slices,detector}.jsonl`, the
+`calibration_failures.jsonl` file, threshold sweep, and usability screen in
+`calibration.json`. Set the config threshold to that report's value before
+`detect`. `calibrate --calibration-scores` is an offline exploratory check;
+its untraced result cannot unlock the main D phase. The adequacy estimand
+does not require a correct classifier verdict for inclusion.
 
 ```bash
 python -m evidence_experiment verify --manifest corpus/cases.jsonl --work run
 python -m evidence_experiment validate --manifest corpus/cases.jsonl --work run --witness-plan corpus/witness_plan.jsonl
-python -m evidence_experiment all --manifest corpus/cases.jsonl --work run --config corpus/config.json
+python -m evidence_experiment query --manifest corpus/cases.jsonl --work run --config corpus/config.json
+python -m evidence_experiment slice --manifest corpus/cases.jsonl --work run --config corpus/config.json
 python -m evidence_experiment packets --manifest corpus/cases.jsonl --work run --config corpus/config.json
 ```
 
-The `all` command executes Q in batches, releases its model, runs Joern
-sequentially, then loads D and classifies single snippets. Each phase can be
-called separately as `query`, `slice`, or `detect`; JSONL outputs are
-append-only and resumable. Input and harness hashes in
-`experiment_lock.json` prevent accidental reuse after a change. Joern
+This produces reviewable evidence before loading D. With calibration frozen,
+run `python -m evidence_experiment detect --manifest corpus/cases.jsonl --work
+run --config corpus/config.json`. The `all` command also executes Q in
+batches, releases its model, runs Joern sequentially, then loads D and
+classifies single snippets. Stage JSONL outputs are append-only and resumable.
+The acquisition and D settings have separate `experiment_lock.json` and
+`detector_lock.json` fingerprints, allowing threshold calibration after the
+Q/Joern run. Joern
 transport failures, unknown errors and context overflows stay uncertain;
 abstentions are never silently counted as safe predictions. Real timeout and
 worker restart supervision should run outside this process in the GPU/Joern
 deployment.
 
-`blind_review_packets.jsonl` contains only `review_id` and numbered excerpt:
-no arm, case identifier, known CWE, or detector verdict. Collect one or more
-independent assessments per unique packet. Example row:
+`blind_review_packets.jsonl` contains `review_id`, a case-specific
+vulnerability claim, and numbered excerpt: no arm, case identifier, known
+CWE, or detector verdict. Supply `referent.review_claim` for every final
+case. Collect two independent assessments per unique packet. Example row:
 
 ```json
 {"review_id":"HASH_FROM_PACKET","assessor_id":"reviewer_1","adequacy":"adequate","cited_lines":[12,23],"relationships":["unchecked write length exceeds allocation"],"assumptions":["entry is reachable"],"explanation":"The allocation and input-controlled copy establish the documented condition."}
@@ -129,8 +157,12 @@ independent assessments per unique packet. Example row:
 
 `adequacy` is `adequate`, `inadequate` or `uncertain`. A judge may be a separate
 LLM family, but calibrate it against independently adjudicated human ratings,
-including deficient and uncertain slices. Divergent assessor decisions become
-uncertain in the primary analysis. Blind reviewers decide whether the excerpt
+including deficient and uncertain slices. Missing second ratings and unresolved
+disagreements remain uncertain. For a disagreement, supply a separate
+`--resolutions` JSONL row with `review_id`, `method` (`third_review` or
+`consensus`), `adequacy`, and `reason`; an adequate resolution also needs
+`cited_lines` and `relationships`, while a third review needs a distinct
+`assessor_id`. Blind reviewers decide whether the excerpt
 justifies a vulnerability; after unblinding, a separate adjudicator compares
 their explanation with the documented mechanism. The second JSONL is:
 
@@ -146,8 +178,12 @@ are not silently imputed as adequate or inadequate.
 python -m evidence_experiment analyze --manifest corpus/cases.jsonl --work run --config corpus/config.json --assessments reviews.jsonl --adjudications adjudications.jsonl
 ```
 
-`analysis.json` contains baseline denominators, family breakdown, paired
-adequacy-loss estimates, exclusion counts, and run-level diagnostics. Before
+Add `--resolutions resolutions.jsonl` when adjudicating disagreements. Add
+`--evidence-only` if D has not been run; the verdict dimension is then
+`not_run`, never a missed or abstained classification. `analysis.json`
+contains baseline denominators, family breakdown, paired adequacy-loss
+estimates with bounds for unresolved outcomes, exclusion counts, reviewer
+agreement counts, analysis file hashes, and run-level diagnostics. Before
 the main run, pre-register the corpus rules, transformations, reviewer rubric,
 control matching, repeats, threshold, CI method and primary outcome. Report
 the yield and uncertainty of all pre-analysis filters. These controlled cases

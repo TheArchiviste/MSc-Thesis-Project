@@ -16,19 +16,26 @@ from .schema import Case, append_jsonl, digest, index_jsonl, run_specs
 log = logging.getLogger(__name__)
 
 
-def load_config(path: Path) -> dict[str, Any]:
+def load_config(path: Path, *, require_detector: bool = True) -> dict[str, Any]:
     cfg = json.loads(path.read_text(encoding="utf-8"))
     pinned = "7023ff49fe7b800e8b26bcae52e2fcdafe95fa9b"
     if cfg.get("pipeline_commit") != pinned:
         raise ValueError(f"Experiment requires pinned pipeline commit {pinned}")
-    if not 0 <= cfg["threshold"] <= 1:
+    if require_detector and "threshold" not in cfg:
+        raise ValueError("D threshold must be frozen before detection")
+    if "threshold" in cfg and not 0 <= cfg["threshold"] <= 1:
         raise ValueError("threshold must be in [0, 1] and frozen before analysis")
     if cfg.get("query_engine", "vllm") == "dummy" and not cfg.get("allow_dummy", False):
         raise ValueError("dummy query engine is for smoke tests only")
     if not cfg.get("allow_dummy", False) and not all(
-        cfg.get(key) for key in ("query_revision", "detector_revision", "joern_digest")
+        cfg.get(key) for key in ("query_revision", "joern_digest")
     ):
-        raise ValueError("pin both model revisions and the Joern image digest")
+        raise ValueError("pin Q and the Joern image digest")
+    if require_detector and not cfg.get("allow_dummy", False) and not all(
+        cfg.get(key) for key in ("detector_revision", "detector_base_model",
+                                 "detector_base_revision")
+    ):
+        raise ValueError("pin the D adapter and 4-bit base before detection")
     return cfg
 
 
@@ -43,6 +50,8 @@ def _models(cfg: dict[str, Any]):
         query_temperature=cfg.get("query_temperature", 0.0),
         detector_model_path=cfg.get("detector_model", "QCRI/LLMxCPG-D"),
         detector_model_revision=cfg.get("detector_revision"),
+        detector_base_model_path=cfg.get("detector_base_model"),
+        detector_base_model_revision=cfg.get("detector_base_revision"),
     )
 
 
@@ -231,7 +240,7 @@ def extract_slices(cases: list[Case], work: Path, cfg: dict[str, Any],
                                 and s["arm"] == "U" and s["repeat"] == 0)
                 query_record = q.get(baseline["run_id"])
             elif arm.endswith("_rule"):
-                query_record = {"status": "ok", "queries": case.rule_queries}
+                query_record = {"status": "ok", "queries": case.rule_queries[arm.split("_")[0]]}
             else:
                 query_record = q.get(spec["run_id"])
             if query_record is None:
@@ -321,8 +330,10 @@ def packet_index(cases: list[Case], work: Path, repeats: int = 3
             continue
         view = numbered_view(by_case[spec["case_id"]].source_for(spec["arm"]),
                              slc["rendered_lines"])
-        review_id = digest(view)
-        packets[review_id] = {"review_id": review_id, "code": view}
+        claim = by_case[spec["case_id"]].referent.get(
+            "review_claim", "Does this excerpt justify a vulnerability? Explain the mechanism.")
+        review_id = digest(claim + "\n" + view)
+        packets[review_id] = {"review_id": review_id, "claim": claim, "code": view}
         joins[spec["run_id"]] = review_id
     return packets, joins
 

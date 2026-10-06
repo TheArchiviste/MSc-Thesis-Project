@@ -14,16 +14,23 @@ import re
 import shutil
 import socket
 from collections import Counter
+from dataclasses import replace
 from pathlib import Path
 
 from evidence_experiment.runner import extract_slices, generate_queries, load_config, review_packets
-from evidence_experiment.schema import load_cases, read_jsonl, run_specs
+from evidence_experiment.schema import index_jsonl, load_cases, read_jsonl, run_specs
 
 ROOT = Path(__file__).resolve().parent
 MANIFEST = ROOT / "generated" / "cases.jsonl"
 Q_REVISION = "1f48ab60420d90277207394f1254d27d3375b07e"
 D_REVISION = "91e6c0d0e8ea645047c237166b1403262d116a92"
 SHA256_DIGEST = re.compile(r"^sha256:[0-9a-f]{64}$")
+REVIEW_CLAIMS = {
+    "J121-size-01": "Does the excerpt justify a stack overflow from a copy exceeding its destination capacity?",
+    "J121-index-01": "Does the excerpt justify an out-of-bounds stack array write?",
+    "J122-nul-01": "Does the excerpt justify a heap overflow from copying the string and terminator?",
+    "J416-free-01": "Does the excerpt justify a read through a pointer after its allocation was freed?",
+}
 
 
 def preflight(config: Path, *, check_runtime: bool = True) -> list[str]:
@@ -91,12 +98,67 @@ def _fingerprint(config: Path, cases) -> str:
     return digest.hexdigest()
 
 
-def probe(config: Path, work: Path) -> dict:
+def _function_lines(source: str) -> set[int]:
+    """The generated case_entry body, excluding headers and the test driver."""
+    lines = source.splitlines()
+    start = next(i for i, line in enumerate(lines) if line.startswith("void case_entry("))
+    stop = next(i for i in range(start + 1, len(lines)) if lines[i].startswith("int main("))
+    return {i + 1 for i in range(start, stop) if lines[i].strip()}
+
+
+def probe_readouts(originals, cases, slices: dict[str, dict]) -> list[dict]:
+    """Mechanical go/no-go observations; reviewers still decide adequacy."""
+    specs = run_specs(cases, repeats=3)
+    first = {(spec["case_id"], spec["arm"]): slices[spec["run_id"]]
+             for spec in specs if spec["repeat"] == 0}
+    by_case = {case.case_id: case for case in cases}
+    result = []
+    for case in originals:
+        vulnerable = first[case.case_id, "U"]
+        selected = set(vulnerable.get("slice_lines", [])) if vulnerable["status"] == "ok" else set()
+        function_lines = _function_lines(case.sources["U"])
+        elements = [{"role": element["role"], "id": element["id"],
+                     "selected": bool(selected & set(element["lines"]))}
+                    for element in case.referent["elements"]]
+        row = {"case_id": case.case_id, "U_status": vulnerable["status"],
+               "U_selected_function_lines": len(selected & function_lines),
+               "U_function_lines": len(function_lines),
+               "U_selected_fraction": len(selected & function_lines) / len(function_lines),
+               "element_roles": elements,
+               "referent_coverage": sum(e["selected"] for e in elements) / len(elements)}
+        fixed_id = f"{case.case_id}-fixed"
+        if fixed_id in by_case:
+            fixed = first[fixed_id, "U"]
+            row["fixed_status"] = fixed["status"]
+            row["fixed_selected_fraction"] = (
+                len(set(fixed.get("slice_lines", [])) &
+                    _function_lines(by_case[fixed_id].sources["U"])) /
+                len(_function_lines(by_case[fixed_id].sources["U"])))
+            row["fixed_rendered_text_differs"] = (
+                vulnerable.get("slice_code") != fixed.get("slice_code")
+                if vulnerable["status"] == fixed["status"] == "ok" else None)
+        result.append(row)
+    return result
+
+
+def probe(config: Path, work: Path, *, include_fixed_controls: bool = False) -> dict:
     blockers = preflight(config)
     if blockers:
         raise RuntimeError("Real Q/Joern probe is blocked:\n- " + "\n- ".join(blockers))
-    cfg = load_config(config)
-    cases = load_cases(MANIFEST)
+    cfg = load_config(config, require_detector=False)
+    originals = load_cases(MANIFEST)
+    cases = []
+    for case in originals:
+        referent = {**case.referent, "review_claim": REVIEW_CLAIMS[case.case_id]}
+        cases.append(replace(case, referent=referent))
+        if include_fixed_controls:
+            prepared = next(row for row in read_jsonl(MANIFEST)
+                            if row["case_id"] == case.case_id)
+            source_path = prepared["control_source"]
+            source = (MANIFEST.parent / source_path).read_text(encoding="utf-8")
+            cases.append(replace(case, case_id=f"{case.case_id}-fixed",
+                                 sources={"U": source}, source_paths={"U": source_path},
+                                 referent=referent, validation={}, rule_queries={}))
     work.mkdir(parents=True, exist_ok=True)
     fingerprint = _fingerprint(config, cases)
     lock = work / "probe_lock.json"
@@ -117,10 +179,13 @@ def probe(config: Path, work: Path) -> dict:
     expected = len(run_specs(cases, repeats))
     if len(q) != expected or len(slices) != expected:
         raise AssertionError("Probe has an incomplete query/slice grid")
+    readouts = probe_readouts(originals, cases, index_jsonl(work / "slices.jsonl", "run_id"))
+    (work / "probe_readouts.json").write_text(json.dumps(readouts, indent=2) + "\n")
     report = {
         "kind": "real_Q_Joern_exploratory_probe",
         "research_results": False,
         "cases": len(cases),
+        "fixed_safe_controls": len(cases) - len(originals),
         "repeats": repeats,
         "query_status": dict(Counter(row["status"] for row in q)),
         "slice_status": dict(Counter(row["status"] for row in slices)),
@@ -138,8 +203,10 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--config", type=Path, required=True)
     parser.add_argument("--work", type=Path)
+    parser.add_argument("--include-fixed-controls", action="store_true")
     args = parser.parse_args()
     if args.work is None:
         print(json.dumps({"blockers": preflight(args.config)}, indent=2))
     else:
-        print(json.dumps(probe(args.config, args.work), indent=2))
+        print(json.dumps(probe(args.config, args.work,
+                               include_fixed_controls=args.include_fixed_controls), indent=2))

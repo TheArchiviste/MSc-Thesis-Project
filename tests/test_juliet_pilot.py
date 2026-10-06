@@ -8,7 +8,7 @@ from pathlib import Path
 
 from evidence_experiment.schema import load_cases
 from juliet_pilot.prepare import OUTPUT, ROOT, prepare
-from juliet_pilot.real_probe import preflight
+from juliet_pilot.real_probe import preflight, probe_readouts
 from juliet_pilot.smoke import run as smoke_run
 
 
@@ -67,6 +67,27 @@ class JulietPilotTests(unittest.TestCase):
             path.write_text(json.dumps(changed))
             self.assertIn("Use the local vLLM Q engine without dummy mode",
                           preflight(path, check_runtime=False))
+
+    def test_probe_readouts_distinguish_guard_loss_and_fixed_control(self):
+        prepare()
+        case = next(c for c in load_cases(OUTPUT / "cases.jsonl")
+                    if c.case_id == "J121-index-01")
+        from dataclasses import replace
+        from evidence_experiment.schema import run_specs
+
+        fixed = replace(case, case_id=f"{case.case_id}-fixed",
+                        sources={"U": (OUTPUT / f"{case.case_id}_control.c").read_text()})
+        original_lines = {e["role"]: e["lines"] for e in case.referent["elements"]}
+        selected = original_lines["array_extent"] + original_lines["out_of_bounds_write"]
+        rows = {}
+        for spec in run_specs([case, fixed]):
+            rows[spec["run_id"]] = {"status": "ok",
+                                    "slice_lines": selected if spec["case_id"] == case.case_id else [1],
+                                    "slice_code": "vulnerable" if spec["case_id"] == case.case_id else "fixed"}
+        readout = probe_readouts([case], [case, fixed], rows)[0]
+        self.assertFalse(next(e["selected"] for e in readout["element_roles"]
+                              if e["role"] == "insufficient_guard"))
+        self.assertTrue(readout["fixed_rendered_text_differs"])
 
 
 if __name__ == "__main__":

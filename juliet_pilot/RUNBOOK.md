@@ -76,14 +76,16 @@ If Docker is allowed, start Joern with the same `docker pull`, `JOERN_IMAGE`,
 ```bash
 python scripts/pilot_setup.py doctor --profile gpu
 python juliet_pilot/real_probe.py --config work/real_probe.json
-python juliet_pilot/real_probe.py --config work/real_probe.json --work work/real-probe
+python juliet_pilot/real_probe.py --config work/real_probe.json --work work/real-probe --include-fixed-controls
 python -m pip freeze > work/real-probe-packages.txt
 nvidia-smi > work/real-probe-gpu.txt
 ```
 
 The two checks before the last probe do **not** download model weights. The
-probe does, and its output should have 12 query rows and 12 slice rows. Check
-`work/real-probe/probe_summary.json`, `queries.jsonl`, and `slices.jsonl` for
+probe does, and its output should have 24 query rows and 24 slice rows, from
+four vulnerable functions and four fixed controls. Check
+`work/real-probe/probe_summary.json`, `probe_readouts.json`, `queries.jsonl`,
+and `slices.jsonl` for
 failures rather than treating a completed process as a valid result. Keep
 the raw files and environment records together. The `work/` tree is ignored
 by Git, so copy results to university persistent storage before a scratch
@@ -118,7 +120,8 @@ See the [Apptainer bind documentation](https://apptainer.org/docs/user/main/bind
 ## Scope after the first probe
 
 The D publication is an adapter, not a standalone 2 GB classifier. Before a
-Q → Joern → D run, pin its named 4-bit base snapshot and verify adapter load,
+Q → Joern → D run, set `detector_base_model` and the exact
+`detector_base_revision` in the full config, then verify adapter load,
 Yes/No token head, and outputs on a small labeled sanity set. Calibrate any
 threshold on a separate mixed-label cohort; `0.5` in the exploratory config
 is a placeholder. The four pilot cases cannot calibrate and evaluate their
