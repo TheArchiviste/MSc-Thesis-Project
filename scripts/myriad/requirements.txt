@@ -1,0 +1,11 @@
+# Candidate runtime for the pinned 2025 pipeline. Run the GPU doctor before Q.
+# Build once, retain pip-freeze.txt and freeze the resulting SIF SHA256.
+vllm==0.6.6.post1
+torch==2.5.1
+transformers==4.47.1
+accelerate==1.2.1
+peft==0.14.0
+bitsandbytes==0.45.0
+numpy==1.26.4
+cpgqls-client==0.0.9
+websocket-client==1.8.0

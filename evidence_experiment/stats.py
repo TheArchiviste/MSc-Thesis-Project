@@ -39,7 +39,13 @@ def newcombe_paired(both: int, first_only: int, second_only: int, neither: int,
     l2, u2 = wilson(both + second_only, n, z)
     denominator = math.sqrt((both + first_only) * (second_only + neither) *
                             (both + second_only) * (first_only + neither))
-    phi = (both * neither - first_only * second_only) / denominator if denominator else 0.0
+    numerator = both * neither - first_only * second_only
+    # Method 10 corrects positive association towards zero (section 5).
+    # The uncorrected coefficient is method 8 and gives a zero-width interval
+    # for perfectly concordant, nonconstant pairs.
+    if numerator > 0:
+        numerator = max(0.0, numerator - n / 2)
+    phi = numerator / denominator if denominator else 0.0
     d = p1 - p2
     delta = math.sqrt(max(0.0, (p1 - l1) ** 2 - 2 * phi * (p1 - l1) * (u2 - p2) + (u2 - p2) ** 2))
     epsilon = math.sqrt(max(0.0, (u1 - p1) ** 2 - 2 * phi * (u1 - p1) * (p2 - l2) + (p2 - l2) ** 2))

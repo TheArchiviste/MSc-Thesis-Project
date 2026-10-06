@@ -38,6 +38,10 @@ class EvidenceGateTests(unittest.TestCase):
                     "detector_base_revision": "base-pin", "detector_base_model": "base",
                     "joern_digest": "sha256:pin", "threshold": .5}
         self.config.write_text(json.dumps(self.cfg))
+        git = patch("evidence_experiment.locks.git_provenance",
+                    return_value={"q_joern_pin": "matches_pin"})
+        git.start()
+        self.addCleanup(git.stop)
 
     def test_acquisition_can_precede_calibration_but_d_lock_cannot_change(self):
         _lock_inputs(self.work, self.manifest, self.config, self.cases)
@@ -179,6 +183,21 @@ class EvidenceGateTests(unittest.TestCase):
         calibration = calibration_work / "calibration.json"
         cfg = {**self.cfg, "threshold": result["threshold"]}
         _require_calibration(calibration, cfg, self.manifest)
+        _require_calibration(calibration, {**cfg, "joern_port": 45678}, self.manifest)
+        for key, value in (("query_revision", "other-q"), ("detector_revision", "other-d"),
+                           ("detector_base_revision", "other-base"), ("query_max_context", 4096),
+                           ("joern_digest", "sha256:other")):
+            with self.subTest(key=key), self.assertRaisesRegex(ValueError, "scoring settings"):
+                _require_calibration(calibration, {**cfg, key: value}, self.manifest)
+        with patch("evidence_experiment.locks.package_versions", return_value={"torch": "other"}), \
+                self.assertRaisesRegex(ValueError, "scoring settings"):
+            _require_calibration(calibration, cfg, self.manifest)
+        trace = calibration_work / "calibration_run" / "queries.jsonl"
+        original = trace.read_text()
+        trace.write_text(original + "{}\n")
+        with self.assertRaisesRegex(ValueError, "stage trace changed"):
+            _require_calibration(calibration, cfg, self.manifest)
+        trace.write_text(original)
         _lock_detector(self.work, self.config, calibration)
         lock = json.loads((self.work / "detector_lock.json").read_text())
         self.assertEqual(lock["calibration_path"], str(calibration))
@@ -186,6 +205,15 @@ class EvidenceGateTests(unittest.TestCase):
             stream.write("{}\n")
         with self.assertRaisesRegex(ValueError, "scores changed"):
             _require_calibration(calibration, cfg, self.manifest)
+
+    def test_calibration_resume_rejects_runtime_changes_before_scoring(self):
+        manifest = self._calibration_manifest()
+        q, s, d = self._stage_patches()
+        with q, s, d:
+            score_and_calibrate(self.cases, manifest, self.work, self.cfg)
+        with patch("evidence_experiment.locks.package_versions", return_value={"torch": "other"}), \
+                self.assertRaisesRegex(ValueError, "Calibration inputs changed"):
+            score_and_calibrate(self.cases, manifest, self.work, self.cfg)
 
 
 if __name__ == "__main__":

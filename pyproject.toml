@@ -26,6 +26,7 @@ inference = [
     "torch>=2.4.0",
     "accelerate>=0.34.0",
     "peft>=0.13.0",
+    "bitsandbytes>=0.44.0",      # Released D base uses bitsandbytes 4-bit weights.
     "openai>=1.40.0",
 ]
 training = [

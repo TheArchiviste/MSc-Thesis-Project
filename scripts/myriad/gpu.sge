@@ -1,0 +1,12 @@
+#!/bin/bash -l
+#$ -N llmxcpg-gpu
+#$ -cwd
+#$ -pe smp 16
+#$ -l mem=8G
+#$ -l h_rt=04:00:00
+#$ -l tmpfs=50G
+#$ -l gpu=1
+#$ -ac allow=UV
+set -euo pipefail
+cd "${SGE_O_WORKDIR:?Submit from the repository root}"
+bash scripts/myriad/run.sh "$@"

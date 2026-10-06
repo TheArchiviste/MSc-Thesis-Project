@@ -6,6 +6,12 @@ in the final analysis or either calibration split. Every phase records the
 checkout, packages and Q/Joern pin check in `phase_log.jsonl`. The `work/`
 directory is ignored by Git.
 
+For UCL Myriad, use the scheduler commands and setup in
+[`scripts/myriad/RUNBOOK.md`](../scripts/myriad/RUNBOOK.md). It selects U/V
+A100 80 GB nodes, builds an Apptainer runtime and records image/model pins.
+The commands below describe pipeline phases; run heavy phases as the
+corresponding Myriad jobs rather than on its login nodes.
+
 0. **Update and reinstall.** `evidence_experiment` is now an installed
    package, so after pulling run `python -m pip install -e .` (and
    `'.[inference]'` on the GPU node). The pilot scripts also work from the
@@ -67,6 +73,9 @@ directory is ignored by Git.
    * the primary RQ2 analysis: `one_case_per_cluster` (exact McNemar,
      Newcombe interval) is recommended with fewer than ~30 clusters, with the
      all-pairs cluster bootstrap as sensitivity; and the `--analysis-seed`;
+     representatives are selected from baseline-eligible cases before
+     transformed outcomes are resolved; an uncertain representative is
+     retained and never replaced by a resolved case from its cluster;
    * admissibility and exclusion rules; operator catalogue and deterministic
      placement rule; source-first target/control candidates;
    * the claim for each case (`flaw_class` + `operation`), allowed assumptions
@@ -133,9 +142,10 @@ directory is ignored by Git.
    python -m evidence_experiment score-calibration --manifest corpus/cases.jsonl --calibration-manifest corpus/calibration_manifest.jsonl --config corpus/config.json --work work/calibration-001
    ```
 
-   Installing or upgrading `peft`, `bitsandbytes` or `transformers` for D does
-   not invalidate the evidence in `work/main-001`; only the Q/Joern packages
-   are enforced there. If the usability screen fails, keep the evidence-only
+   Prepare D dependencies before the cluster run and use the frozen SIF for
+   calibration and detection. Calibration records effective model settings,
+   scoring code, packages, image identity and stage hashes. Resuming calibration
+   or detecting in a different scoring environment is refused. If the usability screen fails, keep the evidence-only
    result and diagnose D without tuning on analysis cases.
 
 8. **Detect and report.** Copy the calibrated threshold into the config, then:

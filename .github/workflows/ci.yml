@@ -20,4 +20,5 @@ jobs:
       - run: python -m pip install -e '.[dev]'
       - run: python -m pytest -q
       - run: ruff check .
-      - run: python -m compileall -q llmxcpg scripts tests
+      - run: python -m compileall -q llmxcpg evidence_experiment juliet_pilot scripts tests
+      - run: bash -n scripts/myriad/run.sh scripts/myriad/prepare.sge scripts/myriad/gpu.sge scripts/myriad/cpu.sge

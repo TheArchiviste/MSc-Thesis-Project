@@ -88,7 +88,8 @@ def main() -> None:
         if (args.work / "detector_lock.json").exists():
             parser.error("D has already run in this --work directory; calibrate in its own directory")
         result = score_and_calibrate(cases, args.calibration_manifest, args.work,
-                                     load_config(args.config, require_threshold=False))
+                                     load_config(args.config, require_threshold=False),
+                                     analysis_manifest=args.manifest)
         result["analysis_manifest_sha256"] = _sha256(args.manifest)
         result["provenance"] = git_provenance()
         (args.work / "calibration.json").write_text(json.dumps(result, indent=2) + "\n",

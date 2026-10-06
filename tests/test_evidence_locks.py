@@ -41,6 +41,9 @@ class LockTests(unittest.TestCase):
                             side_effect=lambda names: {n: self.versions.get(n) for n in names})
         fake.start()
         self.addCleanup(fake.stop)
+        git = patch.object(locks, "git_provenance", return_value={"q_joern_pin": "matches_pin"})
+        git.start()
+        self.addCleanup(git.stop)
 
     def lock(self, phase):
         return locks.lock_inputs(self.work, self.manifest, self.config, self.cases, 1, phase=phase)
@@ -83,6 +86,18 @@ class LockTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "differs from pinned commit"):
                 self.lock("query")
             self.lock("analyze")
+
+    def test_unverifiable_pin_blocks_real_acquisition(self):
+        with patch.object(locks, "git_provenance", return_value={"q_joern_pin": "unverifiable"}), \
+                self.assertRaisesRegex(ValueError, "full git clone"):
+            self.lock("query")
+
+    def test_job_local_transport_changes_do_not_change_acquisition(self):
+        self.lock("query")
+        cfg = json.loads(self.config.read_text())
+        cfg.update(joern_port=45678, joern_input_dir="/another/job")
+        self.config.write_text(json.dumps(cfg))
+        self.lock("slice")
 
     def test_locks_from_older_engine_are_refused(self):
         (self.work / "experiment_lock.json").write_text('{"fingerprint": "old"}')

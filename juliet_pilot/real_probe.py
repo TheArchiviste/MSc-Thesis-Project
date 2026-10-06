@@ -23,6 +23,7 @@ from pathlib import Path
 # whose editable install predates the evidence_experiment package entry.
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
+from evidence_experiment.locks import DEPLOYMENT_SETTINGS, scoring_contract
 from evidence_experiment.review import build_queue, write_queue
 from evidence_experiment.runner import extract_slices, generate_queries, load_config
 from evidence_experiment.schema import DECOY_ARM, index_jsonl, load_cases, read_jsonl, run_specs
@@ -91,7 +92,11 @@ def preflight(config: Path, *, check_runtime: bool = True) -> list[str]:
 def _fingerprint(config: Path, cases) -> str:
     digest = hashlib.sha256()
     engine = Path(__file__).parents[1] / "evidence_experiment"
-    for path in (config, MANIFEST, Path(__file__), engine / "runner.py", engine / "review.py"):
+    cfg = json.loads(config.read_text(encoding="utf-8"))
+    digest.update(json.dumps({k: v for k, v in cfg.items() if k not in DEPLOYMENT_SETTINGS},
+                             sort_keys=True).encode())
+    digest.update(json.dumps(scoring_contract(cfg), sort_keys=True).encode())
+    for path in (MANIFEST, Path(__file__), engine / "runner.py", engine / "review.py"):
         digest.update(path.read_bytes())
     for case in cases:
         for arm, source in sorted(case.sources.items()):
