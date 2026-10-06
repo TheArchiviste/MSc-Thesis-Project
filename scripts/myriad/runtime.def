@@ -1,0 +1,20 @@
+Bootstrap: docker
+From: python:3.11-slim-bookworm
+
+%files
+    scripts/myriad/requirements.txt /opt/llmxcpg-requirements.txt
+
+%post
+    apt-get update
+    apt-get install -y --no-install-recommends git gcc g++ libgomp1 ca-certificates
+    rm -rf /var/lib/apt/lists/*
+    python -m pip install --no-cache-dir -r /opt/llmxcpg-requirements.txt
+    python -m pip check
+    python -m pip freeze > /opt/pip-freeze.txt
+
+%environment
+    export PYTHONPATH=/repo
+    export TOKENIZERS_PARALLELISM=false
+
+%labels
+    Purpose LLMxCPG dissertation inference on UCL Myriad

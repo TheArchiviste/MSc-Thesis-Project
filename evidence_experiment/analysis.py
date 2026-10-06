@@ -133,7 +133,7 @@ def analyze(cases: list[Case], work: Path, assessments: Path, adjudications: Pat
     specs = run_specs(cases, repeats)
     queries = index_jsonl(work / "queries.jsonl", "run_id")
     slices = index_jsonl(work / "slices.jsonl", "run_id")
-    detector = index_jsonl(work / "detector.jsonl", "run_id")
+    detector = {} if evidence_only else index_jsonl(work / "detector.jsonl", "run_id")
     packets, joins = packet_index(cases, work, repeats)
     duplicates = duplicate_packets(cases, work, repeats)
     decisions, review_stats, ratings = _assessments(assessments, {**packets, **duplicates},
@@ -157,8 +157,6 @@ def analyze(cases: list[Case], work: Path, assessments: Path, adjudications: Pat
         if det is None:
             det = {"status": "not_run"}
         status = slc["status"]
-        if status == "ok" and det["status"] == "context_overflow":
-            status = "context_overflow"
         if spec["arm"] == DECOY_ARM:
             # A decoy has no documented flaw to match: the blind rating is the outcome.
             adequacy = decisions.get(joins[rid], "uncertain") if status == "ok" else "not_shown"
@@ -210,6 +208,7 @@ def analyze(cases: list[Case], work: Path, assessments: Path, adjudications: Pat
         for case in cases)
     paired: list[dict[str, Any]] = []
     eligible: list[tuple[str, str]] = []
+    independent_candidates: list[dict[str, Any]] = []
     exclusions = Counter()
     for case in cases:
         if not case.paired:
@@ -229,6 +228,10 @@ def analyze(cases: list[Case], work: Path, assessments: Path, adjudications: Pat
         else:
             tm, tn = (decision(case.case_id, arm) for arm in ("TM", "TN"))
             eligible.append((tm, tn))
+            independent_candidates.append({
+                "case_id": case.case_id, "cluster_id": case.cluster_id,
+                "loss_TM": None if tm == "uncertain" else int(tm == "inadequate"),
+                "loss_TN": None if tn == "uncertain" else int(tn == "inadequate")})
             if "uncertain" in (tm, tn):
                 exclusions["transformed_evidence_uncertain"] += 1
                 continue
@@ -264,7 +267,7 @@ def analyze(cases: list[Case], work: Path, assessments: Path, adjudications: Pat
                            sum((tm != "adequate") - (tn == "inadequate")
                                for tm, tn in eligible) / n_eligible],
         }
-    one_per_cluster = _one_per_cluster(paired, seed)
+    one_per_cluster = _one_per_cluster(independent_candidates, seed)
     coverage = _coverage_all_admissible(cases, groups, slices)
 
     failures = Counter((r["arm"], r["status"]) for r in outcomes.values())
@@ -352,7 +355,11 @@ def analyze(cases: list[Case], work: Path, assessments: Path, adjudications: Pat
 
 
 def _one_per_cluster(paired: list[dict[str, Any]], seed: int) -> dict[str, Any] | None:
-    """Independent-pairs analysis: one seeded pair per cluster, exact paired inference."""
+    """Select from baseline-eligible pairs before inspecting transformed resolution.
+
+    An uncertain selected pair is retained in the selection report and is never
+    replaced by another member of its cluster with resolved outcomes.
+    """
     if not paired:
         return None
     chosen: dict[str, tuple[str, dict[str, Any]]] = {}
@@ -361,20 +368,39 @@ def _one_per_cluster(paired: list[dict[str, Any]], seed: int) -> dict[str, Any] 
         current = chosen.get(pair["cluster_id"])
         if current is None or rank < current[0]:
             chosen[pair["cluster_id"]] = (rank, pair)
-    pairs = [pair for _, pair in chosen.values()]
+    selected = [pair for _, pair in chosen.values()]
+    pairs = [p for p in selected if None not in (p["loss_TM"], p["loss_TN"])]
     both = sum(p["loss_TM"] and p["loss_TN"] for p in pairs)
     tm_only = sum(p["loss_TM"] and not p["loss_TN"] for p in pairs)
     tn_only = sum(p["loss_TN"] and not p["loss_TM"] for p in pairs)
     neither = len(pairs) - both - tm_only - tn_only
-    return {"seed": seed, "n_pairs": len(pairs),
-            "case_ids": sorted(p["case_id"] for p in pairs),
+    n = len(pairs)
+    def lower(value):
+        return 0 if value is None else value
+
+    def upper(value):
+        return 1 if value is None else value
+
+    bounds = {
+        "TM_loss": [sum(lower(p["loss_TM"]) for p in selected) / len(selected),
+                    sum(upper(p["loss_TM"]) for p in selected) / len(selected)],
+        "TN_loss": [sum(lower(p["loss_TN"]) for p in selected) / len(selected),
+                    sum(upper(p["loss_TN"]) for p in selected) / len(selected)],
+        "difference": [sum(lower(p["loss_TM"]) - upper(p["loss_TN"]) for p in selected) / len(selected),
+                       sum(upper(p["loss_TM"]) - lower(p["loss_TN"]) for p in selected) / len(selected)]}
+    return {"seed": seed, "n_pairs": n, "n_selected": len(selected),
+            "n_uncertain": len(selected) - n,
+            "selection_population": "baseline_eligible_before_transformed_resolution",
+            "case_ids": sorted(p["case_id"] for p in selected),
+            "resolved_case_ids": sorted(p["case_id"] for p in pairs),
+            "unresolved_outcome_bounds": bounds,
             "loss_both": both, "loss_TM_only": tm_only, "loss_TN_only": tn_only,
             "loss_neither": neither,
-            "TM_adequacy_loss_rate": (both + tm_only) / len(pairs),
-            "TN_adequacy_loss_rate": (both + tn_only) / len(pairs),
-            "paired_risk_difference": (tm_only - tn_only) / len(pairs),
-            "newcombe_95_ci": list(newcombe_paired(both, tm_only, tn_only, neither)),
-            "mcnemar_exact_p": mcnemar_exact_p(tm_only, tn_only)}
+            "TM_adequacy_loss_rate": (both + tm_only) / n if n else None,
+            "TN_adequacy_loss_rate": (both + tn_only) / n if n else None,
+            "paired_risk_difference": (tm_only - tn_only) / n if n else None,
+            "newcombe_95_ci": list(newcombe_paired(both, tm_only, tn_only, neither)) if n else None,
+            "mcnemar_exact_p": mcnemar_exact_p(tm_only, tn_only) if n else None}
 
 
 def _coverage_all_admissible(cases: list[Case], groups, slices) -> dict[str, Any]:
@@ -399,6 +425,7 @@ def _coverage_all_admissible(cases: list[Case], groups, slices) -> dict[str, Any
         rows.append({"case_id": case.case_id, "cluster_id": case.cluster_id,
                      "operator": case.operator,
                      "in_primary_population": bool(
+                         _majority([r["adequacy"] for r in groups[case.case_id, "U"]]) == "adequate" and
                          set(case.referent.get("target_lines", [])) & selected and
                          set(case.referent.get("control_lines", [])) & selected),
                      "U": u["element_recall"], "TM": tm["element_recall"],

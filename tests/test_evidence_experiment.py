@@ -7,9 +7,10 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from evidence_experiment.analysis import analyze
+from evidence_experiment.analysis import _one_per_cluster, analyze
 from evidence_experiment.runner import _failure_status, packet_index
-from evidence_experiment.schema import REQUIRED_CHECKS, append_jsonl, load_cases, run_specs
+from evidence_experiment.schema import REQUIRED_CHECKS, append_jsonl, digest, load_cases, run_specs
+from evidence_experiment.stats import newcombe_paired
 
 
 class ExperimentAnalysisTests(unittest.TestCase):
@@ -142,6 +143,45 @@ class ExperimentAnalysisTests(unittest.TestCase):
                          evidence_only=True)
         self.assertEqual(report["rq1"]["verdicts_repeat0"], {"not_run": 2})
         self.assertEqual(report["scope"], "evidence_only")
+
+    def test_detector_overflow_does_not_change_evidence_outcomes(self):
+        original = analyze(self.cases, self.work, self.assessments, self.adjudications)
+        rows = [{"run_id": s["run_id"], "status": "context_overflow"}
+                for s in run_specs(self.cases)]
+        (self.work / "detector.jsonl").write_text("".join(json.dumps(r) + "\n" for r in rows))
+        for evidence_only in (False, True):
+            report = analyze(self.cases, self.work, self.assessments, self.adjudications,
+                             evidence_only=evidence_only)
+            self.assertEqual(report["rq1"]["adequacy"], original["rq1"]["adequacy"])
+            self.assertEqual(report["rq2"]["paired_risk_difference"], 1.0)
+            self.assertEqual(report["rq2"]["coverage_change_all_admissible"],
+                             original["rq2"]["coverage_change_all_admissible"])
+        self.assertEqual(report["rq1"]["verdicts_repeat0"], {"not_run": 2})
+
+    def test_independent_selection_does_not_replace_uncertain_pair(self):
+        pairs = [{"case_id": cid, "cluster_id": "family", "loss_TM": 1, "loss_TN": 0}
+                 for cid in ("a", "b")]
+        chosen = min(pairs, key=lambda p: digest(f"7|family|{p['case_id']}"))
+        chosen["loss_TM"] = None
+        report = _one_per_cluster(pairs, 7)
+        self.assertEqual(report["case_ids"], [chosen["case_id"]])
+        self.assertEqual((report["n_selected"], report["n_uncertain"], report["n_pairs"]), (1, 1, 0))
+        self.assertIsNone(report["newcombe_95_ci"])
+        self.assertEqual(report["unresolved_outcome_bounds"]["difference"], [0.0, 1.0])
+
+    def test_newcombe_method_10_matches_published_table_iii(self):
+        # Newcombe 1998, Table III; independent numeric reference, four decimals.
+        for counts, expected in (((27, 0, 0, 27), (-.0351, .0351)),
+                                 ((20, 12, 2, 16), (.0562, .3292)),
+                                 ((36, 12, 2, 0), (.0569, .3404))):
+            with self.subTest(counts=counts):
+                for actual, reference in zip(newcombe_paired(*counts), expected):
+                    self.assertAlmostEqual(actual, reference, delta=.00006)
+                a, b, c, d = counts
+                low, high = newcombe_paired(a, b, c, d)
+                swapped = newcombe_paired(a, c, b, d)
+                self.assertAlmostEqual(low, -swapped[1])
+                self.assertAlmostEqual(high, -swapped[0])
 
     def test_uncertain_transformation_stays_in_eligible_denominator_and_bounds(self):
         _, joins = packet_index(self.cases, self.work)

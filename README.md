@@ -24,6 +24,12 @@ two-class `[No, Yes]` output head.
 
 ## Quickstart
 
+For the dissertation on UCL Myriad, follow the
+[cluster runbook](scripts/myriad/RUNBOOK.md). It provides Apptainer preparation,
+Grid Engine CPU/GPU jobs, an A100 80 GB preflight, the development probe and
+the main evidence/calibration sequence. See the
+[experiment next actions](evidence_experiment/NEXT_ACTIONS.md) for the research protocol.
+
 Start Joern from the repository root. The compose mount is paired with
 `Config.work_dir/joern-inputs`, allowing the container to read source staged
 by the Python client.

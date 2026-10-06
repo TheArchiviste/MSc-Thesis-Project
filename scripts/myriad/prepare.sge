@@ -1,0 +1,45 @@
+#!/bin/bash -l
+#$ -N llmxcpg-prepare
+#$ -cwd
+#$ -pe smp 8
+#$ -l mem=8G
+#$ -l h_rt=04:00:00
+#$ -l tmpfs=200G
+set -euo pipefail
+cd "${SGE_O_WORKDIR:?Submit from the repository root}"
+source work/myriad/env.sh
+module load apptainer
+: "${TMPDIR:?Request tmpfs in the job}"
+mkdir -p "$MYRIAD_ROOT/images" "$MYRIAD_HF_CACHE" "$MYRIAD_ROOT/results"
+export APPTAINER_TMPDIR="$TMPDIR"
+export APPTAINER_CACHEDIR="$MYRIAD_ROOT/apptainer-cache"
+# Serialize preparation, and publish complete images by renaming on one filesystem.
+exec 9>"$MYRIAD_ROOT/prepare.lock"
+flock -n 9 || { echo 'Another preparation job is running'; exit 1; }
+if [[ ! -f "$RUNTIME_SIF" ]]; then
+    apptainer build --fakeroot "$RUNTIME_SIF.partial" scripts/myriad/runtime.def
+    mv "$RUNTIME_SIF.partial" "$RUNTIME_SIF"
+fi
+runtime=(apptainer exec --cleanenv --bind "$PWD:/repo" --bind "$MYRIAD_ROOT:$MYRIAD_ROOT" "$RUNTIME_SIF")
+if [[ ! -f "$MYRIAD_CONFIG" ]]; then
+    digest="${JOERN_DIGEST:-}"
+    if [[ -z "$digest" ]]; then
+        digest=$("${runtime[@]}" python /repo/scripts/myriad/manage.py resolve-joern)
+    fi
+    "${runtime[@]}" python /repo/scripts/myriad/manage.py configure \
+        --config "$MYRIAD_CONFIG" --joern-digest "$digest" --runtime "$RUNTIME_SIF" \
+        --base-revision "${DETECTOR_BASE_REVISION:-}" \
+        --q-context "${QUERY_MAX_CONTEXT:-4096}" \
+        --q-memory "${QUERY_GPU_MEMORY_UTILIZATION:-0.92}"
+fi
+digest=$("${runtime[@]}" python -c 'import json,sys; print(json.load(open(sys.argv[1]))["joern_digest"])' "$MYRIAD_CONFIG")
+if [[ ! -f "$JOERN_SIF" ]]; then
+    apptainer pull "$JOERN_SIF.partial" "docker://ghcr.io/joernio/joern@$digest"
+    mv "$JOERN_SIF.partial" "$JOERN_SIF"
+fi
+"${runtime[@]}" python /repo/scripts/myriad/manage.py prefetch --config "$MYRIAD_CONFIG" --cache "$MYRIAD_HF_CACHE"
+sha256sum "$RUNTIME_SIF" "$JOERN_SIF" > "$MYRIAD_ROOT/images/SHA256SUMS"
+"${runtime[@]}" cat /opt/pip-freeze.txt > "$MYRIAD_ROOT/images/pip-freeze.txt"
+"${runtime[@]}" python -c 'import json,sys; from pathlib import Path; from scripts.myriad.manage import sha256; cfg=json.load(open(sys.argv[1])); record={"joern_digest":cfg["joern_digest"], "runtime_sha256":sha256(Path(sys.argv[2])), "joern_sha256":sha256(Path(sys.argv[3]))}; Path(sys.argv[4]).write_text(json.dumps(record,indent=2)+"\n")' \
+    "$MYRIAD_CONFIG" "$RUNTIME_SIF" "$JOERN_SIF" "$MYRIAD_ROOT/images/provenance.json"
+printf 'Preparation complete. Config: %s\n' "$MYRIAD_CONFIG"

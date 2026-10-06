@@ -1,0 +1,10 @@
+#!/bin/bash -l
+#$ -N llmxcpg-cpu
+#$ -cwd
+#$ -pe smp 8
+#$ -l mem=4G
+#$ -l h_rt=04:00:00
+#$ -l tmpfs=30G
+set -euo pipefail
+cd "${SGE_O_WORKDIR:?Submit from the repository root}"
+bash scripts/myriad/run.sh "$@"

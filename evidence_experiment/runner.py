@@ -61,10 +61,15 @@ def _models(cfg: dict[str, Any]):
         query_engine=cfg.get("query_engine", "vllm"),
         query_base_url=cfg.get("query_base_url"),
         query_temperature=cfg.get("query_temperature", 0.0),
+        query_max_context=cfg.get("query_max_context", 32_768),
+        query_gpu_memory_utilization=cfg.get("query_gpu_memory_utilization", 0.85),
+        query_tensor_parallel_size=cfg.get("query_tensor_parallel_size", 1),
         detector_model_path=cfg.get("detector_model", "QCRI/LLMxCPG-D"),
         detector_model_revision=cfg.get("detector_revision"),
         detector_base_model_path=cfg.get("detector_base_model"),
         detector_base_model_revision=cfg.get("detector_base_revision"),
+        detector_max_context=cfg.get("detector_max_context", 16_384),
+        detector_dtype=cfg.get("detector_dtype", "bfloat16"),
     )
 
 

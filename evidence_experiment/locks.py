@@ -26,12 +26,13 @@ import importlib.metadata
 import json
 import platform
 import subprocess
+from dataclasses import asdict
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from .runner import PINNED_PIPELINE_COMMIT, Q_JOERN_PINNED_PATHS
-from .schema import append_jsonl, digest, index_jsonl
+from .runner import PINNED_PIPELINE_COMMIT, Q_JOERN_PINNED_PATHS, _models
+from .schema import append_jsonl, digest, index_jsonl, load_cases
 
 LOCK_VERSION = 2
 ACQUISITION_PHASES = frozenset({"query", "slice", "all"})
@@ -40,6 +41,8 @@ DETECTOR_PACKAGES = ("torch", "transformers", "peft", "bitsandbytes", "accelerat
 ALL_PACKAGES = tuple(dict.fromkeys(ACQUISITION_PACKAGES + DETECTOR_PACKAGES + ("numpy",)))
 
 ROOT = Path(__file__).resolve().parents[1]
+DEPLOYMENT_SETTINGS = frozenset({"joern_host", "joern_port", "joern_input_dir",
+                                "server_input_dir"})
 
 
 def _core() -> Path:
@@ -52,6 +55,26 @@ def _relative(path: Path) -> str:
         return path.resolve().relative_to(ROOT).as_posix()
     except ValueError:
         return path.name
+
+
+def scoring_contract(cfg: dict) -> dict[str, Any]:
+    """Effective Q/Joern/D settings, scoring code and runtime used for calibration.
+
+    Endpoints and staging directories are transport details: different jobs may
+    use different local ports without changing the experiment. Model settings,
+    image identity, prompts and package versions must agree.
+    """
+    core = _core()
+    code = [Path(__file__).with_name(name) for name in ("runner.py", "schema.py")]
+    code += [core / "config.py", core / "prompts.py", core / "inference" / "query_generator.py",
+             core / "inference" / "classifier.py"]
+    code += sorted((core / "joern").rglob("*.py")) + sorted((core / "slicing").rglob("*.py"))
+    return {"version": 1, "models": asdict(_models(cfg)),
+            "pipeline_commit": cfg.get("pipeline_commit"),
+            "joern_digest": cfg.get("joern_digest"),
+            "runtime_image_sha256": cfg.get("runtime_image_sha256"),
+            "code_sha256": {_relative(p): hashlib.sha256(p.read_bytes()).hexdigest() for p in code},
+            "python": platform.python_version(), "packages": package_versions(ALL_PACKAGES)}
 
 
 def package_versions(names: tuple[str, ...]) -> dict[str, str | None]:
@@ -90,6 +113,15 @@ def git_provenance() -> dict[str, Any]:
             "q_joern_pin": pin_state}
 
 
+def require_pipeline_pin(cfg: dict, provenance: dict | None = None) -> None:
+    if cfg.get("allow_dummy", False):
+        return
+    provenance = provenance or git_provenance()
+    if provenance["q_joern_pin"] != "matches_pin":
+        raise ValueError("Cannot verify unchanged pinned Q/Joern code; "
+                         "use a full git clone with the pinned commit and restore pinned files")
+
+
 def _now() -> str:
     return datetime.now(timezone.utc).isoformat(timespec="seconds")
 
@@ -112,7 +144,8 @@ def acquisition_fingerprint(manifest: Path, config: Path, cases, repeats: int,
         h.update(_relative(path).encode("utf-8") + b"\n" + path.read_bytes())
     cfg = json.loads(config.read_text(encoding="utf-8"))
     acquisition_cfg = {key: value for key, value in cfg.items()
-                       if key != "threshold" and not key.startswith("detector_")}
+                       if key != "threshold" and not key.startswith("detector_")
+                       and key not in DEPLOYMENT_SETTINGS}
     h.update(json.dumps(acquisition_cfg, sort_keys=True).encode("utf-8"))
     h.update(f"repeats={repeats}".encode())
     for case in cases:
@@ -139,6 +172,9 @@ def lock_inputs(work: Path, manifest: Path, config: Path, cases, repeats: int = 
     if acquiring and provenance["q_joern_pin"] == "differs_from_pin":
         raise ValueError("Q/Joern code differs from pinned commit "
                          f"{PINNED_PIPELINE_COMMIT}; restore it or change the pin deliberately")
+    cfg = json.loads(config.read_text(encoding="utf-8"))
+    if acquiring and not cfg.get("allow_dummy", False) and provenance["q_joern_pin"] == "unverifiable":
+        raise ValueError("Cannot verify pinned Q/Joern code; use a full git clone with the pinned commit")
     environment = package_versions(ACQUISITION_PACKAGES)
     lock = work / "experiment_lock.json"
     if lock.exists():
@@ -228,6 +264,22 @@ def require_calibration(calibration: Path, cfg: dict, manifest: Path) -> None:
     if (not score_path.exists() or
             hashlib.sha256(score_path.read_bytes()).hexdigest() != result["score_sha256"]):
         raise ValueError("Calibration scores changed after threshold selection")
+    if result.get("scoring_contract") != scoring_contract(cfg):
+        raise ValueError("Calibration scoring settings, code or runtime differ; "
+                         "restore the calibrated environment or recalibrate in a new directory")
+    input_lock = calibration.parent / "calibration_run" / "inputs.json"
+    if (not input_lock.exists() or hashlib.sha256(input_lock.read_bytes()).hexdigest() !=
+            result.get("calibration_lock_sha256")):
+        raise ValueError("Calibration input lock changed or is missing")
+    recorded = json.loads(input_lock.read_text(encoding="utf-8"))
+    if recorded.get("fingerprint") != result.get("calibration_input_fingerprint"):
+        raise ValueError("Calibration input fingerprint differs from the retained lock")
+    for name, expected in result.get("stage_sha256", {}).items():
+        path = calibration.parent / "calibration_run" / name
+        if not path.exists() or hashlib.sha256(path.read_bytes()).hexdigest() != expected:
+            raise ValueError(f"Calibration stage trace changed: {name}")
+    if set(recorded.get("analysis_clusters", [])) != {case.cluster_id for case in load_cases(manifest)}:
+        raise ValueError("Analysis cluster population changed after calibration")
     if (result.get("analysis_manifest_sha256") and
             result["analysis_manifest_sha256"] != hashlib.sha256(manifest.read_bytes()).hexdigest()):
         raise ValueError("Analysis manifest changed after calibration")
