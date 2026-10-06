@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+from collections import Counter
 from pathlib import Path
 from typing import Any
 
@@ -40,14 +41,42 @@ def _samples(manifest: Path, analysis_clusters: set[str]) -> tuple[list[Case], d
     return cases, metadata
 
 
+ABSTENTION_POLICIES = ("fail", "exclude")
+
+
+def _abstention_summary(metadata: dict[str, dict], failures: list[dict]) -> dict[str, Any]:
+    failed = {row["sample_id"] for row in failures}
+    summary: dict[str, dict[str, dict[str, int]]] = {}
+    for sample in metadata.values():
+        cell = summary.setdefault(sample["split"], {}).setdefault(
+            str(sample["label"]), {"enrolled": 0, "scored": 0, "abstained": 0})
+        cell["enrolled"] += 1
+        cell["abstained" if sample["sample_id"] in failed else "scored"] += 1
+    statuses = Counter(f"{row['query_status']}/{row['slice_status']}/{row['detector_status']}"
+                       for row in failures)
+    return {"by_split_and_label": summary, "failure_statuses": dict(statuses)}
+
+
 def score_and_calibrate(analysis_cases: list[Case], manifest: Path, work: Path,
                         cfg: dict[str, Any]) -> dict[str, Any]:
-    """Persist every stage and refuse a threshold when any enrolled score is missing."""
+    """Persist every stage, then select a threshold under a predeclared abstention policy.
+
+    ``detector_calibration_abstentions`` in the config decides what happens
+    when a sample yields no D score (a Q, Joern or context failure): ``fail``
+    (default) refuses a threshold; ``exclude`` calibrates on the scored samples
+    and reports abstentions by split and label, since safe code often yields
+    no flow and therefore no slice.
+    """
+    policy = cfg.get("detector_calibration_abstentions", "fail")
+    if policy not in ABSTENTION_POLICIES:
+        raise ValueError(f"detector_calibration_abstentions must be one of {ABSTENTION_POLICIES}")
     cases, metadata = _samples(manifest, {case.cluster_id for case in analysis_cases})
     stage_dir = work / "calibration_run"
     stage_dir.mkdir(parents=True, exist_ok=True)
     h = hashlib.sha256(manifest.read_bytes())
-    h.update(json.dumps(cfg, sort_keys=True).encode("utf-8"))
+    # The threshold is this step's output, so it is not one of its inputs.
+    h.update(json.dumps({k: v for k, v in cfg.items() if k != "threshold"},
+                        sort_keys=True).encode("utf-8"))
     for sample in metadata.values():
         h.update(json.dumps(sample, sort_keys=True).encode("utf-8"))
     lock = stage_dir / "inputs.json"
@@ -62,9 +91,12 @@ def score_and_calibrate(analysis_cases: list[Case], manifest: Path, work: Path,
                                     "detector_base_revision": cfg["detector_base_revision"],
                                     "joern_digest": cfg["joern_digest"]}, indent=2) + "\n",
                         encoding="utf-8")
-    generate_queries(cases, stage_dir, cfg, repeats=1)
-    extract_slices(cases, stage_dir, cfg, repeats=1)
-    classify_slices(cases, stage_dir, cfg, repeats=1)
+    # Verdicts in calibration_run/detector.jsonl use a placeholder threshold
+    # and are never read; only p_vulnerable enters the sweep.
+    scoring_cfg = {**cfg, "threshold": cfg.get("threshold", 0.5)}
+    generate_queries(cases, stage_dir, scoring_cfg, repeats=1)
+    extract_slices(cases, stage_dir, scoring_cfg, repeats=1)
+    classify_slices(cases, stage_dir, scoring_cfg, repeats=1)
     queries = index_jsonl(stage_dir / "queries.jsonl", "run_id")
     slices = index_jsonl(stage_dir / "slices.jsonl", "run_id")
     detector = index_jsonl(stage_dir / "detector.jsonl", "run_id")
@@ -84,10 +116,15 @@ def score_and_calibrate(analysis_cases: list[Case], manifest: Path, work: Path,
                           encoding="utf-8")
     (work / "calibration_failures.jsonl").write_text(
         "".join(json.dumps(row, sort_keys=True) + "\n" for row in failures), encoding="utf-8")
-    if failures:
+    abstentions = _abstention_summary(metadata, failures)
+    if failures and policy == "fail":
         raise RuntimeError(f"{len(failures)} calibration samples lack Q -> Joern -> D scores; "
-                           "inspect calibration_failures.jsonl before selecting a threshold")
+                           "inspect calibration_failures.jsonl. To calibrate on scored samples, "
+                           "predeclare detector_calibration_abstentions='exclude' and use a "
+                           "new calibration --work directory")
     result = calibrate(rows, {case.cluster_id for case in analysis_cases})
+    result["abstention_policy"] = policy
+    result["abstentions"] = abstentions
     result["score_sha256"] = hashlib.sha256(score_path.read_bytes()).hexdigest()
     result["calibration_input_fingerprint"] = fingerprint
     (work / "calibration.json").write_text(json.dumps(result, indent=2) + "\n",

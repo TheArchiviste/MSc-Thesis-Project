@@ -11,17 +11,30 @@ import logging
 from pathlib import Path
 from typing import Any
 
-from .schema import Case, append_jsonl, digest, index_jsonl, run_specs
+from .review import numbered_view, packet_index, review_packets  # noqa: F401 - re-exported
+from .schema import DECOY_ARM, Case, append_jsonl, index_jsonl, run_specs
 
 log = logging.getLogger(__name__)
 
+# Commit whose Q-generation and Joern/slicing code defines the evaluated pipeline.
+# The D loader was revised later (explicit adapter/base pins); locks record the
+# actual checkout and verify these paths still match the pin.
+PINNED_PIPELINE_COMMIT = "7023ff49fe7b800e8b26bcae52e2fcdafe95fa9b"
+Q_JOERN_PINNED_PATHS = ("llmxcpg/prompts.py", "llmxcpg/inference/query_generator.py",
+                        "llmxcpg/joern", "llmxcpg/slicing")
+# Arms whose queries Q regenerates from their own source.
+REGENERATED_ARMS = ("U", "TM", "TN", DECOY_ARM)
 
-def load_config(path: Path, *, require_detector: bool = True) -> dict[str, Any]:
+
+def load_config(path: Path, *, require_detector: bool = True,
+                require_threshold: bool | None = None) -> dict[str, Any]:
     cfg = json.loads(path.read_text(encoding="utf-8"))
-    pinned = "7023ff49fe7b800e8b26bcae52e2fcdafe95fa9b"
+    pinned = PINNED_PIPELINE_COMMIT
     if cfg.get("pipeline_commit") != pinned:
         raise ValueError(f"Experiment requires pinned pipeline commit {pinned}")
-    if require_detector and "threshold" not in cfg:
+    if require_threshold is None:
+        require_threshold = require_detector
+    if require_threshold and "threshold" not in cfg:
         raise ValueError("D threshold must be frozen before detection")
     if "threshold" in cfg and not 0 <= cfg["threshold"] <= 1:
         raise ValueError("threshold must be in [0, 1] and frozen before analysis")
@@ -73,12 +86,12 @@ def _check_q_context(q, code: str) -> None:
 
 def generate_queries(cases: list[Case], work: Path, cfg: dict[str, Any],
                      repeats: int = 3, batch_size: int = 32, generator=None) -> None:
-    """Generate new queries for U, TM and TN; fixed and rule arms reuse bundles."""
+    """Generate new queries for U, TM, TN and F; fixed and rule arms reuse bundles."""
     all_specs = run_specs(cases, repeats)
     by_case = _sources(cases)
     dest = work / "queries.jsonl"
     done = index_jsonl(dest, "run_id")
-    pending = [s for s in all_specs if s["arm"] in ("U", "TM", "TN")
+    pending = [s for s in all_specs if s["arm"] in REGENERATED_ARMS
                and s["run_id"] not in done]
     if not pending:
         return
@@ -303,42 +316,3 @@ def classify_slices(cases: list[Case], work: Path, cfg: dict[str, Any],
     finally:
         if owned:
             del d
-
-
-def numbered_view(source: str, rendered_lines: list[int]) -> str:
-    lines = source.splitlines()
-    numbered: list[str] = []
-    last = 0
-    for n in rendered_lines:
-        if last and n - last > 1:
-            numbered.append("...")
-        numbered.append(f"L{n}: {lines[n - 1]}")
-        last = n
-    return "\n".join(numbered)
-
-
-def packet_index(cases: list[Case], work: Path, repeats: int = 3
-                 ) -> tuple[dict[str, dict[str, str]], dict[str, str]]:
-    """Return blind packet content and the private run-to-review join key."""
-    slices = index_jsonl(work / "slices.jsonl", "run_id")
-    by_case = _sources(cases)
-    packets: dict[str, dict[str, str]] = {}
-    joins: dict[str, str] = {}
-    for spec in run_specs(cases, repeats):
-        slc = slices.get(spec["run_id"])
-        if slc is None or slc["status"] != "ok":
-            continue
-        view = numbered_view(by_case[spec["case_id"]].source_for(spec["arm"]),
-                             slc["rendered_lines"])
-        claim = by_case[spec["case_id"]].referent.get(
-            "review_claim", "Does this excerpt justify a vulnerability? Explain the mechanism.")
-        review_id = digest(claim + "\n" + view)
-        packets[review_id] = {"review_id": review_id, "claim": claim, "code": view}
-        joins[spec["run_id"]] = review_id
-    return packets, joins
-
-
-def review_packets(cases: list[Case], work: Path, repeats: int = 3) -> list[dict[str, str]]:
-    """Blind packets: no case, CWE, arm, model verdict or treatment metadata."""
-    packets, _ = packet_index(cases, work, repeats)
-    return sorted(packets.values(), key=lambda p: p["review_id"])

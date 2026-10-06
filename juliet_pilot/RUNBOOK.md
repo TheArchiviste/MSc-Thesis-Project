@@ -82,8 +82,9 @@ nvidia-smi > work/real-probe-gpu.txt
 ```
 
 The two checks before the last probe do **not** download model weights. The
-probe does, and its output should have 24 query rows and 24 slice rows, from
-four vulnerable functions and four fixed controls. Check
+probe does, and its output should have 16 query rows and 16 slice rows: four
+vulnerable functions × three repeats, plus each fixed control once as a decoy.
+Check
 `work/real-probe/probe_summary.json`, `probe_readouts.json`, `queries.jsonl`,
 and `slices.jsonl` for
 failures rather than treating a completed process as a valid result. Keep

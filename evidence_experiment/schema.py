@@ -8,7 +8,11 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-ARMS = ("U", "TM", "TN", "TM_fixed", "TN_fixed", "U_rule", "TM_rule", "TN_rule")
+ARMS = ("U", "TM", "TN", "TM_fixed", "TN_fixed", "U_rule", "TM_rule", "TN_rule", "F")
+# F is the documented fixed (safe) variant of the same template. It is a blind
+# review decoy and discriminability check, never part of the RQ1/RQ2 estimands.
+DECOY_ARM = "F"
+SOURCE_KEYS = ("U", "TM", "TN", DECOY_ARM)
 REQUIRED_CHECKS = ("compile", "benign_behavior", "trigger", "mechanism_preserved",
                    "line_map", "match", "control_purity")
 
@@ -86,6 +90,8 @@ def load_cases(manifest: Path) -> list[Case]:
         paths = obj["sources"]
         if "U" not in paths or ("TM" in paths) != ("TN" in paths):
             raise ValueError(f"{cid}: require U and either both transformed sources or neither")
+        if set(paths) - set(SOURCE_KEYS):
+            raise ValueError(f"{cid}: sources may only contain {', '.join(SOURCE_KEYS)}")
         sources = {arm: (manifest.parent / path).read_text(encoding="utf-8")
                    for arm, path in paths.items()}
         if not obj.get("cluster_id") or not obj.get("cwe"):
@@ -123,7 +129,11 @@ def load_cases(manifest: Path) -> list[Case]:
 
 
 def run_specs(cases: list[Case], repeats: int = 3) -> list[dict[str, Any]]:
-    """Enumerate all baseline cases; paired arms only for admissible pairs."""
+    """Enumerate all baseline cases; paired arms only for admissible pairs.
+
+    A documented fixed variant (F) runs once through regenerated Q and Joern
+    so its excerpt can enter the blind queue as a decoy.
+    """
     if repeats < 1 or repeats % 2 != 1:
         raise ValueError("repeats must be a positive odd number")
     specs: list[dict[str, Any]] = []
@@ -131,6 +141,8 @@ def run_specs(cases: list[Case], repeats: int = 3) -> list[dict[str, Any]]:
         arms = ["U"] + (["TM", "TN", "TM_fixed", "TN_fixed"] if case.admissible else [])
         arms += [f"{base}_rule" for base in ("U", "TM", "TN")
                  if base in case.rule_queries and (base == "U" or case.admissible)]
+        if DECOY_ARM in case.sources:
+            arms.append(DECOY_ARM)
         for arm in arms:
             for rep in range(repeats if arm in ("U", "TM", "TN") else 1):
                 source = case.source_for(arm)
@@ -138,6 +150,6 @@ def run_specs(cases: list[Case], repeats: int = 3) -> list[dict[str, Any]]:
                 specs.append({"run_id": digest(identity), "case_id": case.case_id,
                               "cluster_id": case.cluster_id, "cwe": case.cwe,
                               "arm": arm, "repeat": rep, "source_sha256": digest(source),
-                              "source_path": case.source_paths[{"U": "U"}.get(arm, arm.split("_")[0])],
+                              "source_path": case.source_paths[arm.split("_")[0]],
                               "operator": case.operator})
     return specs

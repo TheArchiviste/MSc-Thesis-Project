@@ -7,30 +7,31 @@ exploratory and must not be mixed with the later frozen main study.
 from __future__ import annotations
 
 import argparse
+import difflib
 import hashlib
 import importlib.util
 import json
 import re
 import shutil
 import socket
+import sys
 from collections import Counter
 from dataclasses import replace
 from pathlib import Path
 
-from evidence_experiment.runner import extract_slices, generate_queries, load_config, review_packets
-from evidence_experiment.schema import index_jsonl, load_cases, read_jsonl, run_specs
+# Let `python juliet_pilot/<script>.py` import the experiment from a checkout
+# whose editable install predates the evidence_experiment package entry.
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
+from evidence_experiment.review import build_queue, write_queue
+from evidence_experiment.runner import extract_slices, generate_queries, load_config
+from evidence_experiment.schema import DECOY_ARM, index_jsonl, load_cases, read_jsonl, run_specs
 
 ROOT = Path(__file__).resolve().parent
 MANIFEST = ROOT / "generated" / "cases.jsonl"
 Q_REVISION = "1f48ab60420d90277207394f1254d27d3375b07e"
 D_REVISION = "91e6c0d0e8ea645047c237166b1403262d116a92"
 SHA256_DIGEST = re.compile(r"^sha256:[0-9a-f]{64}$")
-REVIEW_CLAIMS = {
-    "J121-size-01": "Does the excerpt justify a stack overflow from a copy exceeding its destination capacity?",
-    "J121-index-01": "Does the excerpt justify an out-of-bounds stack array write?",
-    "J122-nul-01": "Does the excerpt justify a heap overflow from copying the string and terminator?",
-    "J416-free-01": "Does the excerpt justify a read through a pointer after its allocation was freed?",
-}
 
 
 def preflight(config: Path, *, check_runtime: bool = True) -> list[str]:
@@ -89,12 +90,13 @@ def preflight(config: Path, *, check_runtime: bool = True) -> list[str]:
 
 def _fingerprint(config: Path, cases) -> str:
     digest = hashlib.sha256()
-    for path in (config, MANIFEST, Path(__file__), Path(__file__).parents[1] /
-                 "evidence_experiment" / "runner.py"):
+    engine = Path(__file__).parents[1] / "evidence_experiment"
+    for path in (config, MANIFEST, Path(__file__), engine / "runner.py", engine / "review.py"):
         digest.update(path.read_bytes())
     for case in cases:
-        digest.update(case.case_id.encode())
-        digest.update(case.sources["U"].encode())
+        for arm, source in sorted(case.sources.items()):
+            digest.update(f"{case.case_id}|{arm}".encode())
+            digest.update(source.encode())
     return digest.hexdigest()
 
 
@@ -106,14 +108,29 @@ def _function_lines(source: str) -> set[int]:
     return {i + 1 for i in range(start, stop) if lines[i].strip()}
 
 
-def probe_readouts(originals, cases, slices: dict[str, dict]) -> list[dict]:
-    """Mechanical go/no-go observations; reviewers still decide adequacy."""
-    specs = run_specs(cases, repeats=3)
+def fix_sites(vulnerable: str, fixed: str) -> tuple[list[int], list[int]]:
+    """1-based lines that differ between the vulnerable and fixed sources."""
+    u_lines, f_lines = [], []
+    matcher = difflib.SequenceMatcher(a=vulnerable.splitlines(), b=fixed.splitlines(),
+                                      autojunk=False)
+    for tag, i1, i2, j1, j2 in matcher.get_opcodes():
+        if tag != "equal":
+            u_lines += range(i1 + 1, i2 + 1)
+            f_lines += range(j1 + 1, j2 + 1)
+    return u_lines, f_lines
+
+
+def probe_readouts(cases, slices: dict[str, dict], repeats: int = 3) -> list[dict]:
+    """Mechanical go/no-go observations; reviewers still decide adequacy.
+
+    ``fix_site_selected_*`` is the discriminability readout: if the lines that
+    distinguish the vulnerable and fixed programs are absent from a slice, its
+    excerpt cannot show why one program is vulnerable and the other is not.
+    """
     first = {(spec["case_id"], spec["arm"]): slices[spec["run_id"]]
-             for spec in specs if spec["repeat"] == 0}
-    by_case = {case.case_id: case for case in cases}
+             for spec in run_specs(cases, repeats) if spec["repeat"] == 0}
     result = []
-    for case in originals:
+    for case in cases:
         vulnerable = first[case.case_id, "U"]
         selected = set(vulnerable.get("slice_lines", [])) if vulnerable["status"] == "ok" else set()
         function_lines = _function_lines(case.sources["U"])
@@ -126,17 +143,24 @@ def probe_readouts(originals, cases, slices: dict[str, dict]) -> list[dict]:
                "U_selected_fraction": len(selected & function_lines) / len(function_lines),
                "element_roles": elements,
                "referent_coverage": sum(e["selected"] for e in elements) / len(elements)}
-        fixed_id = f"{case.case_id}-fixed"
-        if fixed_id in by_case:
-            fixed = first[fixed_id, "U"]
-            row["fixed_status"] = fixed["status"]
-            row["fixed_selected_fraction"] = (
-                len(set(fixed.get("slice_lines", [])) &
-                    _function_lines(by_case[fixed_id].sources["U"])) /
-                len(_function_lines(by_case[fixed_id].sources["U"])))
-            row["fixed_rendered_text_differs"] = (
-                vulnerable.get("slice_code") != fixed.get("slice_code")
-                if vulnerable["status"] == fixed["status"] == "ok" else None)
+        if DECOY_ARM in case.sources:
+            fixed = first[case.case_id, DECOY_ARM]
+            fixed_selected = (set(fixed.get("slice_lines", []))
+                              if fixed["status"] == "ok" else set())
+            fixed_function = _function_lines(case.sources[DECOY_ARM])
+            u_sites, f_sites = fix_sites(case.sources["U"], case.sources[DECOY_ARM])
+            row.update({
+                "fixed_status": fixed["status"],
+                "fixed_selected_fraction": len(fixed_selected & fixed_function) / len(fixed_function),
+                "fix_site_lines_U": u_sites,
+                "fix_site_selected_in_U": bool(selected & set(u_sites)) if u_sites else None,
+                "fix_site_lines_fixed": f_sites,
+                "fix_site_selected_in_fixed": (bool(fixed_selected & set(f_sites))
+                                               if f_sites else None),
+                "fixed_excerpt_text_identical": (
+                    vulnerable.get("slice_code") == fixed.get("slice_code")
+                    if vulnerable["status"] == fixed["status"] == "ok" else None),
+            })
         result.append(row)
     return result
 
@@ -149,16 +173,15 @@ def probe(config: Path, work: Path, *, include_fixed_controls: bool = False) -> 
     originals = load_cases(MANIFEST)
     cases = []
     for case in originals:
-        referent = {**case.referent, "review_claim": REVIEW_CLAIMS[case.case_id]}
-        cases.append(replace(case, referent=referent))
         if include_fixed_controls:
+            # The fixed control enters as the case's F (decoy) arm with the same claim.
             prepared = next(row for row in read_jsonl(MANIFEST)
                             if row["case_id"] == case.case_id)
             source_path = prepared["control_source"]
             source = (MANIFEST.parent / source_path).read_text(encoding="utf-8")
-            cases.append(replace(case, case_id=f"{case.case_id}-fixed",
-                                 sources={"U": source}, source_paths={"U": source_path},
-                                 referent=referent, validation={}, rule_queries={}))
+            case = replace(case, sources={**case.sources, DECOY_ARM: source},
+                           source_paths={**case.source_paths, DECOY_ARM: source_path})
+        cases.append(case)
     work.mkdir(parents=True, exist_ok=True)
     fingerprint = _fingerprint(config, cases)
     lock = work / "probe_lock.json"
@@ -171,21 +194,20 @@ def probe(config: Path, work: Path, *, include_fixed_controls: bool = False) -> 
     repeats = 3
     generate_queries(cases, work, cfg, repeats=repeats)
     extract_slices(cases, work, cfg, repeats=repeats)
-    packets = review_packets(cases, work, repeats=repeats)
-    (work / "blind_review_packets.jsonl").write_text(
-        "".join(json.dumps(packet, sort_keys=True) + "\n" for packet in packets))
+    packets, key = build_queue(cases, work, repeats)
+    write_queue(work, packets, key, {"duplicate_fraction": 0.0, "seed": 0, "repeats": repeats})
     q = read_jsonl(work / "queries.jsonl")
     slices = read_jsonl(work / "slices.jsonl")
     expected = len(run_specs(cases, repeats))
     if len(q) != expected or len(slices) != expected:
         raise AssertionError("Probe has an incomplete query/slice grid")
-    readouts = probe_readouts(originals, cases, index_jsonl(work / "slices.jsonl", "run_id"))
+    readouts = probe_readouts(cases, index_jsonl(work / "slices.jsonl", "run_id"), repeats)
     (work / "probe_readouts.json").write_text(json.dumps(readouts, indent=2) + "\n")
     report = {
         "kind": "real_Q_Joern_exploratory_probe",
         "research_results": False,
         "cases": len(cases),
-        "fixed_safe_controls": len(cases) - len(originals),
+        "fixed_variant_decoys": sum(DECOY_ARM in case.sources for case in cases),
         "repeats": repeats,
         "query_status": dict(Counter(row["status"] for row in q)),
         "slice_status": dict(Counter(row["status"] for row in slices)),

@@ -132,19 +132,28 @@ the four predeclared safe controls in the blind packet pool:
 python juliet_pilot/real_probe.py --config real_probe.json --work work/real-probe-controls --include-fixed-controls
 ```
 
-This runs real Q then real Joern on four vulnerable and four fixed cases,
-three repeats each (24 query and 24 slice rows). It writes raw
-`queries.jsonl`, `slices.jsonl` with Joern traces, numbered blind packets,
-`probe_readouts.json`, and `probe_summary.json`. The readouts show the share
-of function lines selected, coverage by referent element role, and whether
-the fixed slice text differs from U. Rate the mixed packets blind and compute
-false adequacy on the four fixed examples separately from RQ1. An unchanged
-fixed excerpt or near-complete U slice is a warning that these `_01` cases
-are insensitive; evaluate larger cross-function flow variants before freezing
-the analysis corpus. This probe never runs D. The example's `threshold: 0.5`
-is an unused parser placeholder for this Q/Joern probe; it must not be treated
-as calibrated. Keep this exploratory work directory separate from a frozen
-main run.
+This runs real Q then real Joern on the four vulnerable cases (three repeats
+each) and on each fixed control once as that case's decoy (`F`) arm: 16 query
+and 16 slice rows. It writes raw `queries.jsonl`, `slices.jsonl` with Joern
+traces, the blind queue (`blind_review_packets.jsonl`) with its private
+`review_key.jsonl`, `probe_readouts.json`, and `probe_summary.json`. The
+readouts show the share of function lines selected, coverage by referent
+element role, and the discriminability check: whether the lines that differ
+between the vulnerable and fixed programs (`fix_site_lines_*`) were selected in
+each slice, and whether the two rendered excerpts are identical. Rate the
+packets blind and compute false adequacy on the fixed examples by joining the
+private key. A near-complete U slice, an unselected fix site or an identical
+fixed excerpt is a warning that these `_01` cases are insensitive; evaluate
+cross-function flow variants before freezing the analysis corpus. This probe
+never runs D. The example's `threshold: 0.5` is an unused parser placeholder
+for this Q/Joern probe; it must not be treated as calibrated. Keep this
+exploratory work directory separate from a frozen main run.
+
+Each case's review claim lives in `spec.json` as a templated
+`{"flaw_class", "operation"}` pair, written source-first like the referent.
+`prepare.py` derives `cluster_id` from the upstream path with
+[`templates.py`](templates.py), which also counts how many independent
+templates the full suite offers (`python juliet_pilot/templates.py census --help`).
 
 The D release is a LoRA adapter whose `adapter_config.json` names
 `unsloth/qwq-32b-preview-bnb-4bit` as its base. Before D is used, pin and
