@@ -1,8 +1,8 @@
 # RQ1 execution: run one checkpoint at a time
 
-The next live checkpoint is **Windows hardware/WSL/Docker verification**. Run only checkpoint 1 now and return its output. Later commands are prepared here so the full sequence is concrete; execute them after the previous checkpoint is inspected. No cluster is currently required. No GPU has been rented or paid for by this project.
+The Windows/WSL/Docker checks have returned: the Ubuntu/Docker integration works, RAM is 15.8 GiB, the installed Python is 3.14.4, and C: has 14.6 GiB free. The user requires bulk storage on D: (849 GB reported free). **The current checkpoint is [D_DRIVE_SETUP.md](D_DRIVE_SETUP.md): establish the D: storage root and a dedicated Ubuntu 24.04/Python 3.12 workspace, then return its verification output.** Later commands are prepared here; execute them after the previous checkpoint is inspected. No cluster or paid GPU has been started.
 
-## 1. Your Windows machine — current pause
+## 1. Your Windows machine — completed diagnostic command
 
 Open PowerShell and run:
 
@@ -19,15 +19,17 @@ $report = Join-Path $env:USERPROFILE "rq1-machine-check.txt"
 } *>&1 | Tee-Object -FilePath $report
 ```
 
-Return the printed output or `rq1-machine-check.txt`. Missing-command errors are useful diagnostics. This command changes no system configuration and starts no paid service. Pause here. The GTX 1660 Ti is not the Q host; the local targets are preparation, tokenizer auditing, Joern and reporting.
+The returned screenshots confirmed that Ubuntu and Docker work. The current storage/Python follow-up is in `D_DRIVE_SETUP.md`. The GTX 1660 Ti is not the Q host; the local targets are preparation, tokenizer auditing, Joern and reporting.
 
 ## 2. WSL2 CPU environment — after checkpoint 1 is reviewed
 
-These commands target Ubuntu 24.04 in WSL2, Python 3.12. WSL/Docker installation or resource limits depend on checkpoint 1; do not apply machine-specific settings blindly. Keep the checkout in the WSL Linux filesystem.
+These commands target the **Ubuntu-24.04 distribution whose virtual disk is on D:**, with Python 3.12. Run them only after `D_DRIVE_SETUP.md` has been checked. Start that distribution from PowerShell with `wsl -d Ubuntu-24.04`. Keep the checkout in its Linux filesystem; its project files, virtual environment and caches will be backed by D:.
 
 ```bash
 sudo apt-get update
 sudo apt-get install -y git python3 python3-venv gcc libc6-dev
+mkdir -p ~/projects
+cd ~/projects
 git clone --branch codex/rq1-execution https://github.com/TheArchiviste/MSc-Thesis-Project.git
 cd MSc-Thesis-Project
 python3 -m venv .venv
