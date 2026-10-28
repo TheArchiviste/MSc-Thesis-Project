@@ -1,6 +1,6 @@
 # Execution readiness — 28 October 2026
 
-**Source preparation is complete. Real Q generation, real Joern extraction and excerpt-adequacy assessment have not run.**
+**Source preparation and the laptop Joern smoke test have passed. Real Q generation, experiment slicing and excerpt-adequacy assessment have not run.**
 
 | Checkpoint | Actual status |
 |---|---|
@@ -15,8 +15,8 @@
 | Laptop runtime | Ubuntu-24.04/WSL2 and Python 3.12.3 verified; latest screenshot shows 7.8 GiB WSL RAM (6.6 GiB available), 4 GiB swap; physical RAM is 15.8 GiB |
 | Bulk storage and Python | Registered Ubuntu-24.04 base path on `D:\Dissertation-RQ1\wsl\Ubuntu-24.04` verified; Windows storage output verifies Docker data (8.05 GiB) and supporting files under `D:\Dissertation-RQ1\DockerDesktopWSL`; Ubuntu-24.04 is 2.18 GiB on D:; older Ubuntu remains on C: |
 | CPU preparation | User log at commit `272b82e` confirms all 3 development and 12 main current U/F witness pairs pass on the laptop; Q/slice records remain zero |
-| Prompt-token audit | Implemented; the pinned tokenizer has not been downloaded/run here |
-| Joern | Official digest identifies CLI 4.0.667. First real readiness attempt was blocked about seven seconds after startup; captured state shows no OOM kill and correct heap arguments. TCP-only startup gate replaced with a bounded WebSocket greeting check; actual CPG acceptance pending |
+| Prompt-token audit | Actual workspace CPU audit with Transformers 4.47.1/Jinja2 3.1.6 and no PyTorch: all 30 fit; 406–570 prompt tokens, at most 2618 including generation allowance, against 8192 context. Laptop rerun pending after missing Jinja dependency was fixed |
+| Joern | Returned laptop ZIP at commit `6efd081` passes all 8 checks, including staged C import/query; greeting ready after 13.431 seconds. CLI 4.0.667; no OOM kill; 776.6 MiB container memory after check (snapshot, not peak). Full experiment slicing still pending |
 | Original Q | Pinned config and GPU preflight ready; no weights downloaded or inference performed |
 | Assessment | Explicit AI-assisted mode, initial/final forms, matching and delayed consistency tools ready; no excerpt judgements yet |
 | Main freeze | Not issued; main acquisition is blocked pending real development and its assessment |
@@ -56,4 +56,4 @@ Checked-in raw compiler logs in [validation/](validation/) are from the workspac
 
 The reasoned mechanism and repair for every case are in [SOURCE_REFERENTS.md](SOURCE_REFERENTS.md), with original/prepared line coordinates and source links. [referents.jsonl](referents.jsonl) is the machine-readable oracle; [enrollment.csv](enrollment.csv) records every block decision.
 
-Next: run `bash rq1/local_joern.sh` on the updated branch in Ubuntu-24.04, return its D: export ZIP and pause. Joern, token auditing and reporting use the local CPU. No adequacy proportion can be reported until actual Q/Joern outputs have been assessed. The final pipeline emits a Markdown report plus case and element CSV tables, alongside raw JSONL/provenance.
+Next: update the branch, install `rq1/requirements-tokenizer.txt` (now explicitly including Jinja2), rerun `python -m rq1.setup token-audit` on the laptop, and return its D: export JSON/log. Joern smoke acceptance has passed; no repeat is needed for this dependency correction. Joern, token auditing and reporting use the local CPU. No adequacy proportion can be reported until actual Q/Joern outputs have been assessed. The final pipeline emits a Markdown report plus case and element CSV tables, alongside raw JSONL/provenance.

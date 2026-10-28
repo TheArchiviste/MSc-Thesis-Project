@@ -1,2 +1,4 @@
 # Optional CPU-only prompt audit. No torch/vLLM or model weights required.
 transformers==4.47.1
+# Transformers chat templates require Jinja even when no model backend is installed.
+jinja2==3.1.6

@@ -2,7 +2,7 @@
 
 Observed from the user's screenshots: Windows 11, WSL 3.0.3, Ubuntu running on WSL2, Python 3.14.4, Docker Desktop 4.97.0 reachable from Ubuntu, Docker Compose 5.6.1, 15.8 GiB RAM, and a GTX 1660 Ti with 6144 MiB VRAM. C: has 14.6 GiB free. The user reports 849 GB free on D: and requires extensive experiment storage there.
 
-The returned preparation log confirms **Ubuntu-24.04/Python 3.12.3 and all 15 current U/F witness pairs passing on the user's laptop** at commit `272b82e9ce465a32b460d7dcf522eb17c6d7c625`. The registered filesystem path is on D:. The latest screenshot reports 7.8 GiB WSL RAM (6.6 GiB available) and 4 GiB swap. The returned Windows storage check verifies Docker data at `D:\Dissertation-RQ1\DockerDesktopWSL\disk\docker_data.vhdx` (8.05 GiB), its supporting filesystem on D:, the dedicated Ubuntu filesystem on D: (2.18 GiB), and swap on D:. The older separate `Ubuntu` installation remains on C: and is left intact. The current checkpoint is **section 5: real local CPU Joern acceptance**. Folder creation, configuration and commands on the user's machine are performed by the user; the remote workspace prepares and checks the code. The first real Joern readiness attempt was blocked during startup; Q and experiment slicing have not run. The next action is retrying the corrected protocol-readiness helper.
+The returned preparation log confirms **Ubuntu-24.04/Python 3.12.3 and all 15 current U/F witness pairs passing on the user's laptop** at commit `272b82e9ce465a32b460d7dcf522eb17c6d7c625`. The registered filesystem path is on D:. The latest screenshot reports 7.8 GiB WSL RAM (6.6 GiB available) and 4 GiB swap. The returned Windows storage check verifies Docker data at `D:\Dissertation-RQ1\DockerDesktopWSL\disk\docker_data.vhdx` (8.05 GiB), its supporting filesystem on D:, the dedicated Ubuntu filesystem on D: (2.18 GiB), and swap on D:. The older separate `Ubuntu` installation remains on C: and is left intact. The current checkpoint is **section 6: rerun the CPU prompt-token audit after the Jinja dependency fix**. Folder creation, configuration and commands on the user's machine are performed by the user; the remote workspace prepares and checks the code. The first real Joern readiness attempt was blocked during startup; the corrected second attempt passed all 8 checks, including staged C import/query, with the greeting received after 13.431 seconds. Q and experiment slicing have not run. The laptop token audit then exposed a missing Jinja dependency; the next action is its corrected rerun.
 
 ## Layout
 
@@ -112,7 +112,7 @@ The readable result is `work/rq1/local-preparation.md`, also copied to `D:\Disse
 
 Return the report/log, the new `free -h` output, and Docker Desktop's displayed disk-image location. Pause before pulling Joern or running queries. If a command fails, return its error log; do not delete outputs or reset failure records.
 
-## 5. Current checkpoint: real CPU Joern acceptance
+## 5. Completed checkpoint: real CPU Joern acceptance
 
 CPU preparation and the memory/storage checkpoint have passed. The first Joern attempt reached only Docker's open port; the returned log shows an early WebSocket failure while Joern was still starting. The corrected helper waits for Joern's actual greeting before attempting import; the existing image and all earlier records are retained. Update the existing branch without recreating the environment or rerunning the compiler witnesses. In Ubuntu-24.04:
 
@@ -124,6 +124,24 @@ bash rq1/local_joern.sh
 ```
 
 The helper starts the digest-pinned official image, waits for the real WebSocket greeting, records the running digest and checks a real staged C import/query. It uses the existing `.venv` directly. Its unique attempt directory preserves reports and diagnostics on success or failure, and a ZIP is copied to `D:\Dissertation-RQ1\exports`. Return the ZIP whose path is printed and pause before further execution. This uses the CPU and reuses the existing Joern image on D:. The explicitly pinned HTTP/WebSocket dependencies match the versions in the earlier preparation log. A fresh installation would download approximately 2.2 GiB of compressed image layers plus extraction space, under the verified D: storage. No model weights, Q generation, GPU or cluster is involved. See RUNBOOK section 3 for image provenance and acceptance limits.
+
+## 6. Current checkpoint: CPU prompt-token audit
+
+Joern smoke acceptance has passed. The missing Jinja2 dependency is now pinned to 3.1.6 in both the tokenizer and candidate GPU requirements. The corrected audit was run here on a CPU with no PyTorch: all 30 prompts fit, using 406–570 prompt tokens and at most 2618 tokens including the 2048-token generation allowance, below the 8192-token context. This workspace check does not replace the requested laptop result.
+
+With Joern already stopped, run in Ubuntu-24.04:
+
+```bash
+cd ~/projects/MSc-Thesis-Project &&
+git pull --ff-only origin codex/rq1-execution &&
+.venv/bin/python -m pip install --no-cache-dir -r rq1/requirements-tokenizer.txt &&
+set -o pipefail &&
+.venv/bin/python -m rq1.setup token-audit 2>&1 |
+    tee /mnt/d/Dissertation-RQ1/exports/token-audit-fixed.log &&
+cp work/rq1-token-audit.json /mnt/d/Dissertation-RQ1/exports/rq1-token-audit.json
+```
+
+Return `rq1-token-audit.json` and `token-audit-fixed.log` from the D: exports folder, then pause. Preserve the earlier failed `token-audit.log`. The warning about missing model backends is expected for this CPU-only audit. Do not install PyTorch or rerun the compiler witnesses/Joern check to resolve the missing template dependency.
 
 Official references checked for this setup:
 
