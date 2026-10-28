@@ -2,7 +2,7 @@
 
 Observed from the user's screenshots: Windows 11, WSL 3.0.3, Ubuntu running on WSL2, Python 3.14.4, Docker Desktop 4.97.0 reachable from Ubuntu, Docker Compose 5.6.1, 15.8 GiB RAM, and a GTX 1660 Ti with 6144 MiB VRAM. C: has 14.6 GiB free. The user reports 849 GB free on D: and requires extensive experiment storage there.
 
-The follow-up screenshot confirms **Ubuntu-24.04, Python 3.12.3 and the D: registered filesystem path**. WSL reports 7.7 GiB RAM (6.6 GiB available) and 2 GiB swap. There is no existing `.wslconfig`. The current checkpoint is **section 4: memory/swap configuration and local CPU preparation**. Docker's disk-image location still needs separate confirmation before a Joern image pull. Folder creation and installation on the user's machine were executed by the user; the remote workspace only prepares and checks the commands/code.
+The returned preparation log confirms **Ubuntu-24.04/Python 3.12.3 and all 15 current U/F witness pairs passing on the user's laptop** at commit `272b82e9ce465a32b460d7dcf522eb17c6d7c625`. The registered filesystem path is on D:. The latest screenshot reports 7.8 GiB WSL RAM (6.6 GiB available) and 4 GiB swap. The user has separately confirmed that Docker's bulk storage is on D:. The current checkpoint is **section 5: real local CPU Joern acceptance**. Folder creation, configuration and commands on the user's machine are performed by the user; the remote workspace prepares and checks the code. No real Joern or Q outcome has been returned yet.
 
 ## Layout
 
@@ -13,7 +13,7 @@ Use `D:\Dissertation-RQ1` as the common bulk-storage root:
 | `wsl\Ubuntu-24.04` | Dedicated Linux filesystem, including the project, Python 3.12 virtual environment, package/tokenizer caches, source checks and run outputs |
 | `docker-data` | Docker Desktop disk image: Joern image layers, container filesystems and named CPG volumes |
 | `exports` | Copies of reports, result archives and files exchanged with the GPU host |
-| `wsl\swap.vhdx` (next memory checkpoint) | WSL swap, configured after reading any existing `.wslconfig` so other settings are preserved |
+| `wsl\swap.vhdx` | 4 GiB WSL swap under the supplied `.wslconfig` |
 
 The dedicated Ubuntu 24.04 distribution matches the tested Python 3.12 setup. The currently installed `Ubuntu` distribution reports Python 3.14.4; do not assume its `python3` matches the tested runtime. Creating the project distribution directly on D: avoids relocating an existing user's Linux installation. Its Linux home and caches are physically on D: inside its virtual disk. Keep the repository inside that Linux filesystem for builds and Docker staging.
 
@@ -70,7 +70,7 @@ The original Q checkpoint does not fit in this laptop's physical RAM or VRAM und
 
 After storage verification, continue checkpoint 2 of `RUNBOOK.md` **inside Ubuntu-24.04**, with the repository under `~/projects`. That path, its `.venv`, work outputs and Linux caches will be backed by the D: virtual disk. Before main inference, use a separate GPU acceptance checkpoint; a university cluster is optional for the next local steps.
 
-## 4. Current checkpoint: memory, swap and CPU preparation
+## 4. Completed checkpoint: memory, swap and CPU preparation
 
 Use 8 GiB total WSL memory, shared by the Linux distributions and Docker backend, plus 4 GiB swap on D:. Joern's provisional container limit is now 6 GiB and its Java heap limit is 4 GiB. This leaves WSL headroom for Ubuntu, the Python client and native parsing. The real development import will test this budget; these settings have not been accepted on Joern hardware yet.
 
@@ -111,6 +111,18 @@ This checks the tested Python version, creates `.venv`, installs local dependenc
 The readable result is `work/rq1/local-preparation.md`, also copied to `D:\Dissertation-RQ1\exports\local-preparation.md` when that folder is available. The complete command log is `D:\Dissertation-RQ1\exports\local-prepare.log`. A fresh success should show development 3 cases/6 U/F sources and main 12 cases/24 U/F sources with current witnesses PASS, and zero Q/slice records.
 
 Return the report/log, the new `free -h` output, and Docker Desktop's displayed disk-image location. Pause before pulling Joern or running queries. If a command fails, return its error log; do not delete outputs or reset failure records.
+
+## 5. Current checkpoint: real CPU Joern acceptance
+
+CPU preparation and the memory/storage checkpoint have passed. Update the existing branch without recreating the environment or rerunning the compiler witnesses. In Ubuntu-24.04:
+
+```bash
+cd ~/projects/MSc-Thesis-Project
+git pull --ff-only origin codex/rq1-execution
+bash rq1/local_joern.sh
+```
+
+The helper starts the digest-pinned official image, waits for startup, records the running digest and checks a real staged C import/query. It uses the existing `.venv` directly. Its unique attempt directory preserves reports and diagnostics on success or failure, and a ZIP is copied to `D:\Dissertation-RQ1\exports`. Return the ZIP whose path is printed and pause before further execution. This uses the CPU and downloads approximately 2.2 GiB of compressed image layers, with additional space needed for extraction, all under Docker's confirmed D: storage. No model weights, Q generation, GPU or cluster is involved. See RUNBOOK section 3 for image provenance and acceptance limits.
 
 Official references checked for this setup:
 

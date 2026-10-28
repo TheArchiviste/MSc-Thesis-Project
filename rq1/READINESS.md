@@ -12,16 +12,16 @@
 | Real compilation and ASan | All 30 sources compile; all 15 U trigger their expected ASan class; all 15 F execute cleanly |
 | Additional benign check | D02 U/F run cleanly for input 5; U crashes for 11; F rejects 11 |
 | Software checks | 93 tests pass; Ruff passes for experiment code, RQ1 tooling and new tests |
-| Laptop runtime | Follow-up screenshot confirms Ubuntu-24.04/WSL2, Python 3.12.3, 7.7 GiB WSL memory (6.6 GiB available), 2 GiB swap, working Compose and no existing `.wslconfig`; physical RAM is 15.8 GiB |
-| Bulk storage and Python | Registered Ubuntu-24.04 base path on `D:\Dissertation-RQ1\wsl\Ubuntu-24.04` verified; Docker's separate disk-image location awaits confirmation |
-| CPU preparation | Automated local environment/witness script added; user run pending. Planned WSL limit 8 GiB with 4 GiB swap on D:, and Joern heap/container limits 4/6 GiB |
+| Laptop runtime | Ubuntu-24.04/WSL2 and Python 3.12.3 verified; latest screenshot shows 7.8 GiB WSL RAM (6.6 GiB available), 4 GiB swap; physical RAM is 15.8 GiB |
+| Bulk storage and Python | Registered Ubuntu-24.04 base path on `D:\Dissertation-RQ1\wsl\Ubuntu-24.04` verified; user confirms Docker bulk storage is on D: |
+| CPU preparation | User log at commit `272b82e` confirms all 3 development and 12 main current U/F witness pairs pass on the laptop; Q/slice records remain zero |
 | Prompt-token audit | Implemented; the pinned tokenizer has not been downloaded/run here |
-| Joern | Configuration and bounded real-CPG probe ready; laptop Docker works, but the Joern image/import/memory test has not run |
+| Joern | Missing v4.0.0 image tag replaced with a verified official digest; bounded startup/import helper ready; actual laptop import/memory acceptance pending |
 | Original Q | Pinned config and GPU preflight ready; no weights downloaded or inference performed |
 | Assessment | Explicit AI-assisted mode, initial/final forms, matching and delayed consistency tools ready; no excerpt judgements yet |
 | Main freeze | Not issued; main acquisition is blocked pending real development and its assessment |
 
-These compiler checks used this workspace CPU, not the user's laptop or university resources. Raw logs, build flags, compiler versions and platform metadata are in [validation/](validation/). They support the specified executions and do not prove F safe for all possible inputs. No GPU has been rented and no paid service or university allocation has been started.
+Checked-in raw compiler logs in [validation/](validation/) are from the workspace CPU. The separately returned laptop `local-prepare.log` confirms the same 15 current U/F checks pass on the user's CPU. These are finite witnesses, not a proof that F is safe for all possible inputs. No GPU has been rented and no paid service or university allocation has been started.
 
 ## Decisions and reasoning
 
@@ -56,4 +56,4 @@ These compiler checks used this workspace CPU, not the user's laptop or universi
 
 The reasoned mechanism and repair for every case are in [SOURCE_REFERENTS.md](SOURCE_REFERENTS.md), with original/prepared line coordinates and source links. [referents.jsonl](referents.jsonl) is the machine-readable oracle; [enrollment.csv](enrollment.csv) records every block decision.
 
-Next: complete section 4 of [D_DRIVE_SETUP.md](D_DRIVE_SETUP.md), return the CPU-preparation report/log, updated memory output and Docker's disk-image location, and pause before Joern pulls. Corpus validation, token auditing, Joern and reporting will use the local CPU. No adequacy proportion can be reported until actual Q/Joern outputs have been assessed. The final pipeline emits a Markdown report plus case and element CSV tables, alongside raw JSONL/provenance.
+Next: run `bash rq1/local_joern.sh` on the updated branch in Ubuntu-24.04, return its D: export ZIP and pause. Joern, token auditing and reporting use the local CPU. No adequacy proportion can be reported until actual Q/Joern outputs have been assessed. The final pipeline emits a Markdown report plus case and element CSV tables, alongside raw JSONL/provenance.

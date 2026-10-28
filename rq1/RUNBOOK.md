@@ -1,6 +1,6 @@
 # RQ1 execution: run one checkpoint at a time
 
-The latest screenshot confirms Ubuntu-24.04 uses WSL2 and Python 3.12.3, with its registered filesystem at `D:\Dissertation-RQ1\wsl\Ubuntu-24.04`. WSL currently sees 7.7 GiB RAM and 2 GiB swap; there is no `.wslconfig`. Docker Compose works. **The current checkpoint is the memory/swap and CPU-preparation follow-up in [D_DRIVE_SETUP.md](D_DRIVE_SETUP.md).** Docker's disk-image location still needs separate confirmation before a Joern image pull. No cluster or paid GPU has been started.
+The local preparation log confirms all 3 development and 12 main U/F witness pairs pass on Ubuntu-24.04/WSL2 with Python 3.12.3. Its filesystem is on D:. The latest screenshot shows 7.8 GiB WSL RAM and 4 GiB swap, and the user has confirmed Docker bulk storage is on D:. **The current checkpoint is section 3: real local CPU Joern acceptance**, also described in section 5 of [D_DRIVE_SETUP.md](D_DRIVE_SETUP.md). No cluster or paid GPU has been started.
 
 ## 1. Your Windows machine — completed diagnostic command
 
@@ -58,14 +58,14 @@ This downloads only the pinned tokenizer and audits all 30 prompts. It needs CPU
 With Docker Desktop's WSL integration available and its resource budget checked:
 
 ```bash
-mkdir -p work/joern-inputs
-docker compose -f rq1/compose.yml up -d
-docker compose -f rq1/compose.yml logs --tail=60
-python -m rq1.setup pin-joern
-python -m rq1.setup doctor --profile local --work work/rq1/local-readiness
+bash rq1/local_joern.sh
 ```
 
-The configuration permits a 6 GiB container and asks Java for a 4 GiB heap, leaving headroom inside the planned 8 GiB WSL VM. The VM's 4 GiB swap file belongs on D:. This budget is provisional: the first real import and memory observation determine suitability. Confirm Docker's disk image is on D: before pulling. The service binds to loopback only. Return `work/rq1/local-readiness/readiness.json` and the last server log if blocked. A socket connection alone is insufficient: doctor imports staged C and queries the resulting CPG. If local Joern cannot pass, pause; select a CPU host before main freeze. A cluster is a fallback, not an automatic next step.
+The helper pulls/starts the official image, waits up to five minutes for its port, records its digest, and runs the real import/query check with a bounded timeout. Each attempt has a new `work/rq1/local-readiness-<timestamp>-<suffix>` directory. It preserves reports, logs, process arguments, library filenames, container state and a memory snapshot even if startup or the check fails. When the D: exports folder exists, it creates a ZIP there and prints the path. Return that ZIP and pause. A startup failure may lack `readiness.md`; its command/server logs and `checkpoint.json` remain diagnostic evidence.
+
+The configuration permits a 6 GiB container and explicitly passes `-J-Xmx4g` to Joern, leaving headroom inside the planned 8 GiB WSL VM. The VM's 4 GiB swap file belongs on D:. This budget is provisional: the first real import and memory observation determine suitability. Confirm Docker's disk image is on D: before pulling. The service binds to loopback only. A socket connection alone is insufficient: doctor imports staged C and queries the resulting CPG. If local Joern cannot pass, pause; select a CPU host before main freeze. A cluster is a fallback, not an automatic next step.
+
+The earlier `ghcr.io/joernio/joern:v4.0.0` container tag was checked on 28 October 2026 and returns `MANIFEST_UNKNOWN`. `compose.yml` instead pins the available official linux/amd64 manifest `sha256:b847c9327adf8c3f19ba89bbbd1ce394353967538885ff5c2bcf812b3c3cc1e3`. GHCR metadata records creation on 28 October 2026 and image-build source revision `9fd178db7bca3ff5f1f5fd3d03b8d80de1ab5aeb`; its label is `nightly`. The image recipe installs the latest release at build time, so that source revision/label does not establish the installed Joern CLI version. Actual library filenames and server logs are retained for acceptance. Compressed layers total approximately 2.2 GiB; extraction needs additional D: space. This artifact is fixed before development; neither main acquisition nor acceptance has run yet. No automatic fallback to a different image is allowed.
 
 ## 4. Q GPU development — separate explicit hardware checkpoint
 

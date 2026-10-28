@@ -1,10 +1,13 @@
 services:
   joern:
-    image: ${JOERN_IMAGE:-ghcr.io/joernio/joern:v4.0.0}
+    # Official linux/amd64 image verified through GHCR on 2026-10-28.
+    # Release-style v4.0.0 is not a published container tag. Do not use a floating tag.
+    image: ghcr.io/joernio/joern@sha256:b847c9327adf8c3f19ba89bbbd1ce394353967538885ff5c2bcf812b3c3cc1e3
+    platform: linux/amd64
     container_name: llmxcpg_joern
     init: true
     working_dir: /workspace
-    command: joern --server --server-host 0.0.0.0 --server-port 8080
+    command: [joern, -J-Xms512m, -J-Xmx4g, --server, --server-host, 0.0.0.0, --server-port, "8080"]
     environment:
       JAVA_OPTS: -Xms512m -Xmx4g
     mem_limit: 6g
