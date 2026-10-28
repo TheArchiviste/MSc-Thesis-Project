@@ -3,3 +3,6 @@
 numpy==2.3.5
 cpgqls-client==0.0.9
 websocket-client==1.9.2
+# These are the actual transports used by cpgqls-client; freeze them explicitly.
+websockets==17.3
+requests==2.34.2

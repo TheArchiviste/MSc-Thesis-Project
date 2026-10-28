@@ -36,10 +36,11 @@ from .schema import append_jsonl, digest, index_jsonl, load_cases
 
 LOCK_VERSION = 3
 ACQUISITION_PHASES = frozenset({"query", "slice", "all"})
-ACQUISITION_PACKAGES = ("cpgqls-client", "websocket-client", "vllm", "torch", "transformers")
+ACQUISITION_PACKAGES = ("cpgqls-client", "websocket-client", "websockets", "requests",
+                        "vllm", "torch", "transformers")
 DETECTOR_PACKAGES = ("torch", "transformers", "peft", "bitsandbytes", "accelerate")
 QUERY_PACKAGES = ("vllm", "torch", "transformers")
-SLICE_PACKAGES = ("cpgqls-client", "websocket-client")
+SLICE_PACKAGES = ("cpgqls-client", "websocket-client", "websockets", "requests")
 ALL_PACKAGES = tuple(dict.fromkeys(ACQUISITION_PACKAGES + DETECTOR_PACKAGES + ("numpy",)))
 
 ROOT = Path(__file__).resolve().parents[1]

@@ -66,6 +66,16 @@ class LockTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "D packages changed"):
             locks.lock_detector(self.work, self.config)
 
+    def test_actual_http_and_websocket_transports_are_locked_for_slicing(self):
+        self.versions.update(websockets="17.3", requests="2.34.2")
+        self.lock("slice")
+        for package in ("websockets", "requests"):
+            original = self.versions[package]
+            self.versions[package] = "changed"
+            with self.subTest(package=package), self.assertRaisesRegex(ValueError, package):
+                self.lock("slice")
+            self.versions[package] = original
+
     def test_threshold_and_detector_settings_do_not_touch_acquisition(self):
         self.lock("query")
         cfg = json.loads(self.config.read_text())

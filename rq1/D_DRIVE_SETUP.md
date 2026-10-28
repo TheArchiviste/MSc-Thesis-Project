@@ -2,7 +2,7 @@
 
 Observed from the user's screenshots: Windows 11, WSL 3.0.3, Ubuntu running on WSL2, Python 3.14.4, Docker Desktop 4.97.0 reachable from Ubuntu, Docker Compose 5.6.1, 15.8 GiB RAM, and a GTX 1660 Ti with 6144 MiB VRAM. C: has 14.6 GiB free. The user reports 849 GB free on D: and requires extensive experiment storage there.
 
-The returned preparation log confirms **Ubuntu-24.04/Python 3.12.3 and all 15 current U/F witness pairs passing on the user's laptop** at commit `272b82e9ce465a32b460d7dcf522eb17c6d7c625`. The registered filesystem path is on D:. The latest screenshot reports 7.8 GiB WSL RAM (6.6 GiB available) and 4 GiB swap. The user has separately confirmed that Docker's bulk storage is on D:. The current checkpoint is **section 5: real local CPU Joern acceptance**. Folder creation, configuration and commands on the user's machine are performed by the user; the remote workspace prepares and checks the code. No real Joern or Q outcome has been returned yet.
+The returned preparation log confirms **Ubuntu-24.04/Python 3.12.3 and all 15 current U/F witness pairs passing on the user's laptop** at commit `272b82e9ce465a32b460d7dcf522eb17c6d7c625`. The registered filesystem path is on D:. The latest screenshot reports 7.8 GiB WSL RAM (6.6 GiB available) and 4 GiB swap. The returned Windows storage check verifies Docker data at `D:\Dissertation-RQ1\DockerDesktopWSL\disk\docker_data.vhdx` (8.05 GiB), its supporting filesystem on D:, the dedicated Ubuntu filesystem on D: (2.18 GiB), and swap on D:. The older separate `Ubuntu` installation remains on C: and is left intact. The current checkpoint is **section 5: real local CPU Joern acceptance**. Folder creation, configuration and commands on the user's machine are performed by the user; the remote workspace prepares and checks the code. The first real Joern readiness attempt was blocked during startup; Q and experiment slicing have not run. The next action is retrying the corrected protocol-readiness helper.
 
 ## Layout
 
@@ -11,7 +11,7 @@ Use `D:\Dissertation-RQ1` as the common bulk-storage root:
 | Folder | Contents |
 |---|---|
 | `wsl\Ubuntu-24.04` | Dedicated Linux filesystem, including the project, Python 3.12 virtual environment, package/tokenizer caches, source checks and run outputs |
-| `docker-data` | Docker Desktop disk image: Joern image layers, container filesystems and named CPG volumes |
+| `DockerDesktopWSL` | Verified Docker Desktop disk images: Joern image layers, container filesystems and named CPG volumes |
 | `exports` | Copies of reports, result archives and files exchanged with the GPU host |
 | `wsl\swap.vhdx` | 4 GiB WSL swap under the supplied `.wslconfig` |
 
@@ -32,7 +32,7 @@ Complete the first-run Linux username/password prompts. When Ubuntu opens, type 
 
 ## 2. Place Docker's disk image on D:
 
-In Docker Desktop, open **Settings → Resources → Advanced → Disk image location**. Select `D:\Dissertation-RQ1\docker-data`, apply the change and let Docker complete its supported disk move/restart. This relocates Docker's shared image/volume store, including any existing Docker workloads; save active work before applying it. Use Docker's relocation control, rather than manually dragging its virtual disks in Explorer.
+This checkpoint has passed. The active Docker data disk is verified at `D:\Dissertation-RQ1\DockerDesktopWSL\disk\docker_data.vhdx`; the supporting distribution is also on D:. The earlier suggested folder name `docker-data` was only a proposed destination. The actual `DockerDesktopWSL` directory satisfies the storage requirement; no further move or deletion is needed. For a fresh installation, use Docker Desktop's **Settings → Resources → Advanced → Disk image location** control to choose a D: location, rather than manually moving virtual disks.
 
 Then open **Settings → Resources → WSL Integration**, enable **Ubuntu-24.04**, and apply. Record the displayed disk-image location in the returned output or a screenshot. Moving only the repository would leave Docker image layers and CPG volumes on the old drive.
 
@@ -114,15 +114,16 @@ Return the report/log, the new `free -h` output, and Docker Desktop's displayed 
 
 ## 5. Current checkpoint: real CPU Joern acceptance
 
-CPU preparation and the memory/storage checkpoint have passed. Update the existing branch without recreating the environment or rerunning the compiler witnesses. In Ubuntu-24.04:
+CPU preparation and the memory/storage checkpoint have passed. The first Joern attempt reached only Docker's open port; the returned log shows an early WebSocket failure while Joern was still starting. The corrected helper waits for Joern's actual greeting before attempting import; the existing image and all earlier records are retained. Update the existing branch without recreating the environment or rerunning the compiler witnesses. In Ubuntu-24.04:
 
 ```bash
 cd ~/projects/MSc-Thesis-Project
 git pull --ff-only origin codex/rq1-execution
+.venv/bin/python -m pip install --no-cache-dir -r rq1/requirements-local.txt
 bash rq1/local_joern.sh
 ```
 
-The helper starts the digest-pinned official image, waits for startup, records the running digest and checks a real staged C import/query. It uses the existing `.venv` directly. Its unique attempt directory preserves reports and diagnostics on success or failure, and a ZIP is copied to `D:\Dissertation-RQ1\exports`. Return the ZIP whose path is printed and pause before further execution. This uses the CPU and downloads approximately 2.2 GiB of compressed image layers, with additional space needed for extraction, all under Docker's confirmed D: storage. No model weights, Q generation, GPU or cluster is involved. See RUNBOOK section 3 for image provenance and acceptance limits.
+The helper starts the digest-pinned official image, waits for the real WebSocket greeting, records the running digest and checks a real staged C import/query. It uses the existing `.venv` directly. Its unique attempt directory preserves reports and diagnostics on success or failure, and a ZIP is copied to `D:\Dissertation-RQ1\exports`. Return the ZIP whose path is printed and pause before further execution. This uses the CPU and reuses the existing Joern image on D:. The explicitly pinned HTTP/WebSocket dependencies match the versions in the earlier preparation log. A fresh installation would download approximately 2.2 GiB of compressed image layers plus extraction space, under the verified D: storage. No model weights, Q generation, GPU or cluster is involved. See RUNBOOK section 3 for image provenance and acceptance limits.
 
 Official references checked for this setup:
 

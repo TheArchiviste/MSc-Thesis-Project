@@ -20,13 +20,17 @@ rq1_finish() {
     rq1_result=$?
     trap - EXIT
     set +e
-    docker compose -f rq1/compose.yml logs --no-color --tail=200 joern > "$rq1_run/joern.log" 2>&1
+    docker compose -f rq1/compose.yml logs --no-color --timestamps joern > "$rq1_run/joern.log" 2>&1
     docker inspect llmxcpg_joern --format '{{json .State}}' > "$rq1_run/container-state.json" 2>&1
     docker top llmxcpg_joern -eo pid,args > "$rq1_run/processes.txt" 2>&1
     docker exec llmxcpg_joern sh -c 'ls -1 "$JOERN_HOME"/lib/*joern-cli*' > "$rq1_run/joern-libraries.txt" 2>&1
     docker stats --no-stream llmxcpg_joern > "$rq1_run/memory.txt" 2>&1
     free -h >> "$rq1_run/memory.txt"
+    "$rq1_python" -m pip freeze > "$rq1_run/pip-freeze.txt"
     cp work/rq1-config.json "$rq1_run/config.json"
+    if [[ "$rq1_result" != 0 ]]; then
+        docker compose -f rq1/compose.yml stop --timeout 10 joern
+    fi
     "$rq1_python" - "$rq1_run" "$rq1_result" <<'PY'
 import json
 import shutil
@@ -54,32 +58,9 @@ trap rq1_finish EXIT
 docker compose -f rq1/compose.yml config > "$rq1_run/compose-resolved.yml"
 docker compose -f rq1/compose.yml up -d joern
 
-# A bounded startup wait avoids mistaking a still-starting server for a failed import.
-# The socket is only a startup signal: doctor below must import and query a real CPG.
-"$rq1_python" - <<'PY'
-import socket
-import subprocess
-import time
-
-deadline = time.monotonic() + 300
-next_notice = 0
-while time.monotonic() < deadline:
-    state = subprocess.run(["docker", "inspect", "llmxcpg_joern", "--format", "{{.State.Running}}"],
-                           capture_output=True, text=True, timeout=10)
-    if state.returncode or state.stdout.strip() != "true":
-        raise SystemExit("Joern container stopped; return this attempt's logs.")
-    try:
-        with socket.create_connection(("127.0.0.1", 8080), timeout=2):
-            print("Joern port is reachable; checking actual CPG import next.", flush=True)
-            break
-    except OSError:
-        if time.monotonic() >= next_notice:
-            print("Waiting for Joern startup (maximum five minutes)...", flush=True)
-            next_notice = time.monotonic() + 30
-        time.sleep(3)
-else:
-    raise SystemExit("Joern did not open its port within five minutes; return the logs.")
-PY
+# Docker can accept TCP connections while the Scala server is still starting.
+# Require the actual protocol greeting before the one-shot CPG import check.
+timeout --kill-after=10s 330s "$rq1_python" -m rq1.joern_readiness --output "$rq1_run/startup.json"
 
 "$rq1_python" -m rq1.setup pin-joern
 timeout --kill-after=10s 660s "$rq1_python" -m rq1.setup doctor --profile local --work "$rq1_run"

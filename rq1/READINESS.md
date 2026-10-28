@@ -11,12 +11,12 @@
 | Reserves | 3 ordered blocks, not enrolled or inferred |
 | Real compilation and ASan | All 30 sources compile; all 15 U trigger their expected ASan class; all 15 F execute cleanly |
 | Additional benign check | D02 U/F run cleanly for input 5; U crashes for 11; F rejects 11 |
-| Software checks | 93 tests pass; Ruff passes for experiment code, RQ1 tooling and new tests |
+| Software checks | 99 tests pass; Ruff passes for experiment code, RQ1 tooling and new tests |
 | Laptop runtime | Ubuntu-24.04/WSL2 and Python 3.12.3 verified; latest screenshot shows 7.8 GiB WSL RAM (6.6 GiB available), 4 GiB swap; physical RAM is 15.8 GiB |
-| Bulk storage and Python | Registered Ubuntu-24.04 base path on `D:\Dissertation-RQ1\wsl\Ubuntu-24.04` verified; user confirms Docker bulk storage is on D: |
+| Bulk storage and Python | Registered Ubuntu-24.04 base path on `D:\Dissertation-RQ1\wsl\Ubuntu-24.04` verified; Windows storage output verifies Docker data (8.05 GiB) and supporting files under `D:\Dissertation-RQ1\DockerDesktopWSL`; Ubuntu-24.04 is 2.18 GiB on D:; older Ubuntu remains on C: |
 | CPU preparation | User log at commit `272b82e` confirms all 3 development and 12 main current U/F witness pairs pass on the laptop; Q/slice records remain zero |
 | Prompt-token audit | Implemented; the pinned tokenizer has not been downloaded/run here |
-| Joern | Missing v4.0.0 image tag replaced with a verified official digest; bounded startup/import helper ready; actual laptop import/memory acceptance pending |
+| Joern | Official digest identifies CLI 4.0.667. First real readiness attempt was blocked about seven seconds after startup; captured state shows no OOM kill and correct heap arguments. TCP-only startup gate replaced with a bounded WebSocket greeting check; actual CPG acceptance pending |
 | Original Q | Pinned config and GPU preflight ready; no weights downloaded or inference performed |
 | Assessment | Explicit AI-assisted mode, initial/final forms, matching and delayed consistency tools ready; no excerpt judgements yet |
 | Main freeze | Not issued; main acquisition is blocked pending real development and its assessment |
