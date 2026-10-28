@@ -1,0 +1,31 @@
+{
+  "upstream_line_for_generated_line": [
+    17,
+    44,
+    45,
+    46,
+    47,
+    49,
+    50,
+    51,
+    52,
+    55,
+    56,
+    57,
+    58,
+    60,
+    61,
+    62
+  ],
+  "identifier_map": {
+    "goodG2B": "case_entry",
+    "CWE121_Stack_Based_Buffer_Overflow__CWE131_memcpy_41_goodG2BSink": "case_sink",
+    "CWE121_Stack_Based_Buffer_Overflow__CWE131_memcpy_41": "buffer_2",
+    "CWE121_Stack_Based_Buffer_Overflow__CWE131": "buffer_3",
+    "BadSource": "buffer_4",
+    "GoodSource": "buffer_5",
+    "BadSink": "buffer_6"
+  },
+  "source_sha256_lf": "57345b2073867662f59570ce64542f770d0a20cb5691ef467c75e21f58653ac0",
+  "generated_sha256": "f9069c27cb6081da4a2d67278a3ed358be03fd41e28d8e7f7d891d69f509009c"
+}

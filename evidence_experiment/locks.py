@@ -26,20 +26,25 @@ import importlib.metadata
 import json
 import platform
 import subprocess
+from dataclasses import asdict
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from .runner import PINNED_PIPELINE_COMMIT, Q_JOERN_PINNED_PATHS
-from .schema import append_jsonl, digest, index_jsonl
+from .runner import PINNED_PIPELINE_COMMIT, Q_JOERN_PINNED_PATHS, _models
+from .schema import append_jsonl, digest, index_jsonl, load_cases
 
-LOCK_VERSION = 2
+LOCK_VERSION = 3
 ACQUISITION_PHASES = frozenset({"query", "slice", "all"})
 ACQUISITION_PACKAGES = ("cpgqls-client", "websocket-client", "vllm", "torch", "transformers")
 DETECTOR_PACKAGES = ("torch", "transformers", "peft", "bitsandbytes", "accelerate")
+QUERY_PACKAGES = ("vllm", "torch", "transformers")
+SLICE_PACKAGES = ("cpgqls-client", "websocket-client")
 ALL_PACKAGES = tuple(dict.fromkeys(ACQUISITION_PACKAGES + DETECTOR_PACKAGES + ("numpy",)))
 
 ROOT = Path(__file__).resolve().parents[1]
+DEPLOYMENT_SETTINGS = frozenset({"joern_host", "joern_port", "joern_input_dir",
+                                "server_input_dir"})
 
 
 def _core() -> Path:
@@ -52,6 +57,26 @@ def _relative(path: Path) -> str:
         return path.resolve().relative_to(ROOT).as_posix()
     except ValueError:
         return path.name
+
+
+def scoring_contract(cfg: dict) -> dict[str, Any]:
+    """Effective Q/Joern/D settings, scoring code and runtime used for calibration.
+
+    Endpoints and staging directories are transport details: different jobs may
+    use different local ports without changing the experiment. Model settings,
+    image identity, prompts and package versions must agree.
+    """
+    core = _core()
+    code = [Path(__file__).with_name(name) for name in ("runner.py", "schema.py")]
+    code += [core / "config.py", core / "prompts.py", core / "inference" / "query_generator.py",
+             core / "inference" / "classifier.py"]
+    code += sorted((core / "joern").rglob("*.py")) + sorted((core / "slicing").rglob("*.py"))
+    return {"version": 1, "models": asdict(_models(cfg)),
+            "pipeline_commit": cfg.get("pipeline_commit"),
+            "joern_digest": cfg.get("joern_digest"),
+            "runtime_image_sha256": cfg.get("runtime_image_sha256"),
+            "code_sha256": {_relative(p): hashlib.sha256(p.read_bytes()).hexdigest() for p in code},
+            "python": platform.python_version(), "packages": package_versions(ALL_PACKAGES)}
 
 
 def package_versions(names: tuple[str, ...]) -> dict[str, str | None]:
@@ -90,6 +115,15 @@ def git_provenance() -> dict[str, Any]:
             "q_joern_pin": pin_state}
 
 
+def require_pipeline_pin(cfg: dict, provenance: dict | None = None) -> None:
+    if cfg.get("allow_dummy", False):
+        return
+    provenance = provenance or git_provenance()
+    if provenance["q_joern_pin"] != "matches_pin":
+        raise ValueError("Cannot verify unchanged pinned Q/Joern code; "
+                         "use a full git clone with the pinned commit and restore pinned files")
+
+
 def _now() -> str:
     return datetime.now(timezone.utc).isoformat(timespec="seconds")
 
@@ -104,15 +138,28 @@ def acquisition_fingerprint(manifest: Path, config: Path, cases, repeats: int,
                             work: Path) -> str:
     h = hashlib.sha256()
     core = _core()
-    code = [Path(__file__).with_name(name) for name in ("runner.py", "schema.py", "validate.py")]
+    code = [Path(__file__).with_name(name) for name in ("runner.py", "schema.py", "validate.py", "bounded_joern.py")]
     code += [core / "config.py", core / "prompts.py", core / "inference" / "query_generator.py"]
     code += sorted((core / "joern").rglob("*.py")) + sorted((core / "slicing").rglob("*.py"))
     h.update(b"manifest\n" + manifest.read_bytes())
+    # RQ1 line maps and witness support travel with the corpus. Edits to them
+    # must invalidate the lock even when generated C text happens to be unchanged.
+    for row in (json.loads(line) for line in manifest.read_text().splitlines() if line.strip()):
+        for label, relative in sorted(row.get("line_maps", {}).items()):
+            h.update(f"map:{row['case_id']}:{label}\n".encode())
+            h.update((manifest.parent / relative).read_bytes())
+    if any(c.referent.get("rq1_witness_required") for c in cases):
+        for path in sorted((manifest.parent / "support").iterdir()):
+            if path.is_file():
+                h.update(path.name.encode() + b"\n" + path.read_bytes())
+        for name in ("witness_plan.jsonl", "selection.json", "generated/driver.c", "prepare.py", "setup.py"):
+            h.update(name.encode() + b"\n" + (manifest.parent / name).read_bytes())
     for path in code:
         h.update(_relative(path).encode("utf-8") + b"\n" + path.read_bytes())
     cfg = json.loads(config.read_text(encoding="utf-8"))
     acquisition_cfg = {key: value for key, value in cfg.items()
-                       if key != "threshold" and not key.startswith("detector_")}
+                       if key != "threshold" and not key.startswith("detector_")
+                       and key not in DEPLOYMENT_SETTINGS}
     h.update(json.dumps(acquisition_cfg, sort_keys=True).encode("utf-8"))
     h.update(f"repeats={repeats}".encode())
     for case in cases:
@@ -139,7 +186,11 @@ def lock_inputs(work: Path, manifest: Path, config: Path, cases, repeats: int = 
     if acquiring and provenance["q_joern_pin"] == "differs_from_pin":
         raise ValueError("Q/Joern code differs from pinned commit "
                          f"{PINNED_PIPELINE_COMMIT}; restore it or change the pin deliberately")
-    environment = package_versions(ACQUISITION_PACKAGES)
+    cfg = json.loads(config.read_text(encoding="utf-8"))
+    if acquiring and not cfg.get("allow_dummy", False) and provenance["q_joern_pin"] == "unverifiable":
+        raise ValueError("Cannot verify pinned Q/Joern code; use a full git clone with the pinned commit")
+    names = QUERY_PACKAGES if phase == "query" else SLICE_PACKAGES if phase == "slice" else ACQUISITION_PACKAGES
+    environment = package_versions(names)
     lock = work / "experiment_lock.json"
     if lock.exists():
         recorded = json.loads(lock.read_text(encoding="utf-8"))
@@ -148,10 +199,10 @@ def lock_inputs(work: Path, manifest: Path, config: Path, cases, repeats: int = 
                              "use a new --work directory")
         if recorded["fingerprint"] != fingerprint:
             raise ValueError("Inputs or code changed; use a new --work directory for a new run")
-        if acquiring and recorded["acquisition_environment"] != environment:
-            change = _environment_change(recorded["acquisition_environment"], environment)
-            raise ValueError(f"Q/Joern packages changed ({change}); "
-                             "acquire in a new --work directory or restore the environment")
+        previous = recorded.get("stage_environments", {}).get(phase)
+        if acquiring and previous is not None and previous != environment:
+            change = _environment_change(previous, environment)
+            raise ValueError(f"Q/Joern packages changed ({change}); restore this stage environment")
     else:
         recorded = {"lock_version": LOCK_VERSION, "fingerprint": fingerprint,
                     "created_utc": _now(), "created_by_phase": phase,
@@ -159,6 +210,9 @@ def lock_inputs(work: Path, manifest: Path, config: Path, cases, repeats: int = 
                     "config": str(config), "repeats": repeats,
                     "acquisition_environment": environment,
                     "python": platform.python_version(), "provenance": provenance}
+        lock.write_text(json.dumps(recorded, indent=2) + "\n", encoding="utf-8")
+    if acquiring:
+        recorded.setdefault("stage_environments", {})[phase] = environment
         lock.write_text(json.dumps(recorded, indent=2) + "\n", encoding="utf-8")
     _log_phase(work, phase, provenance)
     return recorded
@@ -200,6 +254,17 @@ def lock_detector(work: Path, config: Path, calibration: Path | None = None) -> 
 
 
 def require_witnesses(work: Path, cases) -> None:
+    for case in cases:
+        if case.referent.get("rq1_witness_required"):
+            row = index_jsonl(work / "witness_validation.jsonl", "case_id").get(case.case_id, {})
+            checks = row.get("checks", {})
+            if (checks.get("compile") != "pass" or checks.get("trigger") != "pass" or
+                    ("F" in case.sources and checks.get("fixed") != "pass") or
+                    checks.get("benign_behavior") not in {"pass", "not_applicable"} or
+                    (case.referent.get("rq1_benign_required") and checks.get("benign_behavior") != "pass") or
+                    row.get("witness_plan_sha256") != case.referent.get("witness_plan_sha256") or
+                    row.get("source_sha256") != {a: digest(s) for a, s in case.sources.items()}):
+                raise ValueError(f"RQ1 baseline witness missing, failed or changed for {case.case_id}")
     if not any(c.admissible for c in cases):
         return
     checks = index_jsonl(work / "witness_validation.jsonl", "case_id")
@@ -228,8 +293,50 @@ def require_calibration(calibration: Path, cfg: dict, manifest: Path) -> None:
     if (not score_path.exists() or
             hashlib.sha256(score_path.read_bytes()).hexdigest() != result["score_sha256"]):
         raise ValueError("Calibration scores changed after threshold selection")
+    if result.get("scoring_contract") != scoring_contract(cfg):
+        raise ValueError("Calibration scoring settings, code or runtime differ; "
+                         "restore the calibrated environment or recalibrate in a new directory")
+    input_lock = calibration.parent / "calibration_run" / "inputs.json"
+    if (not input_lock.exists() or hashlib.sha256(input_lock.read_bytes()).hexdigest() !=
+            result.get("calibration_lock_sha256")):
+        raise ValueError("Calibration input lock changed or is missing")
+    recorded = json.loads(input_lock.read_text(encoding="utf-8"))
+    if recorded.get("fingerprint") != result.get("calibration_input_fingerprint"):
+        raise ValueError("Calibration input fingerprint differs from the retained lock")
+    for name, expected in result.get("stage_sha256", {}).items():
+        path = calibration.parent / "calibration_run" / name
+        if not path.exists() or hashlib.sha256(path.read_bytes()).hexdigest() != expected:
+            raise ValueError(f"Calibration stage trace changed: {name}")
+    if set(recorded.get("analysis_clusters", [])) != {case.cluster_id for case in load_cases(manifest)}:
+        raise ValueError("Analysis cluster population changed after calibration")
     if (result.get("analysis_manifest_sha256") and
             result["analysis_manifest_sha256"] != hashlib.sha256(manifest.read_bytes()).hexdigest()):
         raise ValueError("Analysis manifest changed after calibration")
     if not result["usability_gate_pass"] or abs(result["threshold"] - cfg["threshold"]) > 1e-9:
         raise ValueError("Usability gate failed or configured threshold differs from calibration")
+
+
+def check_stage_receipts(work: Path) -> None:
+    """Reject edited completed outputs before resume or a downstream phase."""
+    path = work / "stage_receipts.json"
+    if not path.exists():
+        return
+    for name, expected in json.loads(path.read_text()).items():
+        file = work / name
+        if not file.exists() or hashlib.sha256(file.read_bytes()).hexdigest() != expected:
+            raise ValueError(f"Completed stage output changed: {name}")
+
+
+def write_stage_receipt(work: Path, phase: str) -> None:
+    path = work / "stage_receipts.json"
+    receipts = json.loads(path.read_text()) if path.exists() else {}
+    name = "queries.jsonl" if phase == "query" else "slices.jsonl"
+    file = work / name
+    if not file.exists():
+        raise ValueError(f"Stage produced no output: {name}")
+    receipts[name] = hashlib.sha256(file.read_bytes()).hexdigest()
+    if phase == "slice" and (work / "slice_attempts.jsonl").exists():
+        receipts["slice_attempts.jsonl"] = hashlib.sha256((work / "slice_attempts.jsonl").read_bytes()).hexdigest()
+    if phase == "query" and (work / "query_sessions.jsonl").exists():
+        receipts["query_sessions.jsonl"] = hashlib.sha256((work / "query_sessions.jsonl").read_bytes()).hexdigest()
+    path.write_text(json.dumps(receipts, indent=2) + "\n")

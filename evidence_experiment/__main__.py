@@ -44,9 +44,12 @@ def main() -> None:
     parser.add_argument("--work", type=Path, required=True)
     parser.add_argument("--config", type=Path)
     parser.add_argument("--assessments", type=Path)
+    parser.add_argument("--initial-assessments", type=Path)
     parser.add_argument("--adjudications", type=Path)
     parser.add_argument("--resolutions", type=Path)
     parser.add_argument("--evidence-only", action="store_true")
+    parser.add_argument("--assessment-mode", choices=("independent", "author", "assistant"),
+                        default="independent")
     parser.add_argument("--witness-plan", type=Path)
     parser.add_argument("--calibration-scores", type=Path)
     parser.add_argument("--calibration-manifest", type=Path)
@@ -107,6 +110,14 @@ def main() -> None:
     if not args.config:
         parser.error("all phases except verify require --config")
     cfg = load_config(args.config, require_detector=args.phase in ("all", "detect"))
+    if any(c.referent.get("rq1_witness_required") for c in cases):
+        if args.repeats != 1:
+            parser.error("The bounded RQ1 design uses --repeats 1")
+        if args.phase in ("all", "detect"):
+            parser.error("D is outside this RQ1 design; use separate query and slice phases")
+        if args.phase in ("query", "slice"):
+            from rq1.setup import check_acquisition_ready
+            check_acquisition_ready(args.manifest, args.config, phase=args.phase)
     if args.phase in ("packets", "analyze") and not cfg.get("allow_dummy", False):
         problems = {c.case_id: claim_problem(c.referent) for c in cases if claim_problem(c.referent)}
         if problems:
@@ -117,12 +128,16 @@ def main() -> None:
     if args.phase in ("all", "detect"):
         require_calibration(calibration, cfg, args.manifest)
         lock_detector(args.work, args.config, calibration)
+    from .locks import check_stage_receipts, write_stage_receipt
+    check_stage_receipts(args.work)
     if args.phase in ("all", "query"):
         generate_queries(cases, args.work, cfg, args.repeats)
     if args.phase in ("all", "slice"):
         extract_slices(cases, args.work, cfg, args.repeats)
     if args.phase in ("all", "detect"):
         classify_slices(cases, args.work, cfg, args.repeats)
+    if args.phase in ("query", "slice"):
+        write_stage_receipt(args.work, args.phase)
     if args.phase == "packets":
         packets, key = build_queue(cases, args.work, args.repeats,
                                    duplicate_fraction=args.duplicate_fraction,
@@ -133,21 +148,31 @@ def main() -> None:
     if args.phase == "analyze":
         if not args.assessments or not args.adjudications:
             parser.error("analyze requires --assessments and --adjudications")
+        if any(c.referent.get("rq1_witness_required") for c in cases) and not args.initial_assessments:
+            parser.error("RQ1 analysis requires preserved --initial-assessments for the F control check")
         report = analyze(cases, args.work, args.assessments, args.adjudications,
                          repeats=args.repeats, seed=args.analysis_seed,
-                         resolutions=args.resolutions, evidence_only=args.evidence_only)
+                         resolutions=args.resolutions, evidence_only=args.evidence_only,
+                         assessment_mode=args.assessment_mode)
         report["analysis_provenance"] = {
             "analysis_sha256": _sha256(Path(__file__).with_name("analysis.py")),
             "review_sha256": _sha256(Path(__file__).with_name("review.py")),
             "assessments_sha256": _sha256(args.assessments),
+            "initial_assessments_sha256": _sha256(args.initial_assessments),
             "adjudications_sha256": _sha256(args.adjudications),
             "resolutions_sha256": _sha256(args.resolutions),
             "review_key_sha256": _sha256(args.work / "review_key.jsonl"),
             "analysis_seed": args.analysis_seed,
             "checkout": git_provenance(),
         }
+        from .rq1_report import initial_decoy_summary, write_report
+        if args.initial_assessments:
+            report["initial_fixed_control_check"] = initial_decoy_summary(
+                cases, args.work, report, args.initial_assessments, args.repeats)
         path = args.work / "analysis.json"
         path.write_text(json.dumps(report, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+        write_report(cases, args.work, report, args.assessments, args.adjudications)
+        print(f"Readable report: {args.work / 'rq1_report.md'}")
         print(path)
 
 

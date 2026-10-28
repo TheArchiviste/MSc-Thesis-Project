@@ -6,7 +6,9 @@ prove semantic equivalence over all inputs or correctness of a mechanism map.
 
 from __future__ import annotations
 
+import json
 import os
+import platform
 import re
 import subprocess
 import tempfile
@@ -56,6 +58,10 @@ def validate_witnesses(cases: list[Case], manifest: Path, plan_path: Path,
     results = []
     for case in cases:
         if not case.paired:
+            if case.case_id in plans and plans[case.case_id].get("mode") == "baseline":
+                row = validate_baseline(case, plans[case.case_id], manifest.parent)
+                append_jsonl(output, row)
+                results.append(row)
             continue
         if case.case_id not in plans:
             raise ValueError(f"Missing witness plan for paired case {case.case_id}")
@@ -111,3 +117,40 @@ def validate_witnesses(cases: list[Case], manifest: Path, plan_path: Path,
         append_jsonl(output, row)
         results.append(row)
     return results
+
+
+def validate_baseline(case: Case, plan: dict, base: Path) -> dict:
+    """Real U/F witnesses; a clean fixed run is not a proof over all inputs."""
+    if (not plan.get("build_argv") or not isinstance(plan.get("benign_inputs"), list)
+            or "trigger_input" not in plan or not plan.get("asan_class")
+            or not plan["benign_inputs"] and not plan.get("benign_reason")):
+        raise ValueError(f"Incomplete baseline witness plan for {case.case_id}")
+    with tempfile.TemporaryDirectory(prefix="rq1-witness-") as temp:
+        runs = {arm: _build_and_run(case, arm, plan, base, Path(temp))
+                for arm in case.sources if arm in ("U", "F")}
+    compiled = all(r["compile"] == "pass" for r in runs.values())
+    trigger = runs["U"].get("trigger", {})
+    triggered = (trigger.get("status") == "ok" and trigger.get("exit_code", 0) != 0
+                 and re.search(r"ERROR: AddressSanitizer:\s*" + re.escape(plan["asan_class"]),
+                               trigger.get("stderr", "")) is not None)
+    fixed = runs.get("F", {}).get("trigger", {})
+    clean = (fixed.get("status") == "ok" and fixed.get("exit_code") == 0
+             and "AddressSanitizer" not in fixed.get("stderr", "")
+             and all(r.get("status") == "ok" and r.get("exit_code") == 0 and
+                     "AddressSanitizer" not in r.get("stderr", "")
+                     for r in runs.get("F", {}).get("benign", [])))
+    benign = runs["U"].get("benign", [])
+    return {"case_id": case.case_id, "mode": "baseline", "runs": runs,
+            "witness_plan_sha256": digest(json.dumps(plan, sort_keys=True)),
+            "build_argv": plan["build_argv"],
+            "compiler": _run([plan["build_argv"][0], "--version"], cwd=base),
+            "platform": platform.platform(), "asan_options": "detect_leaks=0:abort_on_error=1",
+            "checks": {"compile": "pass" if compiled else "fail",
+                       "trigger": "pass" if triggered else "fail",
+                       "fixed": "pass" if clean else "not_applicable" if "F" not in runs else "fail",
+                       "benign_behavior": ("pass" if all(r.get("status") == "ok" and r.get("exit_code") == 0 and
+                          "AddressSanitizer" not in r.get("stderr", "") for r in benign)
+                          else "fail") if benign else "not_applicable"},
+            "source_sha256": {arm: digest(code) for arm, code in case.sources.items()},
+            "expected_asan": plan["asan_class"],
+            "limits": "Finite witness and source-based repair judgement, not independent validation or a general safety proof."}

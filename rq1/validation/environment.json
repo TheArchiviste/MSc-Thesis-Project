@@ -1,0 +1,9 @@
+{
+  "scope": "Workspace CPU validation only; not the user laptop, real Q or real Joern.",
+  "date": "2026-10-28",
+  "python": "3.12.14",
+  "platform": "Linux-6.18.55-x86_64-with-glibc2.39",
+  "gcc": "gcc (Ubuntu 13.3.0-6ubuntu2~24.04) 13.3.0\nCopyright (C) 2023 Free Software Foundation, Inc.\nThis is free software; see the source for copying conditions.  There is NO\nwarranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.\n\n",
+  "docker_available": false,
+  "nvidia_smi_available": false
+}

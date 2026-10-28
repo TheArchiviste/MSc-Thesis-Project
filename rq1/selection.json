@@ -1,0 +1,293 @@
+{
+  "seed": 20261027,
+  "upstream_commit": "f88433e3443648a17671398797a04ea1f8e1a274",
+  "policy": "Reserve three development blocks; shuffle remaining blocks with Python Random(seed); alternate upstream allocation CWE where possible; choose lexicographic C _41 path. CWE129 uses stdin, not network. Exclude sizeof blocks on LP64 source validity, not pipeline outputs. First 12 valid blocks form the main candidate corpus.",
+  "cases": [
+    {
+      "case_id": "D01",
+      "block": "CWE131-copy",
+      "cwe": "CWE121",
+      "split": "development",
+      "path": "testcases/CWE121_Stack_Based_Buffer_Overflow/s01/CWE121_Stack_Based_Buffer_Overflow__CWE131_memcpy_41.c",
+      "members": {
+        "CWE121": "testcases/CWE121_Stack_Based_Buffer_Overflow/s01/CWE121_Stack_Based_Buffer_Overflow__CWE131_memcpy_41.c",
+        "CWE122": "testcases/CWE122_Heap_Based_Buffer_Overflow/s05/CWE122_Heap_Based_Buffer_Overflow__CWE131_memcpy_41.c"
+      },
+      "upstream_blob_sha": "8c4b6b51afa1669737798857f04043b401de4b4c",
+      "normalized_sha256": "57345b2073867662f59570ce64542f770d0a20cb5691ef467c75e21f58653ac0",
+      "family_id": "CWE121-CWE131-copy"
+    },
+    {
+      "case_id": "D02",
+      "block": "CWE129",
+      "cwe": "CWE122",
+      "split": "development",
+      "path": "testcases/CWE122_Heap_Based_Buffer_Overflow/s06/CWE122_Heap_Based_Buffer_Overflow__c_CWE129_fgets_41.c",
+      "members": {
+        "CWE121": "testcases/CWE121_Stack_Based_Buffer_Overflow/s01/CWE121_Stack_Based_Buffer_Overflow__CWE129_connect_socket_41.c",
+        "CWE122": "testcases/CWE122_Heap_Based_Buffer_Overflow/s06/CWE122_Heap_Based_Buffer_Overflow__c_CWE129_connect_socket_41.c"
+      },
+      "selection_note": "Prefer bounded stdin variant over network-dependent input for portable validation; decided before pipeline outputs.",
+      "upstream_blob_sha": "17209b5c3c19e32b4a0fcdbd7fff5362a5486668",
+      "normalized_sha256": "943e8b586871d63d9c19b47cbf87048617a4c5f63ac28830d05348bc26785f6c",
+      "family_id": "CWE122-c-CWE129"
+    },
+    {
+      "case_id": "D03",
+      "block": "CWE193-copy",
+      "cwe": "CWE121",
+      "split": "development",
+      "path": "testcases/CWE121_Stack_Based_Buffer_Overflow/s01/CWE121_Stack_Based_Buffer_Overflow__CWE193_char_alloca_cpy_41.c",
+      "members": {
+        "CWE121": "testcases/CWE121_Stack_Based_Buffer_Overflow/s01/CWE121_Stack_Based_Buffer_Overflow__CWE193_char_alloca_cpy_41.c",
+        "CWE122": "testcases/CWE122_Heap_Based_Buffer_Overflow/s06/CWE122_Heap_Based_Buffer_Overflow__c_CWE193_char_cpy_41.c"
+      },
+      "upstream_blob_sha": "2316485cbfc18ac07a7bd570e98be841201b2786",
+      "normalized_sha256": "85c129ba2d10f9f5ba4314e71402154ea418d6504db7ca16ef7714ab18e15145",
+      "family_id": "CWE121-CWE193-copy"
+    },
+    {
+      "case_id": "R01",
+      "block": "sizeof",
+      "cwe": "CWE122",
+      "split": "candidate",
+      "path": "testcases/CWE122_Heap_Based_Buffer_Overflow/s11/CWE122_Heap_Based_Buffer_Overflow__sizeof_int64_t_41.c",
+      "members": {
+        "CWE122": "testcases/CWE122_Heap_Based_Buffer_Overflow/s11/CWE122_Heap_Based_Buffer_Overflow__sizeof_int64_t_41.c"
+      },
+      "upstream_blob_sha": "7772b39e8d7fea3370175b9b15a9cd3df5ab75ab",
+      "normalized_sha256": "b7397fac9a4f1b6b8185d293f56f2d625d5ab3af0e2f2eddbe227ac7c7b9396e",
+      "family_id": "CWE122-sizeof"
+    },
+    {
+      "case_id": "R02",
+      "block": "CWE805-ncat",
+      "cwe": "CWE121",
+      "split": "candidate",
+      "path": "testcases/CWE121_Stack_Based_Buffer_Overflow/s03/CWE121_Stack_Based_Buffer_Overflow__CWE805_char_alloca_ncat_41.c",
+      "members": {
+        "CWE121": "testcases/CWE121_Stack_Based_Buffer_Overflow/s03/CWE121_Stack_Based_Buffer_Overflow__CWE805_char_alloca_ncat_41.c",
+        "CWE122": "testcases/CWE122_Heap_Based_Buffer_Overflow/s07/CWE122_Heap_Based_Buffer_Overflow__c_CWE805_char_ncat_41.c"
+      },
+      "upstream_blob_sha": "32f0248487e067bd3ccf4d45ebc3ec2261351d93",
+      "normalized_sha256": "19a497fb292a5d717f64c0ddb1ed1435ffe0fcadb07b3b244d4f61cbe7fecf4a",
+      "family_id": "CWE121-CWE805-ncat"
+    },
+    {
+      "case_id": "R03",
+      "block": "CWE806-loop",
+      "cwe": "CWE122",
+      "split": "candidate",
+      "path": "testcases/CWE122_Heap_Based_Buffer_Overflow/s09/CWE122_Heap_Based_Buffer_Overflow__c_CWE806_char_loop_41.c",
+      "members": {
+        "CWE121": "testcases/CWE121_Stack_Based_Buffer_Overflow/s06/CWE121_Stack_Based_Buffer_Overflow__CWE806_char_alloca_loop_41.c",
+        "CWE122": "testcases/CWE122_Heap_Based_Buffer_Overflow/s09/CWE122_Heap_Based_Buffer_Overflow__c_CWE806_char_loop_41.c"
+      },
+      "upstream_blob_sha": "12d82ac47dcab2f702c0a20b6a1438b199437af0",
+      "normalized_sha256": "0545873eb2353aec1078004e6118fe5edea65128281a16b495c0511f90bd44b7",
+      "family_id": "CWE122-c-CWE806-loop"
+    },
+    {
+      "case_id": "R04",
+      "block": "src-copy",
+      "cwe": "CWE121",
+      "split": "candidate",
+      "path": "testcases/CWE121_Stack_Based_Buffer_Overflow/s08/CWE121_Stack_Based_Buffer_Overflow__src_char_alloca_cpy_41.c",
+      "members": {
+        "CWE121": "testcases/CWE121_Stack_Based_Buffer_Overflow/s08/CWE121_Stack_Based_Buffer_Overflow__src_char_alloca_cpy_41.c",
+        "CWE122": "testcases/CWE122_Heap_Based_Buffer_Overflow/s10/CWE122_Heap_Based_Buffer_Overflow__c_src_char_cpy_41.c"
+      },
+      "upstream_blob_sha": "68077aa49f4ce2ea70899be3f549efd0cec50637",
+      "normalized_sha256": "ba9f6a515ae89044d880c73aef3688bbeb90d66c50fc912cef0f28ac3fca5774",
+      "family_id": "CWE121-src-copy"
+    },
+    {
+      "case_id": "R05",
+      "block": "CWE806-copy",
+      "cwe": "CWE122",
+      "split": "candidate",
+      "path": "testcases/CWE122_Heap_Based_Buffer_Overflow/s09/CWE122_Heap_Based_Buffer_Overflow__c_CWE806_char_memcpy_41.c",
+      "members": {
+        "CWE121": "testcases/CWE121_Stack_Based_Buffer_Overflow/s06/CWE121_Stack_Based_Buffer_Overflow__CWE806_char_alloca_memcpy_41.c",
+        "CWE122": "testcases/CWE122_Heap_Based_Buffer_Overflow/s09/CWE122_Heap_Based_Buffer_Overflow__c_CWE806_char_memcpy_41.c"
+      },
+      "upstream_blob_sha": "ef77596fe188eb656c201d1199cf6ae03c072a1f",
+      "normalized_sha256": "a5e308d3e68c6c1b105079df707d416067fa00870c5510d9d669ab2b10fa93c5",
+      "family_id": "CWE122-c-CWE806-copy"
+    },
+    {
+      "case_id": "R06",
+      "block": "dest-cat",
+      "cwe": "CWE121",
+      "split": "candidate",
+      "path": "testcases/CWE121_Stack_Based_Buffer_Overflow/s08/CWE121_Stack_Based_Buffer_Overflow__dest_char_alloca_cat_41.c",
+      "members": {
+        "CWE121": "testcases/CWE121_Stack_Based_Buffer_Overflow/s08/CWE121_Stack_Based_Buffer_Overflow__dest_char_alloca_cat_41.c",
+        "CWE122": "testcases/CWE122_Heap_Based_Buffer_Overflow/s10/CWE122_Heap_Based_Buffer_Overflow__c_dest_char_cat_41.c"
+      },
+      "upstream_blob_sha": "c111a467a1c83198c4e0b83b74aa8e4ab01b6316",
+      "normalized_sha256": "fb9e4f72411b3dfd06866ea44ea0515056ef8813e9bdb0d6d1c40cfc9cc8f54c",
+      "family_id": "CWE121-dest-cat"
+    },
+    {
+      "case_id": "R07",
+      "block": "CWE131-loop",
+      "cwe": "CWE122",
+      "split": "candidate",
+      "path": "testcases/CWE122_Heap_Based_Buffer_Overflow/s05/CWE122_Heap_Based_Buffer_Overflow__CWE131_loop_41.c",
+      "members": {
+        "CWE121": "testcases/CWE121_Stack_Based_Buffer_Overflow/s01/CWE121_Stack_Based_Buffer_Overflow__CWE131_loop_41.c",
+        "CWE122": "testcases/CWE122_Heap_Based_Buffer_Overflow/s05/CWE122_Heap_Based_Buffer_Overflow__CWE131_loop_41.c"
+      },
+      "upstream_blob_sha": "e51053381ca267d035a1dd49b5216124f4d85e30",
+      "normalized_sha256": "7dd545e1e7038b04154750b59a21eee2a4e3d4a1c7b8b21ed55b8c35430512f9",
+      "family_id": "CWE122-CWE131-loop"
+    },
+    {
+      "case_id": "R08",
+      "block": "CWE806-snprintf",
+      "cwe": "CWE121",
+      "split": "candidate",
+      "path": "testcases/CWE121_Stack_Based_Buffer_Overflow/s06/CWE121_Stack_Based_Buffer_Overflow__CWE806_char_alloca_snprintf_41.c",
+      "members": {
+        "CWE121": "testcases/CWE121_Stack_Based_Buffer_Overflow/s06/CWE121_Stack_Based_Buffer_Overflow__CWE806_char_alloca_snprintf_41.c",
+        "CWE122": "testcases/CWE122_Heap_Based_Buffer_Overflow/s09/CWE122_Heap_Based_Buffer_Overflow__c_CWE806_char_snprintf_41.c"
+      },
+      "upstream_blob_sha": "d7215e7199bc2d97f55466619ab14f34f56d8e56",
+      "normalized_sha256": "7a1c3e444f08bbac280b1e5bb1a21bac8ccf5f34d2862f6810e266acb68acf5b",
+      "family_id": "CWE121-CWE806-snprintf"
+    },
+    {
+      "case_id": "R09",
+      "block": "src-cat",
+      "cwe": "CWE122",
+      "split": "candidate",
+      "path": "testcases/CWE122_Heap_Based_Buffer_Overflow/s10/CWE122_Heap_Based_Buffer_Overflow__c_src_char_cat_41.c",
+      "members": {
+        "CWE121": "testcases/CWE121_Stack_Based_Buffer_Overflow/s08/CWE121_Stack_Based_Buffer_Overflow__src_char_alloca_cat_41.c",
+        "CWE122": "testcases/CWE122_Heap_Based_Buffer_Overflow/s10/CWE122_Heap_Based_Buffer_Overflow__c_src_char_cat_41.c"
+      },
+      "upstream_blob_sha": "f05b71960b88214bb898f73ad832e1a09cd474bb",
+      "normalized_sha256": "3f0387ecd0630c023deb1eee12e07222079106a1a1779e6b4664e651baff75ec",
+      "family_id": "CWE122-c-src-cat"
+    },
+    {
+      "case_id": "R10",
+      "block": "CWE805-snprintf",
+      "cwe": "CWE121",
+      "split": "candidate",
+      "path": "testcases/CWE121_Stack_Based_Buffer_Overflow/s03/CWE121_Stack_Based_Buffer_Overflow__CWE805_char_alloca_snprintf_41.c",
+      "members": {
+        "CWE121": "testcases/CWE121_Stack_Based_Buffer_Overflow/s03/CWE121_Stack_Based_Buffer_Overflow__CWE805_char_alloca_snprintf_41.c",
+        "CWE122": "testcases/CWE122_Heap_Based_Buffer_Overflow/s08/CWE122_Heap_Based_Buffer_Overflow__c_CWE805_char_snprintf_41.c"
+      },
+      "upstream_blob_sha": "fb14519ed1369a8fb9996f9d2933c55fe47a750a",
+      "normalized_sha256": "4d61489553ab2e94c9e8ac61feec8f16365a0c077bbb1d6c701d4dc18a302160",
+      "family_id": "CWE121-CWE805-snprintf"
+    },
+    {
+      "case_id": "R11",
+      "block": "sizeof-double",
+      "cwe": "CWE122",
+      "split": "candidate",
+      "path": "testcases/CWE122_Heap_Based_Buffer_Overflow/s11/CWE122_Heap_Based_Buffer_Overflow__sizeof_double_41.c",
+      "members": {
+        "CWE122": "testcases/CWE122_Heap_Based_Buffer_Overflow/s11/CWE122_Heap_Based_Buffer_Overflow__sizeof_double_41.c"
+      },
+      "upstream_blob_sha": "70b8520cf2462d155366177d794d09c26f2f63c8",
+      "normalized_sha256": "6b9d38ef38040892376396fd70c436bcb16be06bff94b58d6697c887b837fb31",
+      "family_id": "CWE122-sizeof-double"
+    },
+    {
+      "case_id": "R12",
+      "block": "CWE806-ncat",
+      "cwe": "CWE121",
+      "split": "candidate",
+      "path": "testcases/CWE121_Stack_Based_Buffer_Overflow/s06/CWE121_Stack_Based_Buffer_Overflow__CWE806_char_alloca_ncat_41.c",
+      "members": {
+        "CWE121": "testcases/CWE121_Stack_Based_Buffer_Overflow/s06/CWE121_Stack_Based_Buffer_Overflow__CWE806_char_alloca_ncat_41.c",
+        "CWE122": "testcases/CWE122_Heap_Based_Buffer_Overflow/s09/CWE122_Heap_Based_Buffer_Overflow__c_CWE806_char_ncat_41.c"
+      },
+      "upstream_blob_sha": "d7e8032499a0d8a7ab920fc1f579fa8067a607b6",
+      "normalized_sha256": "26a42e35260a73c5e2e9a2ab973077ccf6d1eeaf1e6f97c61cc92a2ceda61d0f",
+      "family_id": "CWE121-CWE806-ncat"
+    },
+    {
+      "case_id": "R13",
+      "block": "CWE805-copy",
+      "cwe": "CWE122",
+      "split": "candidate",
+      "path": "testcases/CWE122_Heap_Based_Buffer_Overflow/s07/CWE122_Heap_Based_Buffer_Overflow__c_CWE805_char_memcpy_41.c",
+      "members": {
+        "CWE121": "testcases/CWE121_Stack_Based_Buffer_Overflow/s03/CWE121_Stack_Based_Buffer_Overflow__CWE805_char_alloca_memcpy_41.c",
+        "CWE122": "testcases/CWE122_Heap_Based_Buffer_Overflow/s07/CWE122_Heap_Based_Buffer_Overflow__c_CWE805_char_memcpy_41.c"
+      },
+      "upstream_blob_sha": "cffa814872e7e282035f4572d1307b9fa8d1de33",
+      "normalized_sha256": "83592dd36de3cf46bded0d1098ff4adc4a8e7d97e5e6d7a0c2d7290909e6c334",
+      "family_id": "CWE122-c-CWE805-copy"
+    },
+    {
+      "case_id": "R14",
+      "block": "CWE193-loop",
+      "cwe": "CWE121",
+      "split": "candidate",
+      "path": "testcases/CWE121_Stack_Based_Buffer_Overflow/s02/CWE121_Stack_Based_Buffer_Overflow__CWE193_char_alloca_loop_41.c",
+      "members": {
+        "CWE121": "testcases/CWE121_Stack_Based_Buffer_Overflow/s02/CWE121_Stack_Based_Buffer_Overflow__CWE193_char_alloca_loop_41.c",
+        "CWE122": "testcases/CWE122_Heap_Based_Buffer_Overflow/s06/CWE122_Heap_Based_Buffer_Overflow__c_CWE193_char_loop_41.c"
+      },
+      "upstream_blob_sha": "d3c671f0dc04b70116d75d58615cf09c326119a2",
+      "normalized_sha256": "c408db6aa460b3ba26a0756752482ad1b084f692bcb8dd2e9b232bb3e0feb042",
+      "family_id": "CWE121-CWE193-loop"
+    },
+    {
+      "case_id": "R15",
+      "block": "dest-copy",
+      "cwe": "CWE122",
+      "split": "candidate",
+      "path": "testcases/CWE122_Heap_Based_Buffer_Overflow/s10/CWE122_Heap_Based_Buffer_Overflow__c_dest_char_cpy_41.c",
+      "members": {
+        "CWE121": "testcases/CWE121_Stack_Based_Buffer_Overflow/s08/CWE121_Stack_Based_Buffer_Overflow__dest_char_alloca_cpy_41.c",
+        "CWE122": "testcases/CWE122_Heap_Based_Buffer_Overflow/s10/CWE122_Heap_Based_Buffer_Overflow__c_dest_char_cpy_41.c"
+      },
+      "upstream_blob_sha": "4e70505afbf68afb51453e75eea8ac644c032a45",
+      "normalized_sha256": "ca88db7a0a19602e2a2a910190884ea1a3764cc3ae04e78bb8ba4e7506285793",
+      "family_id": "CWE122-c-dest-copy"
+    },
+    {
+      "case_id": "R16",
+      "block": "CWE135",
+      "cwe": "CWE121",
+      "split": "candidate",
+      "path": "testcases/CWE121_Stack_Based_Buffer_Overflow/s01/CWE121_Stack_Based_Buffer_Overflow__CWE135_41.c",
+      "members": {
+        "CWE121": "testcases/CWE121_Stack_Based_Buffer_Overflow/s01/CWE121_Stack_Based_Buffer_Overflow__CWE135_41.c",
+        "CWE122": "testcases/CWE122_Heap_Based_Buffer_Overflow/s06/CWE122_Heap_Based_Buffer_Overflow__CWE135_41.c"
+      },
+      "upstream_blob_sha": "54fe45860a827a99c4afa182b3d7a6e414a96390",
+      "normalized_sha256": "615c4484760d0c4963146d6cb733eb49e2d785e7668fdce504880e88d2692513",
+      "family_id": "CWE121-CWE135"
+    },
+    {
+      "case_id": "R17",
+      "block": "CWE805-loop",
+      "cwe": "CWE122",
+      "split": "candidate",
+      "path": "testcases/CWE122_Heap_Based_Buffer_Overflow/s07/CWE122_Heap_Based_Buffer_Overflow__c_CWE805_char_loop_41.c",
+      "members": {
+        "CWE121": "testcases/CWE121_Stack_Based_Buffer_Overflow/s03/CWE121_Stack_Based_Buffer_Overflow__CWE805_char_alloca_loop_41.c",
+        "CWE122": "testcases/CWE122_Heap_Based_Buffer_Overflow/s07/CWE122_Heap_Based_Buffer_Overflow__c_CWE805_char_loop_41.c"
+      },
+      "upstream_blob_sha": "889814162e91bdfcb940d0aff83a97b629f130fc",
+      "normalized_sha256": "ece891c55a1bde071cbeb55b4e72c2c1c2f64c212bcb2d6870e0ed2819ddcf23",
+      "family_id": "CWE122-c-CWE805-loop"
+    }
+  ],
+  "support_sha256": {
+    "std_testcase.h": "0864709d72e64a439a48db6bb8171b0e2c372a1c7f4eaeccf14e34b5829343fe",
+    "std_testcase_io.h": "469240eb996b1cf0f0a60539cbb6e6c6e3988a35834808b2a224fbe9c3dc3243",
+    "io.c": "0b14bd5eb8eb2e12f4f6489f53afa66d60ad40f0b28abd49a890a2090e9f2b3e",
+    "LICENSE": "e2cedbc8f50278fce600d9e4996b153c91f3d49124acf98c43c3c02c418f4afa"
+  },
+  "frame_sha256": "893632c1484174b686ed6bb5aed4c37dda397ed7d87b16aadb75aff1163964eb"
+}

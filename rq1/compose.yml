@@ -1,0 +1,17 @@
+services:
+  joern:
+    image: ${JOERN_IMAGE:-ghcr.io/joernio/joern:v4.0.0}
+    container_name: llmxcpg_joern
+    init: true
+    working_dir: /workspace
+    command: joern --server --server-host 0.0.0.0 --server-port 8080
+    environment:
+      JAVA_OPTS: -Xms512m -Xmx6g
+    mem_limit: 8g
+    ports:
+      - "127.0.0.1:8080:8080"
+    volumes:
+      - rq1_joern_workspace:/workspace
+      - ../work/joern-inputs:/analysis/inputs:ro
+volumes:
+  rq1_joern_workspace:

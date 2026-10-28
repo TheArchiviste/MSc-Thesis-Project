@@ -44,7 +44,7 @@ llmxcpg = "llmxcpg.cli:main"
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["llmxcpg*", "evidence_experiment*"]
+include = ["llmxcpg*", "evidence_experiment*", "rq1*", "juliet_pilot*"]
 
 [tool.ruff]
 line-length = 100

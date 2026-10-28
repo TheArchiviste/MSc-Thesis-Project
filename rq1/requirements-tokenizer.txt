@@ -1,0 +1,2 @@
+# Optional CPU-only prompt audit. No torch/vLLM or model weights required.
+transformers==4.47.1

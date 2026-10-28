@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Any
 
 from .calibrate import calibrate
+from .locks import DEPLOYMENT_SETTINGS, require_pipeline_pin, scoring_contract
 from .runner import classify_slices, extract_slices, generate_queries
 from .schema import Case, digest, index_jsonl, read_jsonl, run_specs
 
@@ -58,7 +59,7 @@ def _abstention_summary(metadata: dict[str, dict], failures: list[dict]) -> dict
 
 
 def score_and_calibrate(analysis_cases: list[Case], manifest: Path, work: Path,
-                        cfg: dict[str, Any]) -> dict[str, Any]:
+                        cfg: dict[str, Any], *, analysis_manifest: Path | None = None) -> dict[str, Any]:
     """Persist every stage, then select a threshold under a predeclared abstention policy.
 
     ``detector_calibration_abstentions`` in the config decides what happens
@@ -67,6 +68,7 @@ def score_and_calibrate(analysis_cases: list[Case], manifest: Path, work: Path,
     and reports abstentions by split and label, since safe code often yields
     no flow and therefore no slice.
     """
+    require_pipeline_pin(cfg)
     policy = cfg.get("detector_calibration_abstentions", "fail")
     if policy not in ABSTENTION_POLICIES:
         raise ValueError(f"detector_calibration_abstentions must be one of {ABSTENTION_POLICIES}")
@@ -74,8 +76,18 @@ def score_and_calibrate(analysis_cases: list[Case], manifest: Path, work: Path,
     stage_dir = work / "calibration_run"
     stage_dir.mkdir(parents=True, exist_ok=True)
     h = hashlib.sha256(manifest.read_bytes())
+    contract = scoring_contract(cfg)
+    h.update(json.dumps(contract, sort_keys=True).encode("utf-8"))
+    for code in (Path(__file__), Path(__file__).with_name("calibrate.py"),
+                 Path(__file__).resolve().parents[1] / "llmxcpg" / "calibration" / "threshold.py"):
+        h.update(code.read_bytes())
+    analysis_clusters = sorted({case.cluster_id for case in analysis_cases})
+    h.update(json.dumps(analysis_clusters).encode("utf-8"))
+    if analysis_manifest is not None:
+        h.update(analysis_manifest.read_bytes())
     # The threshold is this step's output, so it is not one of its inputs.
-    h.update(json.dumps({k: v for k, v in cfg.items() if k != "threshold"},
+    h.update(json.dumps({k: v for k, v in cfg.items()
+                        if k != "threshold" and k not in DEPLOYMENT_SETTINGS},
                         sort_keys=True).encode("utf-8"))
     for sample in metadata.values():
         h.update(json.dumps(sample, sort_keys=True).encode("utf-8"))
@@ -86,6 +98,8 @@ def score_and_calibrate(analysis_cases: list[Case], manifest: Path, work: Path,
     if not lock.exists():
         lock.write_text(json.dumps({"fingerprint": fingerprint,
                                     "samples": list(metadata.values()),
+                                    "scoring_contract": contract,
+                                    "analysis_clusters": analysis_clusters,
                                     "query_revision": cfg["query_revision"],
                                     "detector_revision": cfg["detector_revision"],
                                     "detector_base_revision": cfg["detector_base_revision"],
@@ -127,6 +141,12 @@ def score_and_calibrate(analysis_cases: list[Case], manifest: Path, work: Path,
     result["abstentions"] = abstentions
     result["score_sha256"] = hashlib.sha256(score_path.read_bytes()).hexdigest()
     result["calibration_input_fingerprint"] = fingerprint
+    result["scoring_contract"] = contract
+    result["calibration_lock_sha256"] = hashlib.sha256(lock.read_bytes()).hexdigest()
+    result["stage_sha256"] = {name: hashlib.sha256((stage_dir / name).read_bytes()).hexdigest()
+                             for name in ("queries.jsonl", "slices.jsonl", "detector.jsonl")}
+    if analysis_manifest is not None:
+        result["analysis_manifest_sha256"] = hashlib.sha256(analysis_manifest.read_bytes()).hexdigest()
     (work / "calibration.json").write_text(json.dumps(result, indent=2) + "\n",
                                             encoding="utf-8")
     return result

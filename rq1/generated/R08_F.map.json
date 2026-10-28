@@ -1,0 +1,39 @@
+{
+  "upstream_line_for_generated_line": [
+    17,
+    19,
+    21,
+    22,
+    23,
+    24,
+    25,
+    54,
+    55,
+    56,
+    57,
+    59,
+    60,
+    61,
+    62,
+    65,
+    66,
+    67,
+    68,
+    69,
+    71,
+    72,
+    73,
+    74
+  ],
+  "identifier_map": {
+    "goodG2B": "case_entry",
+    "CWE121_Stack_Based_Buffer_Overflow__CWE806_char_alloca_snprintf_41_goodG2BSink": "case_sink",
+    "CWE121_Stack_Based_Buffer_Overflow__CWE806_char_alloca_snprintf_41": "buffer_2",
+    "CWE121_Stack_Based_Buffer_Overflow__CWE806": "buffer_3",
+    "BadSource": "buffer_4",
+    "GoodSource": "buffer_5",
+    "BadSink": "buffer_6"
+  },
+  "source_sha256_lf": "7a1c3e444f08bbac280b1e5bb1a21bac8ccf5f34d2862f6810e266acb68acf5b",
+  "generated_sha256": "beec3622e34a620e85300695613f11b6ab4ce9593e156edef3a4ef5d1d34f209"
+}

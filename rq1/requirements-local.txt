@@ -1,0 +1,5 @@
+# Tested preparation/analysis environment: Python 3.12, Linux LP64.
+# Does not install torch or download model weights.
+numpy==2.3.5
+cpgqls-client==0.0.9
+websocket-client==1.9.2

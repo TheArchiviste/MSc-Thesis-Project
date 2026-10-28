@@ -1,0 +1,11 @@
+# Preserve experiment hashes when moving between Windows/WSL and Linux GPU hosts.
+/rq1/** text eol=lf
+/rq1/support/** -text -whitespace
+/llmxcpg/**/*.py text eol=lf
+/evidence_experiment/*.py text eol=lf
+/juliet_pilot/*.py text eol=lf
+# These support snapshots are hashed as original bytes, including line endings.
+/juliet_pilot/upstream/std_testcase.h -text
+/juliet_pilot/upstream/std_testcase_io.h -text
+/juliet_pilot/upstream/io.c -text
+/juliet_pilot/upstream/LICENSE -text

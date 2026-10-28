@@ -1,0 +1,21 @@
+case_id,block,cwe,status,reason
+D01,CWE131-copy,CWE121,development_prepared,"Allocation reserves 10 bytes, while ten int values require 10*sizeof(int), 40 bytes on the validated ABI. F reserves 10*sizeof(int)."
+D02,CWE129,CWE122,development_prepared,Stdin 11 passes the nonnegative-only guard; index 11 exceeds a ten-int heap object's valid indices 0 through 9. The F counterpart adds the upper-bound guard.
+D03,CWE193-copy,CWE121,development_prepared,The ten-character source includes its NUL: eleven bytes are written into the selected ten-byte stack buffer. F selects eleven bytes.
+R01,sizeof,CWE122,excluded_before_inference,On the evaluated LP64 ABI sizeof(pointer)==sizeof(int64_t)==8; this source does not establish the claimed overflow.
+R02,CWE805-ncat,CWE121,main_prepared,"The receiving object has 50 bytes; the documented initialization and operation write 100 bytes, exceeding its capacity. F selects a 100-byte receiving object."
+R03,CWE806-loop,CWE122,main_prepared,"The receiving object has 50 bytes; the documented initialization and operation write 99 bytes, exceeding its capacity. F uses a shorter source."
+R04,src-copy,CWE121,main_prepared,"The receiving object has 50 bytes; the documented initialization and operation write 100 bytes, exceeding its capacity. F uses a shorter source."
+R05,CWE806-copy,CWE122,main_prepared,"The receiving object has 50 bytes; the documented initialization and operation write 99 bytes, exceeding its capacity. F uses a shorter source."
+R06,dest-cat,CWE121,main_prepared,"The receiving object has 50 bytes; the documented initialization and operation write 100 bytes, exceeding its capacity. F selects a 100-byte receiving object."
+R07,CWE131-loop,CWE122,main_prepared,"Allocation reserves 10 bytes, while ten int values require 10*sizeof(int), 40 bytes on the validated ABI. F reserves 10*sizeof(int)."
+R08,CWE806-snprintf,CWE121,main_prepared,"The receiving object has 50 bytes; the documented initialization and operation write 99 bytes, exceeding its capacity. F uses a shorter source."
+R09,src-cat,CWE122,main_prepared,"The receiving object has 50 bytes; the documented initialization and operation write 100 bytes, exceeding its capacity. F uses a shorter source."
+R10,CWE805-snprintf,CWE121,main_prepared,"The receiving object has 50 bytes; the documented initialization and operation write 100 bytes, exceeding its capacity. F selects a 100-byte receiving object."
+R11,sizeof-double,CWE122,excluded_before_inference,On the evaluated LP64 ABI sizeof(pointer)==sizeof(double)==8; do not manufacture a 32-bit execution to retain it.
+R12,CWE806-ncat,CWE121,main_prepared,"The receiving object has 50 bytes; the documented initialization and operation write 100 bytes, exceeding its capacity. F uses a shorter source."
+R13,CWE805-copy,CWE122,main_prepared,"The receiving object has 50 bytes; the documented initialization and operation write 100 bytes, exceeding its capacity. F selects a 100-byte receiving object."
+R14,CWE193-loop,CWE121,main_prepared,The ten-character source includes its NUL: eleven bytes are written into the selected ten-byte stack buffer. F selects eleven bytes.
+R15,dest-copy,CWE122,reserve_not_enrolled,
+R16,CWE135,CWE121,reserve_not_enrolled,
+R17,CWE805-loop,CWE122,reserve_not_enrolled,

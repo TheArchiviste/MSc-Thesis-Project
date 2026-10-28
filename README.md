@@ -1,5 +1,10 @@
 # LLMxCPG
 
+The current dissertation execution is the **RQ1-only evidence audit**. Start with
+[RQ1 runbook](rq1/RUNBOOK.md), [protocol](rq1/PROTOCOL.md) and
+[readiness and source decisions](rq1/READINESS.md). The general pipeline
+quickstart below includes D and is not the command sequence for that audit.
+
 An auditable reimplementation of **LLMxCPG: Context-Aware Vulnerability
 Detection Through Code Property Graph-Guided Large Language Models**
 (Lekssays et al., USENIX Security 2025).

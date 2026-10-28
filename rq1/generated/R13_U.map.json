@@ -1,0 +1,38 @@
+{
+  "upstream_line_for_generated_line": [
+    17,
+    19,
+    23,
+    24,
+    25,
+    26,
+    27,
+    28,
+    30,
+    31,
+    32,
+    33,
+    34,
+    35,
+    37,
+    38,
+    39,
+    40,
+    42,
+    43,
+    44,
+    45,
+    46
+  ],
+  "identifier_map": {
+    "CWE122_Heap_Based_Buffer_Overflow__c_CWE805_char_memcpy_41_bad": "case_entry",
+    "CWE122_Heap_Based_Buffer_Overflow__c_CWE805_char_memcpy_41_badSink": "case_sink",
+    "CWE122_Heap_Based_Buffer_Overflow__c_CWE805_char_memcpy_41": "buffer_2",
+    "CWE122_Heap_Based_Buffer_Overflow__c_CWE805": "buffer_3",
+    "BadSource": "buffer_4",
+    "GoodSource": "buffer_5",
+    "BadSink": "buffer_6"
+  },
+  "source_sha256_lf": "83592dd36de3cf46bded0d1098ff4adc4a8e7d97e5e6d7a0c2d7290909e6c334",
+  "generated_sha256": "de73771ba13fb7db99bb24a612c655c404a47024f581d011b4c50f97f3264582"
+}
