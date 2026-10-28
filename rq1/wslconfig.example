@@ -1,0 +1,4 @@
+[wsl2]
+memory=8GB
+swap=4GB
+swapFile=D:\\Dissertation-RQ1\\wsl\\swap.vhdx

@@ -2,7 +2,7 @@
 
 Observed from the user's screenshots: Windows 11, WSL 3.0.3, Ubuntu running on WSL2, Python 3.14.4, Docker Desktop 4.97.0 reachable from Ubuntu, Docker Compose 5.6.1, 15.8 GiB RAM, and a GTX 1660 Ti with 6144 MiB VRAM. C: has 14.6 GiB free. The user reports 849 GB free on D: and requires extensive experiment storage there.
 
-The next checkpoint is **storage placement and the tested Python environment**. No local Q weights, Joern image, or experiment dependencies should be downloaded before their destination is established. These are instructions for the user's machine; no D: folder has been created by the remote workspace.
+The follow-up screenshot confirms **Ubuntu-24.04, Python 3.12.3 and the D: registered filesystem path**. WSL reports 7.7 GiB RAM (6.6 GiB available) and 2 GiB swap. There is no existing `.wslconfig`. The current checkpoint is **section 4: memory/swap configuration and local CPU preparation**. Docker's disk-image location still needs separate confirmation before a Joern image pull. Folder creation and installation on the user's machine were executed by the user; the remote workspace only prepares and checks the commands/code.
 
 ## Layout
 
@@ -70,8 +70,51 @@ The original Q checkpoint does not fit in this laptop's physical RAM or VRAM und
 
 After storage verification, continue checkpoint 2 of `RUNBOOK.md` **inside Ubuntu-24.04**, with the repository under `~/projects`. That path, its `.venv`, work outputs and Linux caches will be backed by the D: virtual disk. Before main inference, use a separate GPU acceptance checkpoint; a university cluster is optional for the next local steps.
 
+## 4. Current checkpoint: memory, swap and CPU preparation
+
+Use 8 GiB total WSL memory, shared by the Linux distributions and Docker backend, plus 4 GiB swap on D:. Joern's provisional container limit is now 6 GiB and its Java heap limit is 4 GiB. This leaves WSL headroom for Ubuntu, the Python client and native parsing. The real development import will test this budget; these settings have not been accepted on Joern hardware yet.
+
+Save active Linux work, close Ubuntu terminals and quit Docker Desktop before the WSL restart. In PowerShell, create the config only if it is still absent:
+
+```powershell
+$rq1Config = Join-Path $env:USERPROFILE '.wslconfig'
+if (Test-Path $rq1Config) {
+    throw 'A .wslconfig now exists. Preserve it and return its contents before making changes.'
+} else {
+@'
+[wsl2]
+memory=8GB
+swap=4GB
+swapFile=D:\\Dissertation-RQ1\\wsl\\swap.vhdx
+'@ | Set-Content -Path $rq1Config -Encoding ascii
+    wsl --set-default Ubuntu-24.04
+    wsl --shutdown
+}
+```
+
+Restart Docker Desktop, then run `wsl -d Ubuntu-24.04` in PowerShell. Inside Ubuntu:
+
+```bash
+sudo apt-get update
+sudo apt-get install -y git python3-venv gcc libc6-dev
+mkdir -p ~/projects
+cd ~/projects
+git clone --branch codex/rq1-execution https://github.com/TheArchiviste/MSc-Thesis-Project.git
+cd MSc-Thesis-Project
+set -o pipefail
+bash rq1/local_prepare.sh 2>&1 | tee /mnt/d/Dissertation-RQ1/exports/local-prepare.log
+free -h
+```
+
+This checks the tested Python version, creates `.venv`, installs local dependencies, verifies the corpus and performs real U/F compiler/sanitizer checks. Existing configs/witnesses are preserved; a failed or stale existing witness blocks completion instead of being silently replaced. Large intentional sanitizer core dumps are disabled for the validation subprocesses. No Docker image, original Q weights, tokenization model or GPU packages are downloaded by this script.
+
+The readable result is `work/rq1/local-preparation.md`, also copied to `D:\Dissertation-RQ1\exports\local-preparation.md` when that folder is available. The complete command log is `D:\Dissertation-RQ1\exports\local-prepare.log`. A fresh success should show development 3 cases/6 U/F sources and main 12 cases/24 U/F sources with current witnesses PASS, and zero Q/slice records.
+
+Return the report/log, the new `free -h` output, and Docker Desktop's displayed disk-image location. Pause before pulling Joern or running queries. If a command fails, return its error log; do not delete outputs or reset failure records.
+
 Official references checked for this setup:
 
 - [Microsoft WSL commands: installing with --location](https://learn.microsoft.com/en-us/windows/wsl/basic-commands)
 - [Microsoft WSL virtual disks and physical storage](https://learn.microsoft.com/en-us/windows/wsl/disk-space)
 - [Docker Desktop WSL2 storage location and distribution integration](https://docs.docker.com/desktop/features/wsl/)
+- [Microsoft .wslconfig memory and escaped swap-file paths](https://learn.microsoft.com/en-us/windows/wsl/wsl-config)

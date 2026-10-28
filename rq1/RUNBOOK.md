@@ -1,6 +1,6 @@
 # RQ1 execution: run one checkpoint at a time
 
-The Windows/WSL/Docker checks have returned: the Ubuntu/Docker integration works, RAM is 15.8 GiB, the installed Python is 3.14.4, and C: has 14.6 GiB free. The user requires bulk storage on D: (849 GB reported free). **The current checkpoint is [D_DRIVE_SETUP.md](D_DRIVE_SETUP.md): establish the D: storage root and a dedicated Ubuntu 24.04/Python 3.12 workspace, then return its verification output.** Later commands are prepared here; execute them after the previous checkpoint is inspected. No cluster or paid GPU has been started.
+The latest screenshot confirms Ubuntu-24.04 uses WSL2 and Python 3.12.3, with its registered filesystem at `D:\Dissertation-RQ1\wsl\Ubuntu-24.04`. WSL currently sees 7.7 GiB RAM and 2 GiB swap; there is no `.wslconfig`. Docker Compose works. **The current checkpoint is the memory/swap and CPU-preparation follow-up in [D_DRIVE_SETUP.md](D_DRIVE_SETUP.md).** Docker's disk-image location still needs separate confirmation before a Joern image pull. No cluster or paid GPU has been started.
 
 ## 1. Your Windows machine — completed diagnostic command
 
@@ -42,6 +42,8 @@ python -m rq1.setup validate --split development
 python -m rq1.setup validate --split main
 ```
 
+For a fresh local setup, the same environment/source checks are automated by `bash rq1/local_prepare.sh` after installing the apt prerequisites and cloning above. The script preserves existing configs and witness records, rejects an unsuitable Python version, installs only local dependencies, and writes `work/rq1/local-preparation.md` plus a copy to `D:\Dissertation-RQ1\exports` when available. It does not pull images or load Q. Do not run both the manual and automated paths unnecessarily.
+
 Expected: 3 development and 12 main cases; both `all_witnesses_pass_current_sources` fields true. These are real compiler/sanitizer checks, not adequacy scores. `init` and `validate` refuse to overwrite existing configuration/results. To rerun validation, retain the old output and choose a fresh `--work` directory; use that same directory for subsequent phases. Do not regenerate sources after acquisition.
 
 ```bash
@@ -63,7 +65,7 @@ python -m rq1.setup pin-joern
 python -m rq1.setup doctor --profile local --work work/rq1/local-readiness
 ```
 
-The configuration permits an 8 GiB container and asks Java for a 6 GiB heap. This is provisional for the reported 16 GiB laptop: the first actual import and memory observation determine suitability. The service binds to loopback only. Return `work/rq1/local-readiness/readiness.json` and the last server log if blocked. A socket connection alone is insufficient: doctor imports staged C and queries the resulting CPG. If local Joern cannot pass, pause; select a CPU host before main freeze. A cluster is a fallback, not an automatic next step.
+The configuration permits a 6 GiB container and asks Java for a 4 GiB heap, leaving headroom inside the planned 8 GiB WSL VM. The VM's 4 GiB swap file belongs on D:. This budget is provisional: the first real import and memory observation determine suitability. Confirm Docker's disk image is on D: before pulling. The service binds to loopback only. Return `work/rq1/local-readiness/readiness.json` and the last server log if blocked. A socket connection alone is insufficient: doctor imports staged C and queries the resulting CPG. If local Joern cannot pass, pause; select a CPU host before main freeze. A cluster is a fallback, not an automatic next step.
 
 ## 4. Q GPU development — separate explicit hardware checkpoint
 

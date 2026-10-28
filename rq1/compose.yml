@@ -6,8 +6,8 @@ services:
     working_dir: /workspace
     command: joern --server --server-host 0.0.0.0 --server-port 8080
     environment:
-      JAVA_OPTS: -Xms512m -Xmx6g
-    mem_limit: 8g
+      JAVA_OPTS: -Xms512m -Xmx4g
+    mem_limit: 6g
     ports:
       - "127.0.0.1:8080:8080"
     volumes:

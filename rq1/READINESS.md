@@ -12,8 +12,9 @@
 | Real compilation and ASan | All 30 sources compile; all 15 U trigger their expected ASan class; all 15 F execute cleanly |
 | Additional benign check | D02 U/F run cleanly for input 5; U crashes for 11; F rejects 11 |
 | Software checks | 93 tests pass; Ruff passes for experiment code, RQ1 tooling and new tests |
-| Laptop runtime | Screenshots confirm WSL2, working Ubuntu/Docker integration, 15.8 GiB RAM, Python 3.14.4 and 14.6 GiB free on C:; D: has 849 GB free by user report |
-| Bulk storage and Python | `D:\Dissertation-RQ1` selected; dedicated Ubuntu 24.04/Python 3.12 and Docker data placement on D: await user execution/verification |
+| Laptop runtime | Follow-up screenshot confirms Ubuntu-24.04/WSL2, Python 3.12.3, 7.7 GiB WSL memory (6.6 GiB available), 2 GiB swap, working Compose and no existing `.wslconfig`; physical RAM is 15.8 GiB |
+| Bulk storage and Python | Registered Ubuntu-24.04 base path on `D:\Dissertation-RQ1\wsl\Ubuntu-24.04` verified; Docker's separate disk-image location awaits confirmation |
+| CPU preparation | Automated local environment/witness script added; user run pending. Planned WSL limit 8 GiB with 4 GiB swap on D:, and Joern heap/container limits 4/6 GiB |
 | Prompt-token audit | Implemented; the pinned tokenizer has not been downloaded/run here |
 | Joern | Configuration and bounded real-CPG probe ready; laptop Docker works, but the Joern image/import/memory test has not run |
 | Original Q | Pinned config and GPU preflight ready; no weights downloaded or inference performed |
@@ -55,4 +56,4 @@ These compiler checks used this workspace CPU, not the user's laptop or universi
 
 The reasoned mechanism and repair for every case are in [SOURCE_REFERENTS.md](SOURCE_REFERENTS.md), with original/prepared line coordinates and source links. [referents.jsonl](referents.jsonl) is the machine-readable oracle; [enrollment.csv](enrollment.csv) records every block decision.
 
-Next: complete [D_DRIVE_SETUP.md](D_DRIVE_SETUP.md), return the registered WSL path, Python/memory/Docker outputs and Docker's disk-image location, and pause before repository installation or Joern pulls. Corpus validation, token auditing, Joern and reporting will use the local CPU. No adequacy proportion can be reported until actual Q/Joern outputs have been assessed. The final pipeline emits a Markdown report plus case and element CSV tables, alongside raw JSONL/provenance.
+Next: complete section 4 of [D_DRIVE_SETUP.md](D_DRIVE_SETUP.md), return the CPU-preparation report/log, updated memory output and Docker's disk-image location, and pause before Joern pulls. Corpus validation, token auditing, Joern and reporting will use the local CPU. No adequacy proportion can be reported until actual Q/Joern outputs have been assessed. The final pipeline emits a Markdown report plus case and element CSV tables, alongside raw JSONL/provenance.
