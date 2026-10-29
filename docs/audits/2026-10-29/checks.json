@@ -1,0 +1,305 @@
+{
+  "audit_date": "2026-10-29",
+  "meaning": "Repository readiness checks; not experimental Q/slice/adequacy data",
+  "audited_commit": "469b3050b6f35a6756b5ac66084e6bc52459471e",
+  "installed_experiment_commit": "81a7a8a7543a8c5bc9fab4ffc759b9e9f202b643",
+  "checkout_provenance": {
+    "commit": "469b3050b6f35a6756b5ac66084e6bc52459471e",
+    "modified_tracked_files": [
+      ".github/workflows/ci.yml",
+      "docs/NEBIUS_RQ1_GUIDE.md"
+    ],
+    "pinned_pipeline_commit": "7023ff49fe7b800e8b26bcae52e2fcdafe95fa9b",
+    "q_joern_paths": [
+      "llmxcpg/prompts.py",
+      "llmxcpg/inference/query_generator.py",
+      "llmxcpg/joern",
+      "llmxcpg/slicing"
+    ],
+    "q_joern_pin": "matches_pin"
+  },
+  "audit_python": "3.12.14",
+  "audit_packages": {
+    "cpgqls-client": "0.0.9",
+    "websocket-client": "1.9.2",
+    "websockets": "17.3",
+    "requests": "2.34.2",
+    "vllm": null,
+    "torch": null,
+    "transformers": "4.47.1",
+    "peft": null,
+    "bitsandbytes": null,
+    "accelerate": null,
+    "numpy": "2.3.5",
+    "pytest": "9.2.0",
+    "pytest-asyncio": "1.4.1",
+    "ruff": "0.17.3"
+  },
+  "local_existing_suite": {
+    "tests_passed": 99,
+    "subtests_passed": 2,
+    "failed": 0
+  },
+  "ruff": "passed_repository_wide",
+  "python_compileall": "passed_all_five_code_directories",
+  "shell_scripts": "passed_both_local_helpers",
+  "guide_shell_blocks": [
+    {
+      "block": 1,
+      "syntax_ok": true,
+      "stderr": ""
+    },
+    {
+      "block": 2,
+      "syntax_ok": true,
+      "stderr": ""
+    },
+    {
+      "block": 3,
+      "syntax_ok": true,
+      "stderr": ""
+    },
+    {
+      "block": 4,
+      "syntax_ok": true,
+      "stderr": ""
+    },
+    {
+      "block": 5,
+      "syntax_ok": true,
+      "stderr": ""
+    },
+    {
+      "block": 6,
+      "syntax_ok": true,
+      "stderr": ""
+    },
+    {
+      "block": 7,
+      "syntax_ok": true,
+      "stderr": ""
+    },
+    {
+      "block": 8,
+      "syntax_ok": true,
+      "stderr": ""
+    },
+    {
+      "block": 9,
+      "syntax_ok": true,
+      "stderr": ""
+    },
+    {
+      "block": 10,
+      "syntax_ok": true,
+      "stderr": ""
+    }
+  ],
+  "token_audit": {
+    "corpus_contract_matches": true,
+    "token_records": 30,
+    "all_fit": true,
+    "max_total_tokens": 2618,
+    "record_keys_match": true,
+    "source_hashes_match": true,
+    "duplicates": 0
+  },
+  "qcri_reference": {
+    "commit": "fd7af0df8d2221ec196b85bc460da5cb40f6866c",
+    "tree": "14244b90426179534bc8ad6f03dd06748205c2ff",
+    "html_url": "https://github.com/qcri/llmxcpg/commit/fd7af0df8d2221ec196b85bc460da5cb40f6866c"
+  },
+  "original_ci": {
+    "url": "https://github.com/TheArchiviste/MSc-Thesis-Project/actions/runs/40962342742",
+    "tests_passed": 92,
+    "tests_failed": 7,
+    "root_cause": "Shallow checkout cannot resolve the pinned historical commit",
+    "correction": "actions/checkout fetch-depth: 0",
+    "corrected_remote_status_at_report_creation": "not_yet_pushed"
+  },
+  "real_q_runs_during_audit": 0,
+  "real_joern_slices_during_audit": 0,
+  "main_freeze_created_in_study_work": false,
+  "gpu_evidence_basis": "User screenshots; actual model load remains untested",
+  "gpu_reported": {
+    "name": "NVIDIA H100 80GB HBM3",
+    "driver": "580.173.02",
+    "python": "3.11.18",
+    "torch": "2.5.1+cu124",
+    "torch_cuda_runtime": "12.4",
+    "transformers": "4.47.1",
+    "vllm": "0.6.6.post1",
+    "bf16": true
+  },
+  "witnesses": {
+    "development": {
+      "cases": 3,
+      "compiled_U_and_F": 6,
+      "expected_U_triggers": 3,
+      "fixed_checks_passed": 3,
+      "cases_detail": [
+        {
+          "case_id": "D01",
+          "checks": {
+            "benign_behavior": "not_applicable",
+            "compile": "pass",
+            "fixed": "pass",
+            "trigger": "pass"
+          },
+          "expected_asan": "dynamic-stack-buffer-overflow"
+        },
+        {
+          "case_id": "D02",
+          "checks": {
+            "benign_behavior": "pass",
+            "compile": "pass",
+            "fixed": "pass",
+            "trigger": "pass"
+          },
+          "expected_asan": "heap-buffer-overflow"
+        },
+        {
+          "case_id": "D03",
+          "checks": {
+            "benign_behavior": "not_applicable",
+            "compile": "pass",
+            "fixed": "pass",
+            "trigger": "pass"
+          },
+          "expected_asan": "dynamic-stack-buffer-overflow"
+        }
+      ],
+      "raw_log_sha256": "5128b9bc87c5fa1d5b076e8b4beb459f68fc29dc77511704ad0faf295b4921fe"
+    },
+    "main": {
+      "cases": 12,
+      "compiled_U_and_F": 24,
+      "expected_U_triggers": 12,
+      "fixed_checks_passed": 12,
+      "cases_detail": [
+        {
+          "case_id": "R02",
+          "checks": {
+            "benign_behavior": "not_applicable",
+            "compile": "pass",
+            "fixed": "pass",
+            "trigger": "pass"
+          },
+          "expected_asan": "dynamic-stack-buffer-overflow"
+        },
+        {
+          "case_id": "R03",
+          "checks": {
+            "benign_behavior": "not_applicable",
+            "compile": "pass",
+            "fixed": "pass",
+            "trigger": "pass"
+          },
+          "expected_asan": "stack-buffer-overflow"
+        },
+        {
+          "case_id": "R04",
+          "checks": {
+            "benign_behavior": "not_applicable",
+            "compile": "pass",
+            "fixed": "pass",
+            "trigger": "pass"
+          },
+          "expected_asan": "stack-buffer-overflow"
+        },
+        {
+          "case_id": "R05",
+          "checks": {
+            "benign_behavior": "not_applicable",
+            "compile": "pass",
+            "fixed": "pass",
+            "trigger": "pass"
+          },
+          "expected_asan": "stack-buffer-overflow"
+        },
+        {
+          "case_id": "R06",
+          "checks": {
+            "benign_behavior": "not_applicable",
+            "compile": "pass",
+            "fixed": "pass",
+            "trigger": "pass"
+          },
+          "expected_asan": "dynamic-stack-buffer-overflow"
+        },
+        {
+          "case_id": "R07",
+          "checks": {
+            "benign_behavior": "not_applicable",
+            "compile": "pass",
+            "fixed": "pass",
+            "trigger": "pass"
+          },
+          "expected_asan": "heap-buffer-overflow"
+        },
+        {
+          "case_id": "R08",
+          "checks": {
+            "benign_behavior": "not_applicable",
+            "compile": "pass",
+            "fixed": "pass",
+            "trigger": "pass"
+          },
+          "expected_asan": "stack-buffer-overflow"
+        },
+        {
+          "case_id": "R09",
+          "checks": {
+            "benign_behavior": "not_applicable",
+            "compile": "pass",
+            "fixed": "pass",
+            "trigger": "pass"
+          },
+          "expected_asan": "stack-buffer-overflow"
+        },
+        {
+          "case_id": "R10",
+          "checks": {
+            "benign_behavior": "not_applicable",
+            "compile": "pass",
+            "fixed": "pass",
+            "trigger": "pass"
+          },
+          "expected_asan": "dynamic-stack-buffer-overflow"
+        },
+        {
+          "case_id": "R12",
+          "checks": {
+            "benign_behavior": "not_applicable",
+            "compile": "pass",
+            "fixed": "pass",
+            "trigger": "pass"
+          },
+          "expected_asan": "stack-buffer-overflow"
+        },
+        {
+          "case_id": "R13",
+          "checks": {
+            "benign_behavior": "not_applicable",
+            "compile": "pass",
+            "fixed": "pass",
+            "trigger": "pass"
+          },
+          "expected_asan": "heap-buffer-overflow"
+        },
+        {
+          "case_id": "R14",
+          "checks": {
+            "benign_behavior": "not_applicable",
+            "compile": "pass",
+            "fixed": "pass",
+            "trigger": "pass"
+          },
+          "expected_asan": "dynamic-stack-buffer-overflow"
+        }
+      ],
+      "raw_log_sha256": "65daa4255475112fe078d3ceb2d1be7f37158f145e90a48b2ae4d470fa5790b0"
+    }
+  },
+  "accepted_corpus_contract_unchanged": true
+}

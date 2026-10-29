@@ -2,7 +2,7 @@
 
 Checked against official documentation on 29 October 2026. Prices and availability must be checked again in your own console before creating a VM.
 
-**Current checkpoint: prepare the account, SSH key and VM configuration; pause at the VM review screen before clicking Create.** Later sections are a reference for subsequent checkpoints, not an instruction to run the whole experiment now.
+**Current checkpoint, 29 October 2026: hardware and package-import checks passed on the user's single H100 VM, and the laptop input archive was transferred. Experiment collection is paused for the [repository readiness audit](RQ1_READINESS_AUDIT_2026-10-29.md).** Keep the VM stopped through the Nebius console during this review. The commands below document the staged workflow; resolve the audit's collection blockers before loading Q or collecting slices.
 
 ## 1. The configuration to use
 
@@ -145,7 +145,7 @@ Use Nebius's console Stop action if waiting for a lengthy review, then verify St
 
 ## 7. Later: prepare Python and copy the verified inputs
 
-The validated experiment source is pinned to commit 81a7a8a7543a8c5bc9fab4ffc759b9e9f202b643. This guide is stored separately from the hashed RQ1 corpus; adding it does not invalidate the accepted token audit.
+The installed experiment source is pinned to commit 81a7a8a7543a8c5bc9fab4ffc759b9e9f202b643. Its hardware/package imports passed, but the readiness audit identifies collection safeguards still needing repair. This guide is stored separately from the hashed RQ1 corpus; changing it does not invalidate the accepted token audit. The installation commands in this section are a historical setup record, not instructions to bypass that audit or repeat the completed installation.
 
 On the VM, after the hardware checkpoint:
 
@@ -196,6 +196,8 @@ nvidia-smi > work/rq1/gpu-nvidia-smi.txt
 **Pause before loading Q.** Return the readiness report and diagnostic output; stop the VM in the console during a long wait. This gate checks CUDA/BF16, memory, packages, the source pin and configuration. It does not prove that Q can load. Model weights have not been deliberately downloaded by these setup commands.
 
 ## 8. Later: six development queries, export and stop
+
+**On hold:** resolve the collection blockers in the readiness audit and record the corrected source commit before using this section. No actual development Q generation or experiment slicing has been reported.
 
 Only after the GPU readiness checkpoint is accepted, use tmux so an SSH disconnect does not kill the command:
 
@@ -250,4 +252,4 @@ Development results are then sliced on the laptop, assessed and checked before t
 
 Sources: [proper VM stop/start](https://docs.nebius.com/compute/virtual-machines/stop-start), [VM deletion and disk ownership](https://docs.nebius.com/compute/virtual-machines/delete), [PAYG charges](https://docs.nebius.com/signup-billing/billing-models/payg).
 
-No Nebius resource, payment or reservation has been created by the assistant. For now, stop at the VM configuration/price review checkpoint in section 5.
+No Nebius resource, payment or reservation has been created by the assistant. The user has completed account funding, VM creation, hardware/package checks and input transfer. Collection is paused at the repository audit; the remote archive checksum, full GPU doctor, model load and development collection remain pending.
