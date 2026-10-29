@@ -301,5 +301,11 @@
       "raw_log_sha256": "65daa4255475112fe078d3ceb2d1be7f37158f145e90a48b2ae4d470fa5790b0"
     }
   },
-  "accepted_corpus_contract_unchanged": true
+  "accepted_corpus_contract_unchanged": true,
+  "corrected_ci_validation": {
+    "commit": "61752db6f9e2f3e601c7147d78e8a602cd777d96",
+    "status": "completed",
+    "conclusion": "success",
+    "url": "https://github.com/TheArchiviste/MSc-Thesis-Project/actions/runs/40973956155"
+  }
 }

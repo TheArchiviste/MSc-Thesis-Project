@@ -58,7 +58,7 @@ The first local test invocations lacked the declared test tools/plugins in the a
 | R05 | Medium | Query environment enforcement omits important formatting/tokenizer dependencies and Python | Complete the environment contract before the accepted development run |
 | R06 | Medium | Null assessment timestamps and foreign adjudication IDs are accepted | Repair before development assessment/freeze |
 | R07 | Medium | Delayed consistency output is not integrated into the final report/completion state | Repair before final reporting |
-| R08 | High | GitHub CI cannot access the historical pin after its shallow checkout | Checkout corrected in this audit; validate the new remote CI run |
+| R08 | High | GitHub CI cannot access the historical pin after its shallow checkout | **Fixed and verified:** the corrected workflow passed remotely |
 | R09 | Medium | A query piped through `tee` can hide Python's nonzero exit status | Correct execution blocks before collection |
 | R10 | Low | Earlier status documents and guide checkpoint statements are stale | Guide updated; retain dated snapshots and refresh them with the next contract audit |
 
@@ -152,7 +152,7 @@ The consistency tool correctly selects a seeded 25% subset and records whether t
 
 The current branch's [CI run](https://github.com/TheArchiviste/MSc-Thesis-Project/actions/runs/40962342742) ended with **7 failed, 92 passed**. Logs show `actions/checkout` using `fetch-depth: 1`, followed by provenance failures because the historical pipeline commit was unavailable. Local full-clone tests pass.
 
-**Correction made in this audit:** `.github/workflows/ci.yml` now explicitly uses `fetch-depth: 0`. No provenance guard was weakened. The repaired workflow must be checked on the next pushed commit; that remote result is separate from the passing local test suite.
+**Correction made and verified in this audit:** `.github/workflows/ci.yml` now explicitly uses `fetch-depth: 0`. No provenance guard was weakened. The corrected workflow passed in [CI run 40973956155](https://github.com/TheArchiviste/MSc-Thesis-Project/actions/runs/40973956155), on commit `61752db6f9e2f3e601c7147d78e8a602cd777d96`. That remote result is separate from the passing local test suite. Green CI does not resolve the additional negative-fixture findings above.
 
 ### R09 — preserve the query command's exit status
 
