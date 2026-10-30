@@ -1,0 +1,33 @@
+{
+  "CPU_checkpoint": "accepted",
+  "actual_selector_fixtures": 2,
+  "archive": "local-attempt-20261030T154902Z-vGMQHL.zip",
+  "archive_sha256": "af06895c278dbb9bcdedba2b6a3607e12d30961aa97d06813150a6eaad8a2680",
+  "calibration_accepted": false,
+  "calibration_responses": 0,
+  "clean_source_checkout": true,
+  "fitting_original_Q_prompts": 30,
+  "fresh_calibration_packets": 12,
+  "full_experiment_ready": false,
+  "implementation_id": "rq1-v6",
+  "input_sha256": {
+    "calibration/bank.json": "f699fa75af6ee581a273647505aa68565fe4a7164d830a5a446b23a45ec06c95",
+    "calibration/public/packets.jsonl": "4632c6ddf621afe7445a806d56e62e0e23b3f6d1f916913016f3ed94a7f317c0",
+    "calibration/public/requests.jsonl": "3e732ece3b0ffeb77d0e122c0bd42c4c4c0e911da762e80cbfdfd6ab64d4ad36",
+    "config.json": "daac11eb49bb82c67b569a91a0675ce3931a3652bf20c32792b9b11af6153286",
+    "development/witness_validation.jsonl": "5556eb2752dcf9f9cbf21441c09f16c1ca8ce55384bf72daeac65bdeb64094e3",
+    "joern-capability/readiness.json": "b08f8b73a479d1716fe49b3007b6b939c31916d2bf87c01dcd622ce5150d3995",
+    "local-doctor/readiness.json": "0d4cfbf7c3925247fa1ec47d71e3e4da1dcd7e0ec798c2b6cb33eef97e1b5b1e",
+    "main/witness_validation.jsonl": "9420a07afa06d2214ee3461b7dd9faf57d6fe06de217bdc2021c4c44fe7874c4",
+    "token-audit.json": "273b463e6b1fe8a3d50dd1f26aac40cfa07d9f9c9ea2ffd2b874d22d34176bae"
+  },
+  "next_step": "Keep VM stopped; prepare the v6 transfer bundle on the accepted laptop environment and return its summary.",
+  "pending_reason": "The separate revised assessor calibration must pass before Q inference.",
+  "protocol_id": "rq1-excerpt-v2",
+  "record_environment_python": "3.12.3",
+  "source_commit": "53c09ff407659b31f069d4f93faa5539e111560f",
+  "successful_current_source_graphs": 30,
+  "technical_ready": true,
+  "verification": "Current source/core hashes, configuration/policy, complete locked CPU environment, all witnesses, selector traces, thirty graph markers and exact calibration bank/requests revalidated against the supplied artifacts.",
+  "witnessed_U_F_sources": 30
+}

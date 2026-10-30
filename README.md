@@ -8,9 +8,9 @@ The returned v4 run passed both real selector fixtures. Its 30 graph results wer
 
 Read [the execution runbook](rq1/RUNBOOK.md), [protocol](rq1/PROTOCOL.md), [assessment procedure](rq1/ASSESSMENT.md), [implementation contract](rq1/REFERENCE_CONTRACT.md), and [current readiness](rq1/READINESS.md). The [source references](rq1/SOURCE_REFERENTS.md) explain each case's mechanism and required relationships.
 
-## Next checkpoint: validate the revised protocol on laptop CPU
+## Next checkpoint: prepare the v6 VM transfer bundle
 
-The H100 loaded the assessor and returned all twelve development-anchor responses. Calibration failed on format and substantive reasoning. The old request template also had ambiguous format instructions. [The repair record](docs/RQ1_ASSESSOR_REPAIR_2026-10-30.md) preserves the actual failure and defines rq1-excerpt-v2, with the same Q/Joern/corpus and unchanged acceptance threshold. No Q/main outputs have been inspected.
+The H100 loaded the assessor and returned all twelve v1 calibration responses, which failed. [The repair record](docs/RQ1_ASSESSOR_REPAIR_2026-10-30.md) preserves that failure and defines rq1-excerpt-v2. The fresh v6 laptop CPU checkpoint is now accepted: thirty source witnesses, thirty fitting Q prompts, both real selector fixtures and all thirty corpus graphs passed. The twelve revised calibration packets reproduce exactly and remain ungraded. [CPU acceptance](docs/audits/2026-10-30-v6-cpu-accepted/checks.json) records the uploaded ZIP and source hashes. No Q/main outputs have been inspected.
 
 Keep the VM stopped. In the laptop's D-backed Ubuntu-24.04 terminal:
 
@@ -20,10 +20,10 @@ cd ~/projects/MSc-Thesis-Project
 git fetch origin
 git switch main
 git pull --ff-only origin main
-bash rq1/local_acceptance.sh
+.venv/bin/python -m ops.rq1_vm_checkpoint prepare
 ```
 
-Return the new local-attempt ZIP from D:\Dissertation-RQ1\exports and pause. V6 writes fresh CPU receipts and a new calibration bank in work/rq1-v6, preserving every v5 response. The broad integrity contract includes the assessor protocol, so old receipts are not relabelled. Cached Docker images/tokenizers remain usable; this step downloads no model weights. After acceptance, the [VM guide](docs/RQ1_VM_ONLY_CHECKPOINTS.md) covers the new transfer, inspection and one predeclared v2 calibration attempt. A paid retry is not the current action.
+Return the printed summary or its .summary.json file from D:\Dissertation-RQ1\exports and pause. This revalidates the accepted laptop environment, audits the revised assessor requests with the small pinned tokenizer, and packages checksummed public inputs/CPU proofs for transfer. It loads no model weights and starts no VM. The accepted scientific core stays unchanged; do not repeat the CPU scan. After this summary is checked, the [VM guide](docs/RQ1_VM_ONLY_CHECKPOINTS.md) covers transfer, fresh VM inspection and the one predeclared v2 calibration attempt. Preserve every v5 response and cached model weights.
 
 ## Developer checks
 
