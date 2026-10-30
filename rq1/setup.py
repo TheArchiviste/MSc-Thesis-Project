@@ -1,4 +1,4 @@
-"""Local-first preparation, readiness and pre-main freeze; no automatic GPU rental."""
+"""Local-first RQ1 readiness, tokenizer audit and immutable pre-main freeze."""
 from __future__ import annotations
 
 import argparse
@@ -11,21 +11,27 @@ import platform
 import re
 import shutil
 import subprocess
-from datetime import datetime, timezone
 from pathlib import Path
 
 from evidence_experiment.locks import (
-    DEPLOYMENT_SETTINGS,
-    QUERY_PACKAGES,
-    SLICE_PACKAGES,
     check_stage_receipts,
+    environment,
     git_provenance,
     lock_inputs,
-    package_versions,
+    now,
+    policy,
     require_witnesses,
+    validate_terminal_records,
 )
-from evidence_experiment.runner import PINNED_PIPELINE_COMMIT, load_config
-from evidence_experiment.schema import index_jsonl, load_cases, read_jsonl, run_specs
+from evidence_experiment.schema import (
+    IMPLEMENTATION_ID,
+    file_digest,
+    index_jsonl,
+    load_cases,
+    read_jsonl,
+    run_specs,
+    write_json,
+)
 from evidence_experiment.validate import validate_witnesses
 
 from .prepare import ROOT as CORPUS
@@ -33,22 +39,25 @@ from .prepare import reference, render, sha, verify_selection
 
 ROOT = CORPUS.parent
 SPLITS = ("development", "main")
-
-
-def write_json(path, value):
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(value, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+DEFAULT_CONFIG = Path("work/rq1-v2/config.json")
 
 
 def corpus_contract():
-    """Hash the retained sources, maps, references, selection and preparation code."""
-    paths = [p for p in CORPUS.rglob("*") if p.is_file() and
+    paths = [p for name in ("rq1", "llmxcpg", "evidence_experiment")
+             for p in (ROOT / name).rglob("*") if p.is_file() and
              "__pycache__" not in p.parts and "validation" not in p.parts]
-    paths += [ROOT / "evidence_experiment" / name for name in
-              ("runner.py", "bounded_joern.py", "locks.py", "schema.py", "validate.py", "review.py")]
-    paths += [ROOT / "juliet_pilot" / name for name in ("prepare.py", "templates.py")]
-    return {p.relative_to(ROOT).as_posix(): hashlib.sha256(p.read_bytes()).hexdigest()
-            for p in sorted(paths)}
+    paths.append(ROOT / "pyproject.toml")
+    return {p.relative_to(ROOT).as_posix(): file_digest(p) for p in sorted(paths)}
+
+
+def verify_implementation():
+    contract = json.loads((CORPUS / "pipeline_contract.json").read_text())
+    if contract["implementation_id"] != IMPLEMENTATION_ID:
+        raise ValueError("Wrong implementation contract")
+    for name, expected in contract["files"].items():
+        if file_digest(ROOT / name) != expected:
+            raise ValueError(f"Implementation drift: {name}; use a new version, never edit an active run")
+    return contract
 
 
 def verify_corpus():
@@ -96,42 +105,90 @@ def verify_corpus():
     return counts
 
 
-def policy(cfg):
-    return {k: v for k, v in cfg.items() if k not in DEPLOYMENT_SETTINGS}
+
+def load_config(path):
+    cfg = json.loads(Path(path).read_text())
+    example = json.loads((CORPUS / "config.example.json").read_text())
+    if set(cfg) != set(example):
+        raise ValueError("RQ1-v2 config fields differ; initialize a fresh config, preserving old runs")
+    fixed = {"implementation_id": IMPLEMENTATION_ID, "query_model": "QCRI/LLMxCPG-Q",
+             "query_revision": "1f48ab60420d90277207394f1254d27d3375b07e",
+             "query_engine": "vllm", "query_temperature": 0.0, "query_batch_size": 1,
+             "query_max_context": 8192, "query_tensor_parallel_size": 1,
+             "infrastructure_attempts": 3}
+    if any(cfg[k] != v for k, v in fixed.items()):
+        raise ValueError("Config changes the frozen RQ1-v2 Q/selector design")
+    if (not re.fullmatch(r"sha256:[0-9a-f]{64}", cfg["joern_digest"]) or
+            not 0 < cfg["query_gpu_memory_utilization"] < 1 or
+            not 0 < cfg["joern_rpc_timeout"] <= cfg["joern_case_timeout"]):
+        raise ValueError("Invalid image digest, GPU fraction or timeouts")
+    # The Docker mount is fixed in compose.yml; arbitrary host folders would silently mis-map inputs.
+    if cfg["joern_input_dir"] != "work/joern-inputs" or cfg["server_input_dir"] != "/analysis/inputs":
+        raise ValueError("Use the documented Docker input mount")
+    return cfg
+
+
+def token_audit_valid(cfg):
+    audit = json.loads((ROOT / cfg["rq1_token_audit_file"]).read_text())
+    if (audit.get("corpus_contract") != corpus_contract() or
+            audit.get("policy") != policy(cfg)):
+        raise ValueError("Token audit is stale; rerun with final code, sources and config")
+    expected = {(c.case_id, a): sha(s) for split in SPLITS
+                for c in load_cases(CORPUS / f"{split}.jsonl") for a, s in c.sources.items()}
+    rows = audit["records"]
+    actual = {(r["case_id"], r["arm"]): r["source_sha256"] for r in rows}
+    if actual != expected or len(rows) != len(expected):
+        raise ValueError("Token audit must cover exactly all 30 current U/F inputs")
+    for r in rows:
+        if (type(r["prompt_tokens"]) is not int or r["prompt_tokens"] <= 0 or
+                r["generation_allowance"] != 2048 or
+                r["fits"] != (r["prompt_tokens"] + 2048 <= cfg["query_max_context"])):
+            raise ValueError("Invalid token-audit record")
+    return audit
+
+
+def capability_valid(cfg):
+    result = json.loads((ROOT / cfg["joern_capability_file"]).read_text())
+    if (result.get("ready") is not True or result.get("synthetic") is not False or
+            result.get("corpus_contract") != corpus_contract() or result.get("policy") != policy(cfg)):
+        raise ValueError("Fresh full-selector CPU conformance is required")
+    from .conformance import QUERIES, SOURCE
+    outcome = result.get("outcome", {})
+    stages = {r.get("stage") for r in outcome.get("trace", []) if r.get("success")}
+    if (result.get("source") != SOURCE or result.get("queries") != QUERIES or
+            outcome.get("status") != "ok" or 4 not in outcome.get("slice_lines", []) or
+            not {1, 3, 4, 5, 6} <= set(outcome.get("rendered_lines", [])) or
+            not {"graph_import", "query_execution", "context_expansion", "slice_construction"} <= stages):
+        raise ValueError("Capability receipt lacks a complete successful fixed selector trace")
+    return result
 
 
 def check_acquisition_ready(manifest, config, phase=None):
-    """Called by the public experiment CLI as well as the convenience wrapper."""
     verify_corpus()
-    if Path(manifest).resolve() not in {CORPUS / f"{split}.jsonl" for split in SPLITS}:
-        raise ValueError("Use the verified canonical development or main RQ1 manifest")
-    cfg = load_config(config, require_detector=False)
-    if (cfg.get("allow_dummy") or cfg.get("query_engine") != "vllm" or
-            cfg.get("query_model") != "QCRI/LLMxCPG-Q" or
-            cfg.get("query_revision") != "1f48ab60420d90277207394f1254d27d3375b07e" or
-            cfg.get("pipeline_commit") != PINNED_PIPELINE_COMMIT or
-            not re.fullmatch(r"sha256:[0-9a-f]{64}", cfg.get("joern_digest", ""))):
-        raise ValueError("RQ1 requires released Q, real vLLM and an inspected Joern digest")
-    if Path(manifest).resolve() == CORPUS / "main.jsonl":
-        frozen_path = ROOT / cfg.get("rq1_freeze_file", "work/rq1-freeze.json")
-        if not frozen_path.exists():
-            raise ValueError("Main acquisition is blocked until the real development report is frozen")
-        frozen = json.loads(frozen_path.read_text())
-        if frozen.get("corpus_contract") != corpus_contract() or frozen.get("policy") != policy(cfg):
-            raise ValueError("Corpus or Q/Joern policy changed after the pre-main freeze")
-        if phase in ("query", "slice"):
-            current = package_versions(QUERY_PACKAGES if phase == "query" else SLICE_PACKAGES)
-            if current != frozen.get("stage_environments", {}).get(phase):
-                raise ValueError(f"{phase} packages differ from the accepted development environment")
+    verify_implementation()
+    manifest = Path(manifest).resolve()
+    if manifest not in {CORPUS / f"{s}.jsonl" for s in SPLITS}:
+        raise ValueError("Use a canonical RQ1 development or main manifest")
+    cfg = load_config(config)
+    token_audit_valid(cfg)
+    capability_valid(cfg)
+    provenance = git_provenance()
+    if not provenance["commit"] or provenance["modified_tracked_files"]:
+        raise ValueError("Acquire only from a clean, committed implementation")
+    if manifest == CORPUS / "main.jsonl":
+        frozen = json.loads((ROOT / cfg["rq1_freeze_file"]).read_text())
+        if frozen["corpus_contract"] != corpus_contract() or frozen["policy"] != policy(cfg):
+            raise ValueError("Code, corpus or policy changed after the development freeze")
+        if phase in {"query", "slice"} and environment() != frozen["stage_environments"].get(phase):
+            raise ValueError(f"Restore the accepted development {phase} Python/package environment")
+    return cfg
 
 
 def initialize(config):
     verify_corpus()
-    if config.exists():
-        raise FileExistsError(f"{config} exists; refusing to overwrite")
-    config.parent.mkdir(parents=True, exist_ok=True)
-    shutil.copyfile(CORPUS / "config.example.json", config)
-    (ROOT / "work/joern-inputs").mkdir(parents=True, exist_ok=True)
+    verify_implementation()
+    write_json(config, json.loads((CORPUS / "config.example.json").read_text()), exclusive=True)
+    print(f"RQ1_INIT_OK {config}")
 
 
 def command(*argv):
@@ -142,66 +199,44 @@ def command(*argv):
         return False, str(exc)
 
 
-def pin_joern(config):
-    if (ROOT / "work/rq1-freeze.json").exists():
-        raise ValueError("Policy already frozen; use a new study directory for a changed Joern image")
-    ok, image = command("docker", "inspect", "llmxcpg_joern", "--format", "{{.Image}}")
-    if not ok:
-        raise ValueError(image)
-    ok, raw = command("docker", "image", "inspect", image, "--format", "{{json .RepoDigests}}")
-    if not ok:
-        raise ValueError(raw)
-    matches = [d.split("@", 1)[1] for d in json.loads(raw) or []
-               if d.startswith("ghcr.io/joernio/joern@sha256:")]
-    if len(set(matches)) != 1:
-        raise ValueError("Cannot establish one Joern repository digest from the running container")
-    cfg = json.loads(config.read_text())
-    cfg["joern_digest"] = matches[0]
-    write_json(config, cfg)
-    print(f"Pinned running Joern image: {matches[0]}")
-
-
 def doctor(profile, config, work):
     checks = []
     def add(name, ok, detail):
         checks.append({"check": name, "ok": bool(ok), "detail": str(detail)})
+    for name, fn in (("corpus", verify_corpus), ("implementation", verify_implementation)):
+        try:
+            fn()
+            add(name, True, "Verified")
+        except (ValueError, OSError) as exc:
+            add(name, False, exc)
     try:
-        add("corpus", True, verify_corpus())
+        cfg = load_config(config)
+        token_audit_valid(cfg)
+        capability_valid(cfg)
+        add("config_tokenizer_selector", True, "Current full-selector receipt and 30-input tokenizer audit")
     except (ValueError, OSError) as exc:
-        add("corpus", False, exc)
-    add("linux_lp64", platform.system() == "Linux" and
-        tuple(ctypes.sizeof(x) for x in (ctypes.c_void_p, ctypes.c_int, ctypes.c_long)) == (8, 4, 8),
-        "Use 64-bit Linux or WSL2; this witness corpus is validated for LP64")
-    provenance = git_provenance()
-    add("pinned_pipeline", provenance["q_joern_pin"] == "matches_pin", provenance["q_joern_pin"])
-    try:
-        check_acquisition_ready(CORPUS / "development.jsonl", config)
-        cfg = load_config(config, require_detector=False)
-        add("config", True, "Real Q/Joern pins present")
-    except (ValueError, OSError) as exc:
-        cfg = {}
-        add("config", False, exc)
+        cfg = None
+        add("config_tokenizer_selector", False, exc)
     if profile == "local":
         add("gcc", *command("gcc", "--version"))
         add("compose", *command("docker", "compose", "version"))
-        from scripts.pilot_setup import _docker_digest
-        if cfg:
-            add("joern_image", *_docker_digest(cfg))
-            add("real_cpg_import_and_query", *_probe_joern(cfg))
     else:
         for name in ("torch", "vllm", "transformers"):
             add(name, importlib.util.find_spec(name) is not None, "Required on the Q host")
-        if importlib.util.find_spec("torch"):
-            from scripts.pilot_setup import _gpu
-            add("cuda_bf16_capacity", *_gpu())
+        try:
+            import torch
+            good = torch.cuda.is_available() and torch.cuda.is_bf16_supported()
+            capacity = torch.cuda.get_device_properties(0).total_memory / 2**30 if good else 0
+            add("cuda_bf16_capacity", good and capacity >= 75, f"{capacity:.1f} GiB; use H100 80 GB")
+        except (ImportError, RuntimeError) as exc:
+            add("cuda_bf16_capacity", False, exc)
         cache = Path(os.environ.get("HF_HOME", Path.home() / ".cache/huggingface"))
         existing = next(p for p in (cache, *cache.parents) if p.exists())
         free = shutil.disk_usage(existing).free / 2**30
-        add("model_cache_space", free >= 100, f"{free:.1f} GiB free; allow >=100 GiB for pinned Q")
+        add("model_cache_space", free >= 100, f"{free:.1f} GiB free; require >=100 GiB")
     result = {"profile": profile, "ready": all(r["ok"] for r in checks), "checks": checks,
-              "utc": datetime.now(timezone.utc).isoformat(), "python": platform.python_version(),
-              "machine": platform.machine(), "provenance": provenance,
-              "meaning": "Readiness checks only; not experiment results. GPU load remains untested."}
+              "utc": now(), "environment": environment(), "provenance": git_provenance(),
+              "meaning": "Readiness only; no Q model load or experiment result."}
     write_json(work / "readiness.json", result)
     lines = [f"# RQ1 {profile} readiness", "", f"Ready: **{result['ready']}**", "",
              "| Check | Result | Detail |", "|---|---|---|"]
@@ -213,109 +248,62 @@ def doctor(profile, config, work):
     return result["ready"]
 
 
-def _probe_joern(cfg):
-    from evidence_experiment.bounded_joern import BoundedJoern
-    from llmxcpg.joern.client import JoernClient
-    client = None
-    try:
-        client = BoundedJoern(JoernClient(host=cfg.get("joern_host", "127.0.0.1"),
-                             port=cfg.get("joern_port", 8080),
-                             local_input_dir=ROOT / cfg.get("joern_input_dir", "work/joern-inputs"),
-                             server_input_dir=cfg.get("server_input_dir", "/analysis/inputs")),
-                             cfg.get("joern_rpc_timeout", 120), cfg.get("joern_case_timeout", 600))
-        client.begin_case()
-        client.import_code("int main(void) { return 0; }", project_name="rq1_preflight")
-        result = client.run('cpg.method.name("main").size')
-        if not result.success or not re.search(r"=\s*1\s*$", result.stdout.strip()):
-            return False, f"Staged CPG check failed: {result.stdout[:250]}"
-        client.reset()
-        return True, "Imported staged C and found main in the real CPG"
-    except (ImportError, RuntimeError, OSError, ValueError) as exc:
-        return False, f"Joern check failed: {exc}; restart the worker before retrying"
-    finally:
-        if client is not None:
-            client.close()
-
-
 def status(split, work):
     cases = load_cases(CORPUS / f"{split}.jsonl")
-    expected = {s["run_id"] for s in run_specs(cases, 1)}
+    expected = {s["run_id"] for s in run_specs(cases)}
     queries = index_jsonl(work / "queries.jsonl", "run_id")
     slices = index_jsonl(work / "slices.jsonl", "run_id")
-    witnesses = index_jsonl(work / "witness_validation.jsonl", "case_id")
     witness_ok = True
     try:
         require_witnesses(work, cases)
     except ValueError:
         witness_ok = False
+    complete = False
+    try:
+        for stage in ("query", "slice"):
+            validate_terminal_records(work, stage, cases)
+        check_stage_receipts(work)
+        receipts = json.loads((work / "stage_receipts.json").read_text())
+        complete = {"query", "slice"} <= receipts.keys()
+    except (ValueError, OSError):
+        pass
     return {"split": split, "cases": len(cases), "blocks": len({c.cluster_id for c in cases}),
             "planned_U": len(cases), "planned_F": len(cases), "planned_Q_and_slices": len(expected),
-            "witness_records": len(witnesses), "all_witnesses_pass_current_sources": witness_ok,
+            "all_witnesses_pass_current_sources": witness_ok,
             "queries_recorded": len(expected & queries.keys()),
-            "slices_recorded": len(expected & slices.keys()),
-            "real_inference_complete": (expected <= queries.keys() and expected <= slices.keys()
-                and all(queries[r].get("query_engine") == "vllm" and
-                        queries[r].get("synthetic") is False for r in expected)),
+            "slices_recorded": len(expected & slices.keys()), "real_inference_complete": complete,
             "assessment_report": str(work / "rq1_report.md") if (work / "rq1_report.md").exists() else "pending",
             "interpretation": "Pending inference or assessment is not an inadequate finding."}
 
 
 def freeze(config, dev_work):
-    verify_corpus()
-    cfg = load_config(config, require_detector=False)
-    check_acquisition_ready(CORPUS / "development.jsonl", config)
-    summary = status("development", dev_work)
-    if not summary["all_witnesses_pass_current_sources"] or not summary["real_inference_complete"]:
-        raise ValueError("Freeze requires validated U/F and all six real development runs")
+    cfg = check_acquisition_ready(CORPUS / "development.jsonl", config)
+    cases = load_cases(CORPUS / "development.jsonl")
+    lock = lock_inputs(dev_work, CORPUS / "development.jsonl", config, cases, phase="freeze")
     check_stage_receipts(dev_work)
-    lock_inputs(dev_work, CORPUS / "development.jsonl", config,
-                load_cases(CORPUS / "development.jsonl"), 1, phase="freeze")
+    for stage in ("query", "slice"):
+        validate_terminal_records(dev_work, stage, cases)
     receipts = json.loads((dev_work / "stage_receipts.json").read_text())
-    if not {"queries.jsonl", "slices.jsonl"} <= receipts.keys():
+    if not {"query", "slice"} <= receipts.keys():
         raise ValueError("Both real stage receipts are required")
-    for row in read_jsonl(dev_work / "queries.jsonl"):
-        if row.get("query_engine") != "vllm" or row.get("synthetic") is not False:
-            raise ValueError("Synthetic or unidentified Q output cannot pass the development gate")
-    lock = json.loads((dev_work / "experiment_lock.json").read_text())
-    if not lock.get("stage_environments", {}).get("query", {}).get("vllm"):
-        raise ValueError("Development must record the real vLLM runtime")
-    report = json.loads((dev_work / "analysis.json").read_text())
-    if report.get("scope") != "evidence_only" or report.get("assessment_mode") != "assistant":
-        raise ValueError("Need the explicitly labelled AI-assisted development assessment report")
-    for filename, key in (("assessments.final.jsonl", "assessments_sha256"),
-                          ("assessments.initial.jsonl", "initial_assessments_sha256"),
-                          ("adjudications.jsonl", "adjudications_sha256")):
-        if (hashlib.sha256((dev_work / filename).read_bytes()).hexdigest() !=
-                report.get("analysis_provenance", {}).get(key)):
-            raise ValueError("Development assessments changed after analysis; analyze again")
-    from evidence_experiment.review import packet_index
-    packets, _ = packet_index(load_cases(CORPUS / "development.jsonl"), dev_work, 1)
-    if report["review"].get("assessed_packets") != len(packets):
-        raise ValueError("Assess every shown development packet, allowing justified uncertain decisions")
-    audit_path = ROOT / cfg.get("rq1_token_audit_file", "work/rq1-token-audit.json")
-    audit = json.loads(audit_path.read_text())
-    if (audit["corpus_contract"] != corpus_contract() or audit["query_revision"] != cfg["query_revision"]
-            or audit["query_max_context"] != cfg["query_max_context"]):
-        raise ValueError("Rerun token-audit for the final sources and context setting")
-    infra = {"joern_transport", "timeout", "unknown_slice_failure", "worker_reset_failed"}
-    if any(r["status"] in infra for r in report["run_evidence"]):
-        raise ValueError("Resolve development infrastructure failures before freezing")
-    frozen = {"utc": datetime.now(timezone.utc).isoformat(), "corpus_contract": corpus_contract(),
-              "stage_environments": lock["stage_environments"],
-              "policy": policy(cfg), "development_output_sha256": receipts,
-              "development_analysis_sha256": hashlib.sha256((dev_work / "analysis.json").read_bytes()).hexdigest(),
-              "token_audit_sha256": hashlib.sha256(audit_path.read_bytes()).hexdigest(),
-              "assessment_mode": "assistant", "primary_rule": "repeat_0",
-              "repeats": 1, "development_summary": summary, "provenance": git_provenance()}
-    path = ROOT / cfg.get("rq1_freeze_file", "work/rq1-freeze.json")
-    if path.exists():
-        raise FileExistsError("Pre-main freeze already exists; refusing to overwrite")
-    write_json(path, frozen)
-    print(f"Main policy frozen: {path}")
+    from evidence_experiment.analysis import analyze
+    # Recompute all judgements/provenance; a hand-written analysis.json is insufficient.
+    report = analyze(cases, dev_work)
+    from evidence_experiment.runner import INFRA_STATUSES
+    if any(r["status"] in INFRA_STATUSES | {"mapping_error"} for r in report["run_evidence"]):
+        raise ValueError("Resolve development infrastructure/mapping failures before freezing")
+    frozen = {"utc": now(), "corpus_contract": corpus_contract(), "policy": policy(cfg),
+              "stage_environments": lock["stage_environments"], "development_receipts": receipts,
+              "development_analysis_sha256": file_digest(dev_work / "analysis.json"),
+              "token_audit_sha256": file_digest(ROOT / cfg["rq1_token_audit_file"]),
+              "capability_sha256": file_digest(ROOT / cfg["joern_capability_file"]),
+              "assessment_mode": "AI-assisted single assessor", "primary_rule": "repeat_0",
+              "development_summary": status("development", dev_work), "provenance": git_provenance()}
+    write_json(ROOT / cfg["rq1_freeze_file"], frozen, exclusive=True)
+    print("RQ1_FREEZE_OK: main acquisition may now use this exact contract and stage environments")
 
 
 def token_audit(config):
-    """Download only the pinned tokenizer, never the model weights; CPU is sufficient."""
     from types import SimpleNamespace
 
     from transformers import AutoTokenizer
@@ -323,9 +311,10 @@ def token_audit(config):
     from llmxcpg.inference.query_generator import QueryGenerator
     from llmxcpg.prompts import render_query_prompt
     verify_corpus()
-    cfg = json.loads(config.read_text())
+    verify_implementation()
+    cfg = load_config(config)
     tokenizer = AutoTokenizer.from_pretrained(cfg["query_model"], revision=cfg["query_revision"],
-                                              trust_remote_code=True)
+                                              trust_remote_code=False)
     formatter = object.__new__(QueryGenerator)
     formatter._llm = SimpleNamespace(get_tokenizer=lambda: tokenizer)
     records = []
@@ -338,50 +327,54 @@ def token_audit(config):
                                 "source_sha256": sha(source), "prompt_tokens": count,
                                 "generation_allowance": 2048,
                                 "fits": count + 2048 <= cfg["query_max_context"]})
-    result = {"query_revision": cfg["query_revision"], "query_max_context": cfg["query_max_context"],
-              "corpus_contract": corpus_contract(), "records": records,
-              "meaning": "Token lengths only; no generated queries or adequacy results."}
-    path = ROOT / cfg.get("rq1_token_audit_file", "work/rq1-token-audit.json")
+    result = {"utc": now(), "policy": policy(cfg), "corpus_contract": corpus_contract(),
+              "environment": environment(), "records": records,
+              "meaning": "Token lengths only; no Q weights, generated queries or adequacy results."}
+    path = ROOT / cfg["rq1_token_audit_file"]
     write_json(path, result)
-    print(f"Audited {len(records)} prompts; {sum(r['fits'] for r in records)} fit. {path}")
+    print(f"RQ1_TOKEN_AUDIT_OK: {len(records)} prompts; {sum(r['fits'] for r in records)} fit; {path}")
 
 
 def main():
     os.chdir(ROOT)
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("action", choices=("verify", "init", "validate", "doctor", "pin-joern", "status", "freeze", "token-audit"))
-    parser.add_argument("--config", type=Path, default=Path("work/rq1-config.json"))
+    parser.add_argument("action", choices=("verify", "init", "validate", "doctor", "status", "freeze", "token-audit", "conformance"))
+    parser.add_argument("--config", type=Path, default=DEFAULT_CONFIG)
     parser.add_argument("--split", choices=SPLITS, default="development")
     parser.add_argument("--work", type=Path)
     parser.add_argument("--profile", choices=("local", "gpu"), default="local")
     args = parser.parse_args()
-    work = args.work or Path("work/rq1") / args.split
+    work = args.work or Path("work/rq1-v2") / args.split
     if args.action == "verify":
+        verify_implementation()
         print(json.dumps(verify_corpus(), indent=2))
+        print("RQ1_VERIFY_OK")
     elif args.action == "init":
         initialize(args.config)
-        print(f"Created {args.config}; inspect and pin running Joern before acquisition.")
     elif args.action == "validate":
         verify_corpus()
-        out = work / "witness_validation.jsonl"
-        if out.exists():
-            raise FileExistsError(f"{out} exists; use a fresh --work directory")
         validate_witnesses(load_cases(CORPUS / f"{args.split}.jsonl"),
-                           CORPUS / f"{args.split}.jsonl", CORPUS / "witness_plan.jsonl", out)
+                           CORPUS / f"{args.split}.jsonl", CORPUS / "witness_plan.jsonl",
+                           work / "witness_validation.jsonl")
         summary = status(args.split, work)
         write_json(work / "status.json", summary)
         print(json.dumps(summary, indent=2))
         if not summary["all_witnesses_pass_current_sources"]:
             raise SystemExit(1)
+        print(f"RQ1_WITNESSES_OK {len(load_cases(CORPUS / f'{args.split}.jsonl'))}")
     elif args.action == "doctor":
         if not doctor(args.profile, args.config, work):
             raise SystemExit(1)
-    elif args.action == "pin-joern":
-        pin_joern(args.config)
+        print("RQ1_DOCTOR_OK")
     elif args.action == "freeze":
         freeze(args.config, work)
     elif args.action == "token-audit":
         token_audit(args.config)
+    elif args.action == "conformance":
+        from .conformance import check
+        if not check(args.config):
+            raise SystemExit(1)
+        print("RQ1_SELECTOR_CONFORMANCE_OK")
     else:
         print(json.dumps(status(args.split, work), indent=2))
 

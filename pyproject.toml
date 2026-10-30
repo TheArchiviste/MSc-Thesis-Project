@@ -4,48 +4,26 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "llmxcpg"
-version = "0.1.0"
-description = "Context-aware vulnerability detection via CPG-guided LLMs (Lekssays et al., USENIX Security 2025)."
+version = "0.2.0"
+description = "RQ1 source-grounded adequacy audit of pretrained Q and Joern excerpts."
 readme = "README.md"
-requires-python = ">=3.10"
+requires-python = ">=3.11,<3.13"
 license = {file = "LICENSE"}
-authors = [
-    {name = "LLMxCPG reimplementation"}
-]
-dependencies = [
-    # Joern integration
-    "cpgqls-client>=0.0.5",        # WebSocket client for Joern's server mode
-    "websocket-client>=1.6.0",
-    "numpy",
-]
+dependencies = ["cpgqls-client==0.0.9", "websocket-client==1.9.2", "websockets==17.3", "requests==2.34.2"]
 
 [project.optional-dependencies]
-inference = [
-    "vllm>=0.6.0",
-    "transformers>=4.45.0",
-    "torch>=2.4.0",
-    "accelerate>=0.34.0",
-    "peft>=0.13.0",
-    "openai>=1.40.0",
-]
-training = [
-    "transformers>=4.45.0",
-    "torch>=2.4.0",
-    "accelerate>=0.34.0",
-    "peft>=0.13.0",
-    "datasets>=3.0.0",
-    "bitsandbytes>=0.44.0",
-]
-bootstrap = ["openai>=1.40.0"]
-dev = ["pytest", "pytest-asyncio", "ruff"]
+dev = ["pytest>=8,<10", "pytest-asyncio>=1,<2", "ruff"]
 
 [project.scripts]
-llmxcpg = "llmxcpg.cli:main"
+llmxcpg = "evidence_experiment.__main__:main"
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["llmxcpg*", "evidence_experiment*", "rq1*", "juliet_pilot*"]
+include = ["llmxcpg*", "evidence_experiment*", "rq1*"]
+
+[tool.pytest.ini_options]
+asyncio_default_fixture_loop_scope = "function"
 
 [tool.ruff]
 line-length = 100
-target-version = "py310"
+target-version = "py311"

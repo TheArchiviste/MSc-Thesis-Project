@@ -1,5 +1,7 @@
 # RQ1 repository readiness audit — 29 October 2026
 
+> Historical audit of the previous implementation. Active execution instructions and fixes are in [RQ1_IMPLEMENTATION_2026-10-30.md](RQ1_IMPLEMENTATION_2026-10-30.md) and [the current runbook](../rq1/RUNBOOK.md).
+
 **Verdict: hold experiment collection.** The corpus, finite witnesses, token lengths and rented GPU/package imports have passed their respective checks. The repository still has confirmed acquisition/reporting safeguards to repair and a reference-implementation identity issue to resolve. Passing the existing tests is insufficient to declare collection ready.
 
 This is an investigation of the narrowed **RQ1-only** experiment. It does not approve D, calibration, training, transformations, RQ2 or RQ3. No model weights were downloaded and no real Q generation or experiment Joern slicing was performed during this audit. Synthetic fixtures below are software tests, never dissertation observations.

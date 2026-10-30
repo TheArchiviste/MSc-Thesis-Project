@@ -1,116 +1,123 @@
-"""Rebuild a code snippet from the line numbers a CPG slice picks out.
+"""Line-preserving enclosing-block reconstruction for the reviewed Juliet C subset.
 
-A naive `''.join(lines[i] for i in slice_lines)` is wrong because it produces
-syntactically broken code: braces are dropped, function headers vanish, etc.
-The paper's Figure-2 → Listing-4 example shows the slice keeps function
-headers and matching braces.
-
-Strategy:
-  1. Take the union of `slice_lines` plus the line numbers of any *enclosing*
-     scope (function header, opening brace, return statement at function end).
-  2. For runs of consecutive line numbers, emit them as-is. For gaps, emit a
-     blank line. (No `// ...` comment, because the prompt to LLMxCPG-D says the
-     snippet "might not be complete, but it has all the important context",
-     so the model is already trained to tolerate gaps.)
-
-This is intentionally conservative: it errs on the side of including a few
-extra lines that anchor structure rather than hand the detector a soup of
-disembodied statements.
+Function bodies, enclosing control headers and their braces remain visible.
+Comments and quoted braces are ignored when finding block boundaries. This is
+an explicit RQ1 adaptation, not a claim of a complete C/C++ parser.
 """
-
 from __future__ import annotations
 
 import re
-from collections.abc import Iterable
-
-# Lightweight regex for "function header" — works for C/C++ and is forgiving
-# enough not to over-fire on macros. Matches lines like:
-#   `static int foo(struct bar *b, size_t n)`
-#   `void process(char *p) {`
-_FUNC_HEADER_RE = re.compile(
-    r"^\s*(?:static\s+|inline\s+|extern\s+|const\s+)*"
-    r"[A-Za-z_][\w\s\*]*\s+\**[A-Za-z_]\w*\s*\([^;]*\)\s*\{?\s*$"
-)
 
 
-def _enclosing_function_lines(source: list[str], pivot: int) -> tuple[int, int] | None:
-    """Find the (header_line, close_brace_line) enclosing the 1-indexed `pivot`.
+def _masked_lines(source):
+    result, block_comment, quote, escape = [], False, None, False
+    for line in source.splitlines():
+        chars, i = [], 0
+        while i < len(line):
+            c = line[i]
+            if block_comment:
+                if line[i:i + 2] == "*/":
+                    chars.extend("  ")
+                    i += 2
+                    block_comment = False
+                else:
+                    chars.append(" ")
+                    i += 1
+            elif quote:
+                chars.append(" ")
+                if escape:
+                    escape = False
+                elif c == "\\":
+                    escape = True
+                elif c == quote:
+                    quote = None
+                i += 1
+            elif line[i:i + 2] == "//":
+                chars.extend(" " * (len(line) - i))
+                break
+            elif line[i:i + 2] == "/*":
+                chars.extend("  ")
+                i += 2
+                block_comment = True
+            elif c in "\"'":
+                chars.append(" ")
+                quote = c
+                i += 1
+            else:
+                chars.append(c)
+                i += 1
+        result.append("".join(chars))
+    return result
 
-    Returns None if we can't locate one. The detection is brace-counting from
-    the candidate header forward; lots of room for false negatives, but
-    failures are *safe* (we just don't add anchor lines).
-    """
-    # Walk upward to find the most recent function header.
-    header = None
-    for i in range(pivot - 1, -1, -1):
-        if i >= len(source):
-            continue
-        if _FUNC_HEADER_RE.match(source[i]):
-            header = i
-            break
-    if header is None:
-        return None
 
-    # Walk forward from header counting braces.
-    depth = 0
-    started = False
-    for j in range(header, len(source)):
-        for ch in source[j]:
-            if ch == "{":
-                depth += 1
-                started = True
-            elif ch == "}":
-                depth -= 1
-                if started and depth == 0:
-                    return (header + 1, j + 1)  # convert to 1-indexed
-    return None
-
-
-def reconstruct_code_from_lines(
-    source: str,
-    slice_lines: Iterable[int],
-    *,
-    add_function_anchors: bool = True,
-) -> str:
-    """Rebuild a snippet from a set of 1-indexed line numbers.
-
-    Args:
-        source: the original source as a single string.
-        slice_lines: 1-indexed line numbers selected by the slice query.
-        add_function_anchors: if True, expand each line to include its enclosing
-            function header and closing brace. Set to False if the caller
-            already passes a complete set of structurally necessary lines.
-
-    Returns:
-        A code snippet preserving original line ordering, with single-line
-        gaps where intermediate lines are skipped.
-    """
-    if not source:
-        return ""
-
+def context_lines(source: str, selected) -> list[int]:
     lines = source.splitlines()
-    selected: set[int] = {n for n in slice_lines if 1 <= n <= len(lines)}
-    if not selected:
-        return ""
+    requested = list(selected)
+    if not requested or any(type(n) is not int or not 1 <= n <= len(lines) for n in requested):
+        raise ValueError("Invalid or empty source-line coordinates")
+    masked = _masked_lines(source)
+    stack, blocks = [], []
+    for i, line in enumerate(masked):
+        for column, c in enumerate(line):
+            if c == "{":
+                header = i
+                if not line[:column].strip():
+                    header = i - 1
+                    while header >= 0 and not masked[header].strip():
+                        header -= 1
+                header = max(0, header)
+                balance = masked[header].count(")") - masked[header].count("(")
+                while balance > 0 and header > 0:
+                    header -= 1
+                    balance += masked[header].count(")") - masked[header].count("(")
+                if re.match(r"\s*}?\s*else\b", masked[header]):
+                    # Look back through the preceding closing brace to its if header.
+                    prior = next((block for block in reversed(blocks) if block[2] <= i + 1), None)
+                    if prior:
+                        # Include its control header and brace, not its omitted body.
+                        stack.append((header + 1, i + 1, prior[:2]))
+                    else:
+                        stack.append((header + 1, i + 1, None))
+                else:
+                    stack.append((header + 1, i + 1, None))
+            elif c == "}":
+                if not stack:
+                    raise ValueError("Unbalanced source braces")
+                header, opening, preceding = stack.pop()
+                blocks.append((header, opening, i + 1, preceding))
+    if stack:
+        raise ValueError("Unbalanced source braces")
+    rendered = set(requested)
+    for pivot in requested:
+        for header, opening, closing, preceding in blocks:
+            if opening <= pivot <= closing:
+                rendered.update(range(header, opening + 1))
+                rendered.add(closing)
+                if preceding:
+                    previous_header, previous_opening = preceding
+                    rendered.update(range(previous_header, previous_opening + 1))
+                    # Keep the previous branch's closing brace so else has its visible condition.
+                    previous_block = next(b for b in blocks if b[:2] == preceding)
+                    rendered.add(previous_block[2])
+        # The corpus also contains single-line allocation checks. Retain
+        # a preceding braceless control header when the selected statement is its body.
+        previous = pivot - 2
+        if (previous >= 0 and re.match(r"\s*(if|for|while)\s*\(", masked[previous]) and
+                "{" not in masked[previous] and masked[previous].rstrip().endswith(")")):
+            rendered.add(previous + 1)
+    return sorted(rendered)
 
-    if add_function_anchors:
-        anchors: set[int] = set()
-        for n in list(selected):
-            box = _enclosing_function_lines(lines, n)
-            if box is None:
-                continue
-            header, close = box
-            anchors.add(header)
-            anchors.add(close)
-        selected |= anchors
 
-    # Emit lines in original order; collapse multi-line gaps to a single blank.
-    out: list[str] = []
-    last_emitted: int | None = None
-    for n in sorted(selected):
-        if last_emitted is not None and n - last_emitted > 1:
-            out.append("")  # one blank line marks a gap
+def reconstruct_code_from_lines(source, slice_lines, *, add_function_anchors=True):
+    # The historical keyword remains solely for callers of the extractor.
+    # Production RQ1 reconstruction always enables enclosing-block context.
+    selected = context_lines(source, slice_lines) if add_function_anchors else sorted(set(slice_lines))
+    lines, out, last = source.splitlines(), [], None
+    for n in selected:
+        if type(n) is not int or not 1 <= n <= len(lines):
+            raise ValueError("Invalid source-line coordinates")
+        if last is not None and n > last + 1:
+            out.append("")
         out.append(lines[n - 1])
-        last_emitted = n
-
+        last = n
     return "\n".join(out)

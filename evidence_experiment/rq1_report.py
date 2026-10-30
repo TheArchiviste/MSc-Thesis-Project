@@ -8,25 +8,6 @@ from pathlib import Path
 from .schema import index_jsonl, read_jsonl
 
 
-def initial_decoy_summary(cases, work, report, initial, repeats):
-    from .analysis import _assessments
-    from .review import packet_index
-    packets, _ = packet_index(cases, work, repeats)
-    decisions, _, ratings = _assessments(initial, packets, None,
-                  min_reviewers=2 if report["assessment_mode"] == "independent" else 1)
-    if ratings.keys() != packets.keys():
-        raise ValueError("Initial assessments must cover every shown unique packet")
-    fixed = [r for r in report["run_evidence"] if r["arm"] == "F"]
-    shown = [r for r in fixed if r["status"] == "ok"]
-    adequate = sum(decisions[r["review_id"]] == "adequate" for r in shown)
-    return {"planned_F": len(fixed), "shown_F": len(shown),
-            "unique_shown_F_packets": len({r["review_id"] for r in shown}),
-            "initial_false_adequate": adequate,
-            "initial_uncertain": sum(decisions[r["review_id"]] == "uncertain" for r in shown),
-            "initial_false_adequacy_rate": adequate / len(shown) if shown else None,
-            "meaning": "Initial excerpt-only ratings before reference matching/corrections; not D error."}
-
-
 def write_report(cases, work: Path, report: dict, assessments: Path,
                  adjudications: Path) -> None:
     by_case = {case.case_id: case for case in cases}
@@ -81,7 +62,8 @@ def write_report(cases, work: Path, report: dict, assessments: Path,
     false_adequate = sum(r["adequacy"] == "adequate" for r in shown_fixed)
     bounds = (f"{adequate}/{n} to {adequate + uncertain}/{n} "
               f"({adequate/n:.1%}–{(adequate+uncertain)/n:.1%})" if n else "not estimable")
-    lines = ["# RQ1 evidence adequacy", "", f"Assessment: **{report['assessment_mode']}**.",
+    lines = ["# RQ1 evidence adequacy", "", f"Status: **{report['completion']}**. Delayed consistency: {report['consistency']['status']}.",
+             f"Assessment: **{report['assessment_mode']}**.",
              report["assessment_limit"], "", "Primary outcome uses repeat 0, one U per case.",
              f"Enrolled U: **{n}**, from **{len({c.cluster_id for c in cases})}** blocks.",
              f"Adequate: **{adequate}**; inadequate: **{counts.get('inadequate', 0)}**; uncertain: **{uncertain}**.",
@@ -103,7 +85,7 @@ def write_report(cases, work: Path, report: dict, assessments: Path,
               "Assessment explanations and mechanism correspondence are in `rq1_cases.csv`.",
               "Each reference role and line-overlap observation is in `rq1_element_visibility.csv`.", "",
               "Failure stages: " + ", ".join(f"{key}: {value}" for key, value in sorted(Counter(r['status'] for r in primary).items())),
-              "", "D classification is outside this RQ1 run. No RQ2 or RQ3 conclusion follows.",
+              "", "This report concerns evidence adequacy only.",
               "The small, source-curated Juliet sample and AI-assisted reference/assessment limit generalisation.",
               "No inter-rater reliability or independent human validation is claimed."]
     initial = report.get("initial_fixed_control_check")

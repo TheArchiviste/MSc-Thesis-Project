@@ -1,408 +1,212 @@
-"""Resumable Q -> Joern -> D phases without calling detect/detect_batch.
-
-One Joern client is used sequentially; use a separate process and Joern server
-per parallel worker. The complete query/response trace is retained for RQ3.
-"""
-
+"""Resumable primary Q generation and isolated Joern extraction for U/F only."""
 from __future__ import annotations
 
-import json
-import logging
 import time
-from pathlib import Path
-from typing import Any
+import uuid
 
-from .review import numbered_view, packet_index, review_packets  # noqa: F401 - re-exported
-from .schema import DECOY_ARM, Case, append_jsonl, index_jsonl, run_specs
+from .schema import append_jsonl, index_jsonl, run_specs
 
-log = logging.getLogger(__name__)
-
-
-class WorkerResetError(RuntimeError):
-    def __init__(self, message, outcome):
-        super().__init__(message)
-        self.outcome = outcome
-
-# Commit whose Q-generation and Joern/slicing code defines the evaluated pipeline.
-# The D loader was revised later (explicit adapter/base pins); locks record the
-# actual checkout and verify these paths still match the pin.
-PINNED_PIPELINE_COMMIT = "7023ff49fe7b800e8b26bcae52e2fcdafe95fa9b"
-Q_JOERN_PINNED_PATHS = ("llmxcpg/prompts.py", "llmxcpg/inference/query_generator.py",
-                        "llmxcpg/joern", "llmxcpg/slicing")
-# Arms whose queries Q regenerates from their own source.
-REGENERATED_ARMS = ("U", "TM", "TN", DECOY_ARM)
+QUERY_STATUSES = {"ok", "query_parse", "context_overflow"}
+INFRA_STATUSES = {"timeout", "joern_transport", "worker_reset_failed", "unknown_slice_failure"}
+SLICE_STATUSES = QUERY_STATUSES | INFRA_STATUSES | {
+    "query_invalid", "query_exec", "path_binding", "context_exec", "slice_exec",
+    "empty_slice", "joern_import", "mapping_error"}
 
 
-def load_config(path: Path, *, require_detector: bool = True,
-                require_threshold: bool | None = None) -> dict[str, Any]:
-    cfg = json.loads(path.read_text(encoding="utf-8"))
-    pinned = PINNED_PIPELINE_COMMIT
-    if cfg.get("pipeline_commit") != pinned:
-        raise ValueError(f"Experiment requires pinned pipeline commit {pinned}")
-    if require_threshold is None:
-        require_threshold = require_detector
-    if require_threshold and "threshold" not in cfg:
-        raise ValueError("D threshold must be frozen before detection")
-    if "threshold" in cfg and not 0 <= cfg["threshold"] <= 1:
-        raise ValueError("threshold must be in [0, 1] and frozen before analysis")
-    if cfg.get("query_engine", "vllm") == "dummy" and not cfg.get("allow_dummy", False):
-        raise ValueError("dummy query engine is for smoke tests only")
-    if not cfg.get("allow_dummy", False) and not all(
-        cfg.get(key) for key in ("query_revision", "joern_digest")
-    ):
-        raise ValueError("pin Q and the Joern image digest")
-    if require_detector and not cfg.get("allow_dummy", False) and not all(
-        cfg.get(key) for key in ("detector_revision", "detector_base_model",
-                                 "detector_base_revision")
-    ):
-        raise ValueError("pin the D adapter and 4-bit base before detection")
-    return cfg
+def load_config(path, **unused):
+    from rq1.setup import load_config as load
+    return load(path)
 
 
-def _models(cfg: dict[str, Any]):
+def _models(cfg):
     from llmxcpg.config import ModelConfig
-
-    return ModelConfig(
-        query_model_path=cfg.get("query_model", "QCRI/LLMxCPG-Q"),
-        query_model_revision=cfg.get("query_revision"),
-        query_engine=cfg.get("query_engine", "vllm"),
-        query_base_url=cfg.get("query_base_url"),
-        query_temperature=cfg.get("query_temperature", 0.0),
-        query_max_context=cfg.get("query_max_context", 32_768),
-        query_gpu_memory_utilization=cfg.get("query_gpu_memory_utilization", 0.85),
-        query_tensor_parallel_size=cfg.get("query_tensor_parallel_size", 1),
-        detector_model_path=cfg.get("detector_model", "QCRI/LLMxCPG-D"),
-        detector_model_revision=cfg.get("detector_revision"),
-        detector_base_model_path=cfg.get("detector_base_model"),
-        detector_base_model_revision=cfg.get("detector_base_revision"),
-        detector_max_context=cfg.get("detector_max_context", 16_384),
-        detector_dtype=cfg.get("detector_dtype", "bfloat16"),
-    )
+    return ModelConfig(cfg["query_model"], cfg["query_revision"], cfg["query_max_context"],
+                       cfg["query_temperature"], cfg["query_gpu_memory_utilization"],
+                       cfg["query_tensor_parallel_size"])
 
 
-def _sources(cases: list[Case]) -> dict[str, Case]:
-    return {case.case_id: case for case in cases}
-
-
-def _check_q_context(q, code: str) -> int | None:
-    """Fail closed instead of silently truncating a query prompt."""
-    if not hasattr(q, "_llm") or q._llm is None or not hasattr(q._llm, "get_tokenizer"):
-        return  # external server owns token limits; its configuration must be recorded
+def generate_queries(cases, work, cfg, repeats=1, *, generator=None):
+    from llmxcpg.inference.query_generator import QueryGenerator
     from llmxcpg.prompts import render_query_prompt
 
-    prompt = q._format_vllm_prompt(render_query_prompt(code))
-    n = len(q._llm.get_tokenizer().encode(prompt))
-    if n + 2048 > q.max_context:
-        raise ValueError(f"Q prompt + generation exceeds context ({n} + 2048)")
-    return n
-
-
-def generate_queries(cases: list[Case], work: Path, cfg: dict[str, Any],
-                     repeats: int = 3, batch_size: int = 32, generator=None) -> None:
-    """Generate new queries for U, TM, TN and F; fixed and rule arms reuse bundles."""
-    batch_size = int(cfg.get("query_batch_size", batch_size))
-    if batch_size < 1:
-        raise ValueError("query_batch_size must be positive")
-    all_specs = run_specs(cases, repeats)
-    by_case = _sources(cases)
-    dest = work / "queries.jsonl"
-    done = index_jsonl(dest, "run_id")
-    pending = [s for s in all_specs if s["arm"] in REGENERATED_ARMS
-               and s["run_id"] not in done]
+    from .locks import environment, now
+    specs = run_specs(cases, repeats)
+    by_case = {c.case_id: c for c in cases}
+    destination = work / "queries.jsonl"
+    done = index_jsonl(destination, "run_id")
+    if set(done) - {s["run_id"] for s in specs}:
+        raise ValueError("Foreign query IDs in this run directory")
+    pending = [s for s in specs if s["run_id"] not in done]
     if not pending:
         return
     owned = generator is None
-    if owned:
-        from llmxcpg.inference.query_generator import QueryGenerator
-        started = time.monotonic()
-        q = QueryGenerator.from_config(_models(cfg))
-        engine = getattr(q, "_llm", None)
-        model = getattr(getattr(engine, "llm_engine", None), "model_config", None)
-        sampling = getattr(q, "_sampling_params", None)
-        append_jsonl(work / "query_sessions.jsonl", {
-            "query_model": cfg.get("query_model"), "query_revision": cfg.get("query_revision"),
-            "query_engine": cfg.get("query_engine", "vllm"),
-            "model_load_seconds": time.monotonic() - started,
-            "effective_dtype": str(getattr(model, "dtype", "unavailable")),
-            "effective_seed": getattr(model, "seed", None),
-            "effective_max_context": getattr(model, "max_model_len", q.max_context),
-            "temperature": getattr(sampling, "temperature", None),
-            "top_p": getattr(sampling, "top_p", None),
-            "generation_allowance": getattr(sampling, "max_tokens", None)})
-    else:
-        q = generator
+    started = time.monotonic()
     try:
-        for i in range(0, len(pending), batch_size):
-            chunk = pending[i:i + batch_size]
-            valid = []
-            sources = []
-            token_counts = {}
-            for spec in chunk:
-                source = by_case[spec["case_id"]].source_for(spec["arm"])
-                try:
-                    token_counts[spec["run_id"]] = _check_q_context(q, source)
-                except ValueError as exc:
-                    append_jsonl(dest, {"run_id": spec["run_id"], "status": "context_overflow",
-                                        "queries": [], "raw_text": "", "error": str(exc),
-                                        "query_engine": cfg.get("query_engine", "vllm"),
-                                        "synthetic": cfg.get("query_engine") == "dummy"})
-                    continue
-                valid.append(spec)
-                sources.append(source)
-            chunk = valid
-            if not chunk:
+        q = QueryGenerator.from_config(_models(cfg)) if owned else generator
+    except Exception as exc:
+        append_jsonl(work / "query_load_errors.jsonl", {"utc": now(), "error": repr(exc)})
+        raise
+    engine = getattr(q, "_llm", None)
+    model = getattr(getattr(engine, "llm_engine", None), "model_config", None)
+    session_id = uuid.uuid4().hex
+    append_jsonl(work / "query_sessions.jsonl", {
+        "session_id": session_id, "utc": now(), "query_model": cfg["query_model"],
+        "query_revision": cfg["query_revision"], "synthetic": not owned,
+        "model_load_seconds": max(time.monotonic() - started, 1e-9),
+        "effective_dtype": str(getattr(model, "dtype", "synthetic" if not owned else "unknown")),
+        "effective_seed": getattr(model, "seed", None),
+        "effective_max_context": getattr(model, "max_model_len", None),
+        "generation_allowance": 2048, "temperature": 0.0, "top_p": 1.0,
+        "runtime": environment(),
+    })
+    try:
+        for spec in pending:
+            source = by_case[spec["case_id"]].source_for(spec["arm"])
+            count = None
+            if owned:
+                prompt = q._format_vllm_prompt(render_query_prompt(source))
+                count = len(engine.get_tokenizer().encode(prompt))
+            common = {"run_id": spec["run_id"], "session_id": session_id,
+                      "query_engine": "vllm", "synthetic": not owned,
+                      "prompt_tokens": count, "generation_allowance": 2048}
+            if count is not None and count + 2048 > cfg["query_max_context"]:
+                append_jsonl(destination, {**common, "status": "context_overflow", "queries": [],
+                                          "raw_text": "", "error": "Complete prompt exceeds context"})
                 continue
-            started = time.monotonic()
-            outs = q.generate_batch(sources)
-            elapsed = time.monotonic() - started
-            if len(outs) != len(chunk):
-                raise RuntimeError("Q returned a different number of results")
-            for spec, out in zip(chunk, outs):
-                append_jsonl(dest, {"run_id": spec["run_id"],
-                                    "status": "ok" if out.parsed_ok else "query_parse",
-                                    "queries": out.queries, "raw_text": out.raw_text,
-                                    "error": out.error,
-                                    "query_engine": cfg.get("query_engine", "vllm"),
-                                    "synthetic": cfg.get("query_engine") == "dummy",
-                                    "prompt_tokens": token_counts[spec["run_id"]],
-                                    "batch_generation_seconds": elapsed,
-                                    "batch_size": len(chunk),
-                                    "generation_allowance": 2048})
+            began = time.monotonic()
+            outputs = q.generate_batch([source])
+            if len(outputs) != 1:
+                raise RuntimeError("Q must return exactly one result for the primary input")
+            out = outputs[0]
+            append_jsonl(destination, {**common, "status": "ok" if out.parsed_ok else "query_parse",
+                "queries": out.queries, "raw_text": out.raw_text, "error": out.error,
+                "finish_reason": out.finish_reason, "output_tokens": out.output_tokens,
+                "generation_seconds": time.monotonic() - began})
+    except Exception as exc:
+        append_jsonl(work / "query_runtime_errors.jsonl", {"utc": now(), "error": repr(exc)})
+        raise
     finally:
         if owned:
             q.close()
 
 
-class TracedJoern:
-    """Record each call, including a failing call that SliceExtractor omits."""
+class WorkerResetError(RuntimeError):
+    def __init__(self, outcome):
+        super().__init__("Joern cleanup failed; the next attempt needs a fresh worker")
+        self.outcome = outcome
 
+
+class TracedJoern:
     def __init__(self, inner):
-        self.inner = inner
-        self.events: list[dict[str, Any]] = []
+        self.inner, self.events = inner, []
 
     def import_code(self, source, project_name="snippet"):
         try:
             self.inner.import_code(source, project_name=project_name)
         except Exception as exc:
-            self.events.append({"stage": "graph_import", "success": False, "error": str(exc)})
+            self.events.append({"stage": "graph_import", "success": False, "error": repr(exc)})
             raise
         self.events.append({"stage": "graph_import", "success": True})
 
     def run(self, query):
-        stage = ("slice_construction" if "slice_lines" in query else
-                 "context_expansion" if "interacters" in query else
-                 "query_execution")
+        stage = "slice_construction" if "slice_lines" in query else (
+            "context_expansion" if "interacters" in query else "query_execution")
         try:
             result = self.inner.run(query)
         except Exception as exc:
             self.events.append({"stage": stage, "query": query,
-                                "success": False, "error": str(exc)})
+                                "success": False, "error": repr(exc)})
             raise
-        self.events.append({"stage": stage, "query": query,
-                            "success": result.success, "stdout": result.stdout,
-                            "value": str(result.value)})
+        self.events.append({"stage": stage, "query": query, "success": result.success,
+                            "stdout": result.stdout, "value": str(result.value)})
         return result
 
-    def reset(self):
-        return self.inner.reset()
+
+def _failure_status(message):
+    for prefix, status in (("Q-generated CPGQL failed", "query_exec"),
+            ("Could not bind", "path_binding"), ("Interacters query failed", "context_exec"),
+            ("Backward slice query failed", "slice_exec"),
+            ("Backward slice produced no lines", "empty_slice"),
+            ("No CPGQL", "query_invalid"), ("The final generated", "query_invalid"),
+            ("Generated CPGQL", "query_invalid")):
+        if message.startswith(prefix):
+            return status
+    return "unknown_slice_failure"
 
 
-def _failure_status(message: str) -> str:
-    if message.startswith("Q-generated CPGQL failed"):
-        return "query_exec"
-    if message.startswith("Backward slice produced no lines"):
-        return "empty_slice"
-    if message.startswith("Could not bind"):
-        return "path_binding"
-    if message.startswith("Interacters query failed"):
-        return "context_exec"
-    if message.startswith("Backward slice query failed"):
-        return "slice_exec"
-    if message.startswith(("No CPGQL", "The final generated query",
-                           "Generated CPGQL query")):
-        return "query_invalid"
-    return "unknown_slice_failure"  # never silently recode an unfamiliar error
-
-
-def _rendered_lines(source: str, lines: list[int]) -> list[int]:
-    from llmxcpg.slicing.reconstruction import _enclosing_function_lines
-
-    original = source.splitlines()
-    selected = {n for n in lines if 1 <= n <= len(original)}
-    for n in list(selected):
-        box = _enclosing_function_lines(original, n)
-        if box:
-            selected.update(box)
-    return sorted(selected)
-
-
-def _reconstruction_check(source: str, selected: list[int], rendered: list[int], code: str):
-    from llmxcpg.slicing.reconstruction import reconstruct_code_from_lines
-
-    if code != reconstruct_code_from_lines(source, selected):
-        raise RuntimeError("slice text does not match pinned reconstruction")
-    lines = source.splitlines()
-    out: list[str] = []
-    last = 0
-    for n in rendered:
-        if n - last > 1 and last:
-            out.append("")
-        out.append(lines[n - 1])
-        last = n
-    if "\n".join(out) != code:
-        raise RuntimeError("rendered line map disagrees with the detector input")
-
-
-def extract_one(joern, source: str, queries: list[str], project_name: str) -> dict[str, Any]:
+def extract_one(joern, source, queries, project_name):
     from llmxcpg.joern.client import JoernError
     from llmxcpg.slicing.extractor import SliceExtractor, SliceFailure
-
-    traced = TracedJoern(joern)
-    outcome = {}
+    from llmxcpg.slicing.reconstruction import context_lines, reconstruct_code_from_lines
+    traced, outcome = TracedJoern(joern), {}
     try:
         slc = SliceExtractor(traced).extract(source, queries, project_name=project_name)
         selected = sorted(set(slc.line_numbers))
-        rendered = _rendered_lines(source, selected)
-        _reconstruction_check(source, selected, rendered, slc.code)
+        rendered = context_lines(source, selected)
+        if not slc.code.strip() or slc.code != reconstruct_code_from_lines(source, selected):
+            raise ValueError("Reconstructed excerpt is empty or inconsistent")
         outcome = {"status": "ok", "slice_lines": selected, "rendered_lines": rendered,
-                "slice_code": slc.code, "executed_queries": slc.cpgql_queries,
-                "trace": traced.events}
+                   "slice_code": slc.code, "executed_queries": slc.cpgql_queries}
     except SliceFailure as exc:
-        outcome = {"status": _failure_status(str(exc)), "error": str(exc),
-                "trace": traced.events}
+        outcome = {"status": _failure_status(str(exc)), "error": str(exc)}
     except JoernError as exc:
-        status = ("timeout" if str(exc).startswith("RPC timeout") else "joern_import"
-                  if str(exc).startswith("Failed to import code") else "joern_transport")
-        outcome = {"status": status, "error": str(exc), "trace": traced.events}
+        status = "timeout" if str(exc).startswith("RPC timeout") else (
+            "joern_import" if str(exc).startswith("Failed to import code") else "joern_transport")
+        outcome = {"status": status, "error": str(exc)}
+    except ValueError as exc:
+        outcome = {"status": "mapping_error", "error": str(exc)}
+    except Exception as exc:  # noqa: BLE001 - preserve unexpected failures as explicit diagnostic records
+        outcome = {"status": "unknown_slice_failure", "error": repr(exc)}
     finally:
         try:
             joern.reset()
         except Exception as exc:
-            # A contaminated worker must be restarted. Do not treat this as a
-            # successful clean run; surface it to the operator explicitly.
-            raise WorkerResetError(f"Joern reset failed for {project_name}: {exc}",
-                                   {"status": "worker_reset_failed", "error": str(exc),
+            raise WorkerResetError({"status": "worker_reset_failed", "error": repr(exc),
                                     "prior_outcome": outcome, "trace": traced.events}) from exc
-    return outcome
+    return {**outcome, "trace": traced.events}
 
 
-def extract_slices(cases: list[Case], work: Path, cfg: dict[str, Any],
-                   repeats: int = 3, joern=None) -> None:
-    specs = run_specs(cases, repeats)
-    by_case = _sources(cases)
-    q = index_jsonl(work / "queries.jsonl", "run_id")
-    dest = work / "slices.jsonl"
-    done = index_jsonl(dest, "run_id")
-    owned = joern is None
-    if owned:
-        from llmxcpg.joern.client import JoernClient
-        # Match docker/docker-compose.yml's read-only mount.
-        joern = JoernClient(host=cfg.get("joern_host", "localhost"),
-                            port=cfg.get("joern_port", 8080),
-                            local_input_dir=Path(cfg.get("joern_input_dir", "work/joern-inputs")),
-                            server_input_dir=cfg.get("server_input_dir", "/analysis/inputs"))
-    if cfg.get("joern_rpc_timeout"):
-        from .bounded_joern import BoundedJoern
-        joern = BoundedJoern(joern, float(cfg["joern_rpc_timeout"]),
-                              float(cfg.get("joern_case_timeout", 600)))
-    max_attempts = int(cfg.get("infrastructure_attempts", 1))
-    if not 1 <= max_attempts <= 3:
-        raise ValueError("infrastructure_attempts must be between one and three")
-    attempt_log = work / "slice_attempts.jsonl"
+def extract_slices(cases, work, cfg, repeats=1, *, worker_factory=None):
+    from rq1.joern_worker import fresh_worker
+
     from .schema import read_jsonl
-    prior_attempts = read_jsonl(attempt_log)
-    try:
-        for spec in specs:
-            if spec["run_id"] in done:
-                continue
-            arm, case = spec["arm"], by_case[spec["case_id"]]
-            if arm.endswith("_fixed"):
-                baseline = next(s for s in specs if s["case_id"] == spec["case_id"]
-                                and s["arm"] == "U" and s["repeat"] == 0)
-                query_record = q.get(baseline["run_id"])
-            elif arm.endswith("_rule"):
-                query_record = {"status": "ok", "queries": case.rule_queries[arm.split("_")[0]]}
-            else:
-                query_record = q.get(spec["run_id"])
-            if query_record is None:
-                raise ValueError(f"Query phase incomplete for {spec['run_id']}")
-            if query_record["status"] != "ok":
-                outcome = {"status": query_record["status"], "error": query_record.get("error"),
-                           "trace": []}
-            else:
-                attempts = [r for r in prior_attempts if r["run_id"] == spec["run_id"]]
-                infrastructure = {"timeout", "joern_transport", "worker_reset_failed"}
-                if attempts and (len(attempts) >= max_attempts or
-                                 attempts[-1]["outcome"]["status"] not in infrastructure):
-                    outcome = attempts[-1]["outcome"]
-                else:
-                    if hasattr(joern, "begin_case"):
-                        joern.begin_case()
-                    try:
-                        outcome = extract_one(joern, case.source_for(arm), query_record["queries"],
-                                              spec["run_id"][:20])
-                    except WorkerResetError as exc:
-                        outcome = exc.outcome
-                    attempt = {"run_id": spec["run_id"], "attempt": len(attempts) + 1,
-                               "outcome": outcome}
-                    append_jsonl(attempt_log, attempt)
-                    prior_attempts.append(attempt)
-                    if (outcome["status"] in {"timeout", "joern_transport", "worker_reset_failed"}
-                            and len(attempts) + 1 < max_attempts):
-                        raise RuntimeError("Infrastructure attempt saved. Restart the Joern worker "
-                                           "and resume the identical slice command; do not change settings.")
-            append_jsonl(dest, {"run_id": spec["run_id"],
-                                "query_origin": ("baseline" if arm.endswith("_fixed") else
-                                                 "rule" if arm.endswith("_rule") else "regenerated"),
-                                "queries": query_record["queries"], **outcome})
-            if outcome["status"] in {"timeout", "joern_transport", "worker_reset_failed"}:
-                raise RuntimeError("Terminal infrastructure failure saved after the attempt limit. "
-                                   "Restart Joern and resume for the remaining enrolled cases.")
-    finally:
-        if owned and hasattr(joern, "close"):
-            joern.close()
-
-
-def classify_slices(cases: list[Case], work: Path, cfg: dict[str, Any],
-                    repeats: int = 3, classifier=None) -> None:
-    from llmxcpg.prompts import render_detection_prompt
-
-    slices = index_jsonl(work / "slices.jsonl", "run_id")
     specs = run_specs(cases, repeats)
-    dest = work / "detector.jsonl"
-    done = index_jsonl(dest, "run_id")
-    owned = classifier is None
-    if owned:
-        from llmxcpg.inference.classifier import VulnerabilityClassifier
-        d = VulnerabilityClassifier.from_config(_models(cfg))
-    else:
-        d = classifier
-    try:
-        for spec in specs:
-            rid = spec["run_id"]
-            if rid in done:
-                continue
-            slc = slices.get(rid)
-            if slc is None:
-                raise ValueError(f"Slice phase incomplete for {rid}")
-            if slc["status"] != "ok":
-                append_jsonl(dest, {"run_id": rid, "status": "abstain",
-                                    "reason": slc["status"]})
-                continue
-            prompt = render_detection_prompt(slc["slice_code"])
-            if hasattr(d, "tokenizer"):
-                n = len(d.tokenizer.encode(prompt, add_special_tokens=False))
-                if n > d.max_context:
-                    append_jsonl(dest, {"run_id": rid, "status": "context_overflow",
-                                        "prompt_tokens": n})
-                    continue
-            out = d.classify(slc["slice_code"], threshold=cfg["threshold"])
-            append_jsonl(dest, {"run_id": rid, "status": "ok",
-                                "verdict": out.is_vulnerable,
-                                "p_vulnerable": out.probability_vulnerable,
-                                "p_safe": out.probability_safe,
-                                "raw_logits": list(out.raw_logits),
-                                "threshold": cfg["threshold"]})
-    finally:
-        if owned:
-            del d
+    by_case = {c.case_id: c for c in cases}
+    queries = index_jsonl(work / "queries.jsonl", "run_id")
+    done = index_jsonl(work / "slices.jsonl", "run_id")
+    expected = {s["run_id"] for s in specs}
+    if set(queries) != expected or set(done) - expected:
+        raise ValueError("Query inputs are incomplete or stage IDs are foreign")
+    attempts_path = work / "slice_attempts.jsonl"
+    all_attempts = read_jsonl(attempts_path)
+    for spec in specs:
+        rid = spec["run_id"]
+        if rid in done:
+            continue
+        query = queries[rid]
+        if query["status"] != "ok":
+            outcome = {"status": query["status"], "error": query.get("error"), "trace": []}
+        else:
+            attempts = [r for r in all_attempts if r["run_id"] == rid]
+            if attempts and (len(attempts) >= cfg["infrastructure_attempts"] or
+                             attempts[-1]["outcome"]["status"] not in INFRA_STATUSES):
+                outcome = attempts[-1]["outcome"]
+            else:
+                number = len(attempts) + 1
+                try:
+                    factory = worker_factory or fresh_worker
+                    with factory(cfg, work / "workers" / f"{rid}-{number}") as joern:
+                        outcome = extract_one(joern, by_case[spec["case_id"]].source_for(spec["arm"]),
+                                              query["queries"], rid[:20])
+                except WorkerResetError as exc:
+                    outcome = exc.outcome
+                except Exception as exc:  # noqa: BLE001 - preserve unexpected failures as explicit diagnostic records
+                    outcome = {"status": "joern_transport", "error": repr(exc), "trace": []}
+                attempt = {"run_id": rid, "attempt": number, "outcome": outcome}
+                append_jsonl(attempts_path, attempt)
+                all_attempts.append(attempt)
+                if outcome["status"] in INFRA_STATUSES and number < cfg["infrastructure_attempts"]:
+                    raise RuntimeError("Infrastructure attempt saved; inspect logs and resume unchanged")
+        append_jsonl(work / "slices.jsonl", {"run_id": rid, "queries": query["queries"], **outcome})
+        if outcome["status"] in INFRA_STATUSES | {"mapping_error"}:
+            raise RuntimeError("Terminal or mapping failure saved; inspect before resuming")

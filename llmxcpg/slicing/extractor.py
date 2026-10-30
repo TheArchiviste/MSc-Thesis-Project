@@ -30,10 +30,7 @@ logger = logging.getLogger(__name__)
 
 
 class SliceFailure(RuntimeError):
-    """Raised when slice construction cannot proceed.
-
-    The bootstrap loop catches this and feeds the message back to DeepSeek-v3.
-    """
+    """Raised when the frozen selector cannot construct an excerpt."""
 
 
 @dataclass
@@ -54,8 +51,7 @@ class Slice:
         return 1.0 - (slice_lines / orig_lines)
 
 
-# A line of the form `val NAME = <CPGQL traversal>`. The bootstrap loop and
-# the slice extractor both need to find which `val` introduces the
+# Find which `val NAME = ...` introduces the
 # `execution_path` so we can append our own queries to the same session.
 _VAL_BINDING_RE = re.compile(r"^\s*val\s+(\w+)\s*=", re.MULTILINE)
 
@@ -93,10 +89,13 @@ class SliceExtractor:
         # 1. Load source into Joern.
         self.joern.import_code(source, project_name=project_name)
 
-        # 2. Run the user-provided queries verbatim, in order. Earlier `val`
-        #    bindings remain in scope for the queries we add ourselves.
+        # Bind a bare final flow expression before running it, so a consumable
+        # traversal is evaluated once. Retain the exact executed commands.
+        executed = list(cpgql_queries)
+        if not _VAL_BINDING_RE.search(executed[-1]):
+            executed[-1] = "val execution_path = " + executed[-1].strip().rstrip(";")
         ran: list[QueryResult] = []
-        for q in cpgql_queries:
+        for q in executed:
             res = self.joern.run(q)
             ran.append(res)
             if not res.success:
@@ -105,7 +104,7 @@ class SliceExtractor:
                 )
 
         # 3. Identify which binding holds the execution path and alias it.
-        path_binding = self._normalise_execution_path(cpgql_queries)
+        path_binding = self._normalise_execution_path(executed)
         norm_res = self.joern.run(path_binding)
         if not norm_res.success:
             raise SliceFailure(
@@ -139,7 +138,7 @@ class SliceExtractor:
             code=snippet,
             line_numbers=line_numbers,
             original_source=source,
-            cpgql_queries=list(cpgql_queries) + [path_binding, interacters_q, slice_q],
+            cpgql_queries=executed + [path_binding, interacters_q, slice_q],
             raw_results=ran + [norm_res, inter_res, slice_res],
             metrics={
                 "interacter_count": _count_list_items(inter_res.stdout),
@@ -162,11 +161,9 @@ class SliceExtractor:
           - Else, treat the very last query as an expression and bind it:
             `val execution_path = <last query>`.
         """
-        joined = "\n".join(queries)
-        if re.search(r"\bval\s+execution_path\s*=", joined):
+        names = _VAL_BINDING_RE.findall(queries[-1])
+        if names and names[-1] == "execution_path":
             return "// execution_path defined upstream"
-
-        names = _VAL_BINDING_RE.findall(joined)
         if names:
             return f"val execution_path = {names[-1]}"
 
@@ -176,20 +173,31 @@ class SliceExtractor:
     @staticmethod
     def _parse_line_list(value, stdout: str) -> list[int]:
         """Pull a `List[Int]` out of Joern output."""
+        # Joern emits earlier Path/Node bindings as well as the final list.
+        # Use the selector's explicit marker, never the first incidental List(...).
+        marker = re.findall(r"(?m)^RQ1_SLICE_LINES=([^\r\n]*)$", stdout)
+        if marker:
+            if len(marker) != 1:
+                raise ValueError("Ambiguous Joern line-coordinate markers")
+            return _parse_coordinates(marker[0])
         if isinstance(value, list):
-            return [int(x) for x in value if isinstance(x, (int, str)) and str(x).isdigit()]
+            if any(type(x) is not int for x in value):
+                raise ValueError("Malformed Joern line coordinates")
+            return value
+        text = value if isinstance(value, str) else stdout
+        matches = re.findall(r"List\(([^)]*)\)", text)
+        if matches:
+            return _parse_coordinates(matches[-1])
+        raise ValueError("Joern did not return a recognizable line list")
 
-        # Joern often returns text like "List(12, 14, 15, 18)".
-        if isinstance(value, str):
-            m = re.search(r"List\(([^)]*)\)", value)
-            if m:
-                return [int(x.strip()) for x in m.group(1).split(",") if x.strip().isdigit()]
 
-        # Last resort: scan stdout.
-        m = re.search(r"List\(([^)]*)\)", stdout)
-        if m:
-            return [int(x.strip()) for x in m.group(1).split(",") if x.strip().isdigit()]
+def _parse_coordinates(body):
+    if not body.strip():
         return []
+    words = [word.strip() for word in body.split(",")]
+    if any(not re.fullmatch(r"-?\d+", word) for word in words):
+        raise ValueError("Malformed Joern line coordinates")
+    return [int(word) for word in words]
 
 
 def _count_list_items(stdout: str) -> int:

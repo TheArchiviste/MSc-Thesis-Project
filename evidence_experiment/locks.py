@@ -1,343 +1,186 @@
-"""Provenance locks for acquisition (Q/Joern) and detection (D).
-
-The acquisition lock freezes what determines the Q and Joern outputs: the
-manifest and sources, the acquisition part of the config, the repeat count,
-witness results, the run-spec/runner code and the pinned Q/Joern pipeline
-files. Paths are hashed relative to the repository, so a work directory can be
-analysed from a different checkout location.
-
-Package versions are enforced only where they matter:
-
-* ``query``/``slice``/``all`` must run with the same Q/Joern packages
-  (``ACQUISITION_PACKAGES``) as the first acquisition call;
-* ``detect`` must run with the same D packages (``DETECTOR_PACKAGES``) as the
-  first detection call, recorded in the separate detector lock;
-* ``packets`` and ``analyze`` only record their environment in
-  ``phase_log.jsonl``, so review and analysis can run on another machine.
-
-Review-queue and analysis code are not part of the acquisition fingerprint;
-``analysis.json`` and ``review_key.jsonl`` record their own provenance.
-"""
-
+"""Source, stage, environment and output integrity for the RQ1 acquisition."""
 from __future__ import annotations
 
-import hashlib
+import contextlib
+import fcntl
 import importlib.metadata
 import json
 import platform
 import subprocess
-from dataclasses import asdict
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any
 
-from .runner import PINNED_PIPELINE_COMMIT, Q_JOERN_PINNED_PATHS, _models
-from .schema import append_jsonl, digest, index_jsonl, load_cases
-
-LOCK_VERSION = 3
-ACQUISITION_PHASES = frozenset({"query", "slice", "all"})
-ACQUISITION_PACKAGES = ("cpgqls-client", "websocket-client", "websockets", "requests",
-                        "vllm", "torch", "transformers")
-DETECTOR_PACKAGES = ("torch", "transformers", "peft", "bitsandbytes", "accelerate")
-QUERY_PACKAGES = ("vllm", "torch", "transformers")
-SLICE_PACKAGES = ("cpgqls-client", "websocket-client", "websockets", "requests")
-ALL_PACKAGES = tuple(dict.fromkeys(ACQUISITION_PACKAGES + DETECTOR_PACKAGES + ("numpy",)))
+from .schema import file_digest, index_jsonl, run_specs, write_json
 
 ROOT = Path(__file__).resolve().parents[1]
-DEPLOYMENT_SETTINGS = frozenset({"joern_host", "joern_port", "joern_input_dir",
-                                "server_input_dir"})
+DEPLOYMENT_SETTINGS = {"joern_host", "joern_port", "joern_input_dir", "server_input_dir",
+                       "rq1_freeze_file", "rq1_token_audit_file", "joern_capability_file"}
+LOCK_VERSION = 4
 
 
-def _core() -> Path:
-    core = ROOT / "llmxcpg"
-    return core if core.exists() else ROOT / "tmp_pinned" / "llmxcpg"
+def now():
+    return datetime.now(UTC).isoformat()
 
 
-def _relative(path: Path) -> str:
-    try:
-        return path.resolve().relative_to(ROOT).as_posix()
-    except ValueError:
-        return path.name
-
-
-def scoring_contract(cfg: dict) -> dict[str, Any]:
-    """Effective Q/Joern/D settings, scoring code and runtime used for calibration.
-
-    Endpoints and staging directories are transport details: different jobs may
-    use different local ports without changing the experiment. Model settings,
-    image identity, prompts and package versions must agree.
-    """
-    core = _core()
-    code = [Path(__file__).with_name(name) for name in ("runner.py", "schema.py")]
-    code += [core / "config.py", core / "prompts.py", core / "inference" / "query_generator.py",
-             core / "inference" / "classifier.py"]
-    code += sorted((core / "joern").rglob("*.py")) + sorted((core / "slicing").rglob("*.py"))
-    return {"version": 1, "models": asdict(_models(cfg)),
-            "pipeline_commit": cfg.get("pipeline_commit"),
-            "joern_digest": cfg.get("joern_digest"),
-            "runtime_image_sha256": cfg.get("runtime_image_sha256"),
-            "code_sha256": {_relative(p): hashlib.sha256(p.read_bytes()).hexdigest() for p in code},
-            "python": platform.python_version(), "packages": package_versions(ALL_PACKAGES)}
-
-
-def package_versions(names: tuple[str, ...]) -> dict[str, str | None]:
-    versions: dict[str, str | None] = {}
+def package_versions(names):
+    result = {}
     for name in names:
         try:
-            versions[name] = importlib.metadata.version(name)
+            result[name] = importlib.metadata.version(name)
         except importlib.metadata.PackageNotFoundError:
-            versions[name] = None
-    return versions
+            result[name] = None
+    return result
 
 
-def _git(*args: str) -> subprocess.CompletedProcess[str] | None:
-    try:
-        return subprocess.run(["git", "-C", str(ROOT), *args], capture_output=True,
-                              text=True, timeout=20, check=False)
-    except (OSError, subprocess.TimeoutExpired):
-        return None
+def environment():
+    """Lock the complete installed stage environment, including Python and prompt dependencies."""
+    packages = {d.metadata["Name"].lower().replace("_", "-"): d.version
+                for d in importlib.metadata.distributions() if d.metadata.get("Name")}
+    return {"python": platform.python_version(), "implementation": platform.python_implementation(),
+            "machine": platform.machine(), "packages": dict(sorted(packages.items()))}
 
 
-def git_provenance() -> dict[str, Any]:
-    """Actual checkout, uncommitted tracked changes, and the Q/Joern pin check."""
-    head = _git("rev-parse", "HEAD")
-    status = _git("status", "--porcelain", "--untracked-files=no")
-    pin = _git("diff", "--quiet", PINNED_PIPELINE_COMMIT, "--", *Q_JOERN_PINNED_PATHS)
-    if pin is None or pin.returncode not in (0, 1):
-        pin_state = "unverifiable"  # no git, or the pinned commit is not in this clone
+def git_provenance():
+    def run(*args):
+        p = subprocess.run(["git", "-C", str(ROOT), *args], capture_output=True,
+                           text=True, timeout=20, check=False)
+        return p.stdout.strip() if p.returncode == 0 else None
+    return {"commit": run("rev-parse", "HEAD"),
+            "modified_tracked_files": run("status", "--porcelain", "--untracked-files=no")}
+
+
+def policy(cfg):
+    return {k: v for k, v in cfg.items() if k not in DEPLOYMENT_SETTINGS}
+
+
+@contextlib.contextmanager
+def work_lock(work):
+    work.mkdir(parents=True, exist_ok=True)
+    with (work / ".run.lock").open("a") as stream:
+        try:
+            fcntl.flock(stream, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError as exc:
+            raise ValueError("Another process is using this work directory") from exc
+        try:
+            yield
+        finally:
+            fcntl.flock(stream, fcntl.LOCK_UN)
+
+
+def acquisition_fingerprint(manifest, config, cases, repeats, work):
+    from rq1.setup import corpus_contract
+
+    from .schema import digest
+    return digest(json.dumps({"code_and_corpus": corpus_contract(), "policy": policy(config),
+          "manifest": file_digest(manifest), "runs": run_specs(cases, repeats),
+          "witnesses": file_digest(work / "witness_validation.jsonl")}, sort_keys=True))
+
+
+def require_witnesses(work, cases):
+    records = index_jsonl(work / "witness_validation.jsonl", "case_id")
+    from .schema import digest
+    if set(records) != {c.case_id for c in cases}:
+        raise ValueError("Witnesses must cover exactly this split")
+    for c in cases:
+        row = records[c.case_id]
+        checks = row.get("checks", {})
+        if (any(checks.get(k) != "pass" for k in ("compile", "trigger", "fixed")) or
+            checks.get("benign_behavior") not in {"pass", "not_applicable"} or
+            (c.referent.get("rq1_benign_required") and checks.get("benign_behavior") != "pass") or
+            row.get("witness_plan_sha256") != c.referent.get("witness_plan_sha256") or
+            row.get("source_sha256") != {a: digest(s) for a, s in c.sources.items()}):
+            raise ValueError(f"Witness missing, failed or changed: {c.case_id}")
+
+
+def lock_inputs(work, manifest, config, cases, repeats=1, *, phase="query"):
+    cfg = json.loads(config.read_text()) if isinstance(config, Path) else config
+    require_witnesses(work, cases)
+    fingerprint = acquisition_fingerprint(manifest, cfg, cases, repeats, work)
+    path = work / "experiment_lock.json"
+    if not path.exists():
+        if any((work / name).exists() for name in (
+                "queries.jsonl", "slices.jsonl", "slice_attempts.jsonl", "query_sessions.jsonl",
+                "stage_receipts.json", "blind_review_packets.jsonl", "analysis.json")):
+            raise ValueError("Orphan outputs: restore their original lock or use a fresh work directory")
+        lock = {"lock_version": LOCK_VERSION, "fingerprint": fingerprint,
+                "created_utc": now(), "provenance": git_provenance(),
+                "policy": policy(cfg), "stage_environments": {}}
     else:
-        pin_state = "matches_pin" if pin.returncode == 0 else "differs_from_pin"
-    modified = ([line[3:] for line in status.stdout.splitlines()]
-                if status is not None and status.returncode == 0 else None)
-    return {"commit": head.stdout.strip() if head is not None and head.returncode == 0 else None,
-            "modified_tracked_files": modified,
-            "pinned_pipeline_commit": PINNED_PIPELINE_COMMIT,
-            "q_joern_paths": list(Q_JOERN_PINNED_PATHS),
-            "q_joern_pin": pin_state}
+        lock = json.loads(path.read_text())
+        if lock.get("lock_version") != LOCK_VERSION or lock.get("fingerprint") != fingerprint:
+            raise ValueError("Inputs, policy or code changed; use a new run directory")
+    if phase in {"query", "slice"}:
+        current = environment()
+        prior = lock["stage_environments"].get(phase)
+        if prior is not None and prior != current:
+            raise ValueError(f"{phase} environment changed; restore its accepted Python/packages")
+        lock["stage_environments"][phase] = current
+        lines = [f"{k}=={v}" for k, v in current["packages"].items() if k != "llmxcpg"]
+        (work / f"runtime.{phase}.requirements.txt").write_text("\n".join(lines) + "\n")
+    write_json(path, lock)
+    return lock
 
 
-def require_pipeline_pin(cfg: dict, provenance: dict | None = None) -> None:
-    if cfg.get("allow_dummy", False):
-        return
-    provenance = provenance or git_provenance()
-    if provenance["q_joern_pin"] != "matches_pin":
-        raise ValueError("Cannot verify unchanged pinned Q/Joern code; "
-                         "use a full git clone with the pinned commit and restore pinned files")
-
-
-def _now() -> str:
-    return datetime.now(timezone.utc).isoformat(timespec="seconds")
-
-
-def _log_phase(work: Path, phase: str, provenance: dict[str, Any]) -> None:
-    append_jsonl(work / "phase_log.jsonl", {
-        "phase": phase, "utc": _now(), "python": platform.python_version(),
-        "packages": package_versions(ALL_PACKAGES), "provenance": provenance})
-
-
-def acquisition_fingerprint(manifest: Path, config: Path, cases, repeats: int,
-                            work: Path) -> str:
-    h = hashlib.sha256()
-    core = _core()
-    code = [Path(__file__).with_name(name) for name in ("runner.py", "schema.py", "validate.py", "bounded_joern.py")]
-    code += [core / "config.py", core / "prompts.py", core / "inference" / "query_generator.py"]
-    code += sorted((core / "joern").rglob("*.py")) + sorted((core / "slicing").rglob("*.py"))
-    h.update(b"manifest\n" + manifest.read_bytes())
-    # RQ1 line maps and witness support travel with the corpus. Edits to them
-    # must invalidate the lock even when generated C text happens to be unchanged.
-    for row in (json.loads(line) for line in manifest.read_text().splitlines() if line.strip()):
-        for label, relative in sorted(row.get("line_maps", {}).items()):
-            h.update(f"map:{row['case_id']}:{label}\n".encode())
-            h.update((manifest.parent / relative).read_bytes())
-    if any(c.referent.get("rq1_witness_required") for c in cases):
-        for path in sorted((manifest.parent / "support").iterdir()):
-            if path.is_file():
-                h.update(path.name.encode() + b"\n" + path.read_bytes())
-        for name in ("witness_plan.jsonl", "selection.json", "generated/driver.c", "prepare.py", "setup.py"):
-            h.update(name.encode() + b"\n" + (manifest.parent / name).read_bytes())
-    for path in code:
-        h.update(_relative(path).encode("utf-8") + b"\n" + path.read_bytes())
-    cfg = json.loads(config.read_text(encoding="utf-8"))
-    acquisition_cfg = {key: value for key, value in cfg.items()
-                       if key != "threshold" and not key.startswith("detector_")
-                       and key not in DEPLOYMENT_SETTINGS}
-    h.update(json.dumps(acquisition_cfg, sort_keys=True).encode("utf-8"))
-    h.update(f"repeats={repeats}".encode())
-    for case in cases:
-        for arm, source in sorted(case.sources.items()):
-            h.update(f"{case.case_id}|{arm}\n".encode() + source.encode("utf-8"))
-    witness = work / "witness_validation.jsonl"
-    if witness.exists():
-        h.update(witness.read_bytes())
-    return h.hexdigest()
-
-
-def _environment_change(recorded: dict[str, Any], current: dict[str, Any]) -> str:
-    return ", ".join(f"{name} {recorded.get(name)} -> {current.get(name)}"
-                     for name in sorted(set(recorded) | set(current))
-                     if recorded.get(name) != current.get(name))
-
-
-def lock_inputs(work: Path, manifest: Path, config: Path, cases, repeats: int = 3,
-                *, phase: str = "query") -> dict[str, Any]:
-    """Create or check the acquisition lock; enforce packages only for Q/Joern phases."""
-    fingerprint = acquisition_fingerprint(manifest, config, cases, repeats, work)
-    provenance = git_provenance()
-    acquiring = phase in ACQUISITION_PHASES
-    if acquiring and provenance["q_joern_pin"] == "differs_from_pin":
-        raise ValueError("Q/Joern code differs from pinned commit "
-                         f"{PINNED_PIPELINE_COMMIT}; restore it or change the pin deliberately")
-    cfg = json.loads(config.read_text(encoding="utf-8"))
-    if acquiring and not cfg.get("allow_dummy", False) and provenance["q_joern_pin"] == "unverifiable":
-        raise ValueError("Cannot verify pinned Q/Joern code; use a full git clone with the pinned commit")
-    names = QUERY_PACKAGES if phase == "query" else SLICE_PACKAGES if phase == "slice" else ACQUISITION_PACKAGES
-    environment = package_versions(names)
-    lock = work / "experiment_lock.json"
-    if lock.exists():
-        recorded = json.loads(lock.read_text(encoding="utf-8"))
-        if recorded.get("lock_version") != LOCK_VERSION:
-            raise ValueError("experiment_lock.json was written by an older engine; "
-                             "use a new --work directory")
-        if recorded["fingerprint"] != fingerprint:
-            raise ValueError("Inputs or code changed; use a new --work directory for a new run")
-        previous = recorded.get("stage_environments", {}).get(phase)
-        if acquiring and previous is not None and previous != environment:
-            change = _environment_change(previous, environment)
-            raise ValueError(f"Q/Joern packages changed ({change}); restore this stage environment")
-    else:
-        recorded = {"lock_version": LOCK_VERSION, "fingerprint": fingerprint,
-                    "created_utc": _now(), "created_by_phase": phase,
-                    "manifest_sha256": hashlib.sha256(manifest.read_bytes()).hexdigest(),
-                    "config": str(config), "repeats": repeats,
-                    "acquisition_environment": environment,
-                    "python": platform.python_version(), "provenance": provenance}
-        lock.write_text(json.dumps(recorded, indent=2) + "\n", encoding="utf-8")
-    if acquiring:
-        recorded.setdefault("stage_environments", {})[phase] = environment
-        lock.write_text(json.dumps(recorded, indent=2) + "\n", encoding="utf-8")
-    _log_phase(work, phase, provenance)
-    return recorded
-
-
-def lock_detector(work: Path, config: Path, calibration: Path | None = None) -> dict[str, Any]:
-    """Freeze D settings, calibration and D packages at the first detection."""
-    calibration = calibration or work / "calibration.json"
-    cfg = json.loads(config.read_text(encoding="utf-8"))
-    settings = {key: value for key, value in cfg.items()
-                if key == "threshold" or key.startswith("detector_")}
-    h = hashlib.sha256()
-    h.update(calibration.read_bytes() if calibration.exists() else b"dummy_run")
-    h.update(json.dumps(settings, sort_keys=True).encode("utf-8"))
-    core = _core()
-    for path in (core / "config.py", core / "inference" / "classifier.py"):
-        if path.exists():
-            h.update(_relative(path).encode("utf-8") + b"\n" + path.read_bytes())
-    fingerprint = h.hexdigest()
-    environment = package_versions(DETECTOR_PACKAGES)
-    lock = work / "detector_lock.json"
-    if lock.exists():
-        recorded = json.loads(lock.read_text(encoding="utf-8"))
-        if recorded["fingerprint"] != fingerprint:
-            raise ValueError("D settings or calibration changed; use a new --work directory")
-        if recorded.get("detector_environment", environment) != environment:
-            change = _environment_change(recorded["detector_environment"], environment)
-            raise ValueError(f"D packages changed ({change}); restore the environment "
-                             "or detect in a new --work directory")
-    else:
-        recorded = {"fingerprint": fingerprint, "created_utc": _now(),
-                    "detector_settings": settings, "detector_environment": environment,
-                    "calibration_path": str(calibration),
-                    "calibration_sha256": (hashlib.sha256(calibration.read_bytes()).hexdigest()
-                                           if calibration.exists() else None),
-                    "provenance": git_provenance()}
-        lock.write_text(json.dumps(recorded, indent=2) + "\n", encoding="utf-8")
-    return recorded
-
-
-def require_witnesses(work: Path, cases) -> None:
-    for case in cases:
-        if case.referent.get("rq1_witness_required"):
-            row = index_jsonl(work / "witness_validation.jsonl", "case_id").get(case.case_id, {})
-            checks = row.get("checks", {})
-            if (checks.get("compile") != "pass" or checks.get("trigger") != "pass" or
-                    ("F" in case.sources and checks.get("fixed") != "pass") or
-                    checks.get("benign_behavior") not in {"pass", "not_applicable"} or
-                    (case.referent.get("rq1_benign_required") and checks.get("benign_behavior") != "pass") or
-                    row.get("witness_plan_sha256") != case.referent.get("witness_plan_sha256") or
-                    row.get("source_sha256") != {a: digest(s) for a, s in case.sources.items()}):
-                raise ValueError(f"RQ1 baseline witness missing, failed or changed for {case.case_id}")
-    if not any(c.admissible for c in cases):
-        return
-    checks = index_jsonl(work / "witness_validation.jsonl", "case_id")
-    for case in cases:
-        if case.admissible and (case.case_id not in checks or
-                                any(checks[case.case_id]["checks"].get(k) != "pass"
-                                    for k in ("compile", "trigger")) or
-                                checks[case.case_id]["checks"].get("benign_behavior") !=
-                                case.validation["benign_behavior"] or
-                                checks[case.case_id].get("source_sha256") !=
-                                {arm: digest(case.sources[arm]) for arm in ("U", "TM", "TN")}):
-            raise ValueError(f"Missing or failed executable witness checks for {case.case_id}")
-
-
-def require_calibration(calibration: Path, cfg: dict, manifest: Path) -> None:
-    """Accept a calibration from any directory if its scores and manifest still match."""
-    if cfg.get("allow_dummy", False):
-        return
-    if not calibration.exists():
-        raise ValueError(f"No calibration at {calibration}; run score-calibration on "
-                         "disjoint data, then pass --calibration")
-    result = json.loads(calibration.read_text(encoding="utf-8"))
-    if not result.get("score_sha256"):
-        raise ValueError("Use score-calibration so D scores have a retained stage trace")
-    score_path = calibration.parent / "calibration_scores.jsonl"
-    if (not score_path.exists() or
-            hashlib.sha256(score_path.read_bytes()).hexdigest() != result["score_sha256"]):
-        raise ValueError("Calibration scores changed after threshold selection")
-    if result.get("scoring_contract") != scoring_contract(cfg):
-        raise ValueError("Calibration scoring settings, code or runtime differ; "
-                         "restore the calibrated environment or recalibrate in a new directory")
-    input_lock = calibration.parent / "calibration_run" / "inputs.json"
-    if (not input_lock.exists() or hashlib.sha256(input_lock.read_bytes()).hexdigest() !=
-            result.get("calibration_lock_sha256")):
-        raise ValueError("Calibration input lock changed or is missing")
-    recorded = json.loads(input_lock.read_text(encoding="utf-8"))
-    if recorded.get("fingerprint") != result.get("calibration_input_fingerprint"):
-        raise ValueError("Calibration input fingerprint differs from the retained lock")
-    for name, expected in result.get("stage_sha256", {}).items():
-        path = calibration.parent / "calibration_run" / name
-        if not path.exists() or hashlib.sha256(path.read_bytes()).hexdigest() != expected:
-            raise ValueError(f"Calibration stage trace changed: {name}")
-    if set(recorded.get("analysis_clusters", [])) != {case.cluster_id for case in load_cases(manifest)}:
-        raise ValueError("Analysis cluster population changed after calibration")
-    if (result.get("analysis_manifest_sha256") and
-            result["analysis_manifest_sha256"] != hashlib.sha256(manifest.read_bytes()).hexdigest()):
-        raise ValueError("Analysis manifest changed after calibration")
-    if not result["usability_gate_pass"] or abs(result["threshold"] - cfg["threshold"]) > 1e-9:
-        raise ValueError("Usability gate failed or configured threshold differs from calibration")
-
-
-def check_stage_receipts(work: Path) -> None:
-    """Reject edited completed outputs before resume or a downstream phase."""
+def check_stage_receipts(work):
     path = work / "stage_receipts.json"
     if not path.exists():
         return
-    for name, expected in json.loads(path.read_text()).items():
-        file = work / name
-        if not file.exists() or hashlib.sha256(file.read_bytes()).hexdigest() != expected:
-            raise ValueError(f"Completed stage output changed: {name}")
+    lock = json.loads((work / "experiment_lock.json").read_text())
+    receipts = json.loads(path.read_text())
+    if set(receipts) - {"query", "slice"}:
+        raise ValueError("Unknown stage receipt")
+    for phase, receipt in receipts.items():
+        required = {"queries.jsonl", "query_sessions.jsonl"} if phase == "query" else {"slices.jsonl"}
+        allowed = required if phase == "query" else required | {"slice_attempts.jsonl"}
+        if (not required <= receipt.get("files", {}).keys() or
+                set(receipt["files"]) - allowed or
+                receipt.get("input_fingerprint") != lock["fingerprint"]):
+            raise ValueError("Incomplete stage receipt or different inputs")
+        for name, expected in receipt["files"].items():
+            if not (work / name).is_file() or file_digest(work / name) != expected:
+                raise ValueError(f"Completed output changed: {name}")
 
 
-def write_stage_receipt(work: Path, phase: str) -> None:
+def validate_terminal_records(work, phase, cases):
+    from .runner import QUERY_STATUSES, SLICE_STATUSES
+    name = "queries.jsonl" if phase == "query" else "slices.jsonl"
+    records = index_jsonl(work / name, "run_id")
+    expected = {s["run_id"] for s in run_specs(cases)}
+    if set(records) != expected:
+        raise ValueError(f"Incomplete or foreign {phase} IDs: expected {len(expected)}, got {len(records)}")
+    statuses = QUERY_STATUSES if phase == "query" else SLICE_STATUSES
+    if any(row.get("status") not in statuses for row in records.values()):
+        raise ValueError("Unknown or nonterminal observation status")
+    if phase == "query":
+        lock = json.loads((work / "experiment_lock.json").read_text())
+        cfg = lock["policy"]
+        sessions = index_jsonl(work / "query_sessions.jsonl", "session_id")
+        for row in records.values():
+            session = sessions.get(row.get("session_id"), {})
+            if (row.get("synthetic") is not False or row.get("query_engine") != "vllm" or
+                    session.get("synthetic") is not False or not session.get("model_load_seconds") or
+                    session.get("effective_dtype") not in {"torch.bfloat16", "bfloat16"} or
+                    session.get("runtime") != lock["stage_environments"].get("query") or
+                    session.get("query_revision") != cfg["query_revision"] or
+                    session.get("query_model") != cfg["query_model"] or
+                    session.get("effective_max_context") != cfg["query_max_context"] or
+                    session.get("effective_seed") != 0 or session.get("temperature") != 0 or
+                    session.get("top_p") != 1 or session.get("generation_allowance") != 2048 or
+                    type(row.get("prompt_tokens")) is not int or row["prompt_tokens"] <= 0 or
+                    not isinstance(row.get("queries"), list) or
+                    (row["status"] == "ok" and not row["queries"])):
+                raise ValueError("Real Q session provenance is missing or synthetic")
+    return records
+
+
+def write_stage_receipt(work, phase, cases):
+    validate_terminal_records(work, phase, cases)
+    lock = json.loads((work / "experiment_lock.json").read_text())
     path = work / "stage_receipts.json"
     receipts = json.loads(path.read_text()) if path.exists() else {}
-    name = "queries.jsonl" if phase == "query" else "slices.jsonl"
-    file = work / name
-    if not file.exists():
-        raise ValueError(f"Stage produced no output: {name}")
-    receipts[name] = hashlib.sha256(file.read_bytes()).hexdigest()
+    files = ["queries.jsonl", "query_sessions.jsonl"] if phase == "query" else ["slices.jsonl"]
     if phase == "slice" and (work / "slice_attempts.jsonl").exists():
-        receipts["slice_attempts.jsonl"] = hashlib.sha256((work / "slice_attempts.jsonl").read_bytes()).hexdigest()
-    if phase == "query" and (work / "query_sessions.jsonl").exists():
-        receipts["query_sessions.jsonl"] = hashlib.sha256((work / "query_sessions.jsonl").read_bytes()).hexdigest()
-    path.write_text(json.dumps(receipts, indent=2) + "\n")
+        files.append("slice_attempts.jsonl")
+    receipts[phase] = {"input_fingerprint": lock["fingerprint"], "utc": now(),
+                       "files": {name: file_digest(work / name) for name in files}}
+    write_json(path, receipts)

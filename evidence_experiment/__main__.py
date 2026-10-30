@@ -1,179 +1,62 @@
-"""Command line entry point: python -m evidence_experiment ..."""
-
+"""Acquire and report RQ1 only, with one primary U and F run per case."""
 from __future__ import annotations
 
 import argparse
-import hashlib
 import json
-from collections import Counter
+import os
 from pathlib import Path
 
-from .analysis import analyze
-from .calibrate import calibrate
-from .calibration_runner import score_and_calibrate
 from .locks import (
-    git_provenance,
-    lock_detector,
+    check_stage_receipts,
     lock_inputs,
-    require_calibration,
-    require_witnesses,
+    validate_terminal_records,
+    work_lock,
+    write_stage_receipt,
 )
-from .review import build_queue, claim_problem, write_queue
-from .runner import classify_slices, extract_slices, generate_queries, load_config
-from .schema import load_cases, read_jsonl
-from .validate import validate_witnesses
-
-# Backwards-compatible names for callers and tests.
-_lock_inputs = lock_inputs
-_lock_detector = lock_detector
-_require_witnesses = require_witnesses
-_require_calibration = require_calibration
+from .schema import load_cases
 
 
-def _sha256(path: Path | None) -> str | None:
-    return hashlib.sha256(path.read_bytes()).hexdigest() if path and path.exists() else None
-
-
-
-
-def main() -> None:
-    parser = argparse.ArgumentParser(description="Evaluate source-to-evidence retrieval")
-    parser.add_argument("phase", choices=("verify", "calibrate", "score-calibration", "validate",
-                                          "query", "slice", "detect", "packets", "analyze", "all"))
-    parser.add_argument("--manifest", type=Path, required=True)
-    parser.add_argument("--work", type=Path, required=True)
-    parser.add_argument("--config", type=Path)
-    parser.add_argument("--assessments", type=Path)
-    parser.add_argument("--initial-assessments", type=Path)
-    parser.add_argument("--adjudications", type=Path)
-    parser.add_argument("--resolutions", type=Path)
-    parser.add_argument("--evidence-only", action="store_true")
-    parser.add_argument("--assessment-mode", choices=("independent", "author", "assistant"),
-                        default="independent")
-    parser.add_argument("--witness-plan", type=Path)
-    parser.add_argument("--calibration-scores", type=Path)
-    parser.add_argument("--calibration-manifest", type=Path)
-    parser.add_argument("--calibration", type=Path,
-                        help="calibration.json from score-calibration (default: WORK/calibration.json)")
-    parser.add_argument("--duplicate-fraction", type=float, default=0.0,
-                        help="packets: share of evidence packets re-issued as disguised duplicates")
-    parser.add_argument("--review-seed", type=int, default=0,
-                        help="packets: seed for duplicate selection and line offsets")
-    parser.add_argument("--analysis-seed", type=int, default=0,
-                        help="analyze: seed for the bootstrap and one-case-per-cluster selection")
-    parser.add_argument("--repeats", type=int, default=3)
-    args = parser.parse_args()
-    cases = load_cases(args.manifest)
-    args.work.mkdir(parents=True, exist_ok=True)
-    if args.phase == "verify":
-        print(json.dumps({"cases": len(cases), "clusters": len({c.cluster_id for c in cases}),
-                          "admissible_pairs": sum(c.admissible for c in cases),
-                          "fixed_variant_decoys": sum("F" in c.sources for c in cases),
-                          "claim_problems": {c.case_id: claim_problem(c.referent) for c in cases
-                                             if claim_problem(c.referent)},
-                          "validation_failures": dict(Counter(
-                              k for c in cases for k, v in c.validation.items() if v != "pass"))},
-                         indent=2))
-        return
-    if args.phase == "calibrate":
-        if not args.calibration_scores:
-            parser.error("calibrate requires --calibration-scores")
-        if (args.work / "detector_lock.json").exists():
-            parser.error("D has already run; use a new --work directory for recalibration")
-        result = calibrate(read_jsonl(args.calibration_scores), {c.cluster_id for c in cases})
-        path = args.work / "calibration.json"
-        path.write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8")
-        print(path)
-        return
-    if args.phase == "score-calibration":
-        if not args.config or not args.calibration_manifest:
-            parser.error("score-calibration needs --config and --calibration-manifest")
-        if (args.work / "detector_lock.json").exists():
-            parser.error("D has already run in this --work directory; calibrate in its own directory")
-        result = score_and_calibrate(cases, args.calibration_manifest, args.work,
-                                     load_config(args.config, require_threshold=False))
-        result["analysis_manifest_sha256"] = _sha256(args.manifest)
-        result["provenance"] = git_provenance()
-        (args.work / "calibration.json").write_text(json.dumps(result, indent=2) + "\n",
-                                                     encoding="utf-8")
-        print(args.work / "calibration.json")
-        return
-    if args.phase == "validate":
-        if not args.witness_plan:
-            parser.error("validate requires --witness-plan")
-        path = args.work / "witness_validation.jsonl"
-        if path.exists():
-            parser.error("validation output already exists; use a fresh --work directory")
-        validate_witnesses(cases, args.manifest, args.witness_plan, path)
-        print(path)
-        return
-    if not args.config:
-        parser.error("all phases except verify require --config")
-    cfg = load_config(args.config, require_detector=args.phase in ("all", "detect"))
-    if any(c.referent.get("rq1_witness_required") for c in cases):
-        if args.repeats != 1:
-            parser.error("The bounded RQ1 design uses --repeats 1")
-        if args.phase in ("all", "detect"):
-            parser.error("D is outside this RQ1 design; use separate query and slice phases")
-        if args.phase in ("query", "slice"):
-            from rq1.setup import check_acquisition_ready
-            check_acquisition_ready(args.manifest, args.config, phase=args.phase)
-    if args.phase in ("packets", "analyze") and not cfg.get("allow_dummy", False):
-        problems = {c.case_id: claim_problem(c.referent) for c in cases if claim_problem(c.referent)}
-        if problems:
-            raise ValueError(f"Templated review_claim required for blind review: {problems}")
-    lock_inputs(args.work, args.manifest, args.config, cases, args.repeats, phase=args.phase)
-    require_witnesses(args.work, cases)
-    calibration = args.calibration or args.work / "calibration.json"
-    if args.phase in ("all", "detect"):
-        require_calibration(calibration, cfg, args.manifest)
-        lock_detector(args.work, args.config, calibration)
-    from .locks import check_stage_receipts, write_stage_receipt
-    check_stage_receipts(args.work)
-    if args.phase in ("all", "query"):
-        generate_queries(cases, args.work, cfg, args.repeats)
-    if args.phase in ("all", "slice"):
-        extract_slices(cases, args.work, cfg, args.repeats)
-    if args.phase in ("all", "detect"):
-        classify_slices(cases, args.work, cfg, args.repeats)
-    if args.phase in ("query", "slice"):
-        write_stage_receipt(args.work, args.phase)
-    if args.phase == "packets":
-        packets, key = build_queue(cases, args.work, args.repeats,
-                                   duplicate_fraction=args.duplicate_fraction,
-                                   seed=args.review_seed)
-        settings = {"duplicate_fraction": args.duplicate_fraction, "seed": args.review_seed,
-                    "repeats": args.repeats}
-        print(write_queue(args.work, packets, key, settings))
-    if args.phase == "analyze":
-        if not args.assessments or not args.adjudications:
-            parser.error("analyze requires --assessments and --adjudications")
-        if any(c.referent.get("rq1_witness_required") for c in cases) and not args.initial_assessments:
-            parser.error("RQ1 analysis requires preserved --initial-assessments for the F control check")
-        report = analyze(cases, args.work, args.assessments, args.adjudications,
-                         repeats=args.repeats, seed=args.analysis_seed,
-                         resolutions=args.resolutions, evidence_only=args.evidence_only,
-                         assessment_mode=args.assessment_mode)
-        report["analysis_provenance"] = {
-            "analysis_sha256": _sha256(Path(__file__).with_name("analysis.py")),
-            "review_sha256": _sha256(Path(__file__).with_name("review.py")),
-            "assessments_sha256": _sha256(args.assessments),
-            "initial_assessments_sha256": _sha256(args.initial_assessments),
-            "adjudications_sha256": _sha256(args.adjudications),
-            "resolutions_sha256": _sha256(args.resolutions),
-            "review_key_sha256": _sha256(args.work / "review_key.jsonl"),
-            "analysis_seed": args.analysis_seed,
-            "checkout": git_provenance(),
-        }
-        from .rq1_report import initial_decoy_summary, write_report
-        if args.initial_assessments:
-            report["initial_fixed_control_check"] = initial_decoy_summary(
-                cases, args.work, report, args.initial_assessments, args.repeats)
-        path = args.work / "analysis.json"
-        path.write_text(json.dumps(report, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
-        write_report(cases, args.work, report, args.assessments, args.adjudications)
-        print(f"Readable report: {args.work / 'rq1_report.md'}")
-        print(path)
+def main():
+    from rq1.setup import CORPUS, DEFAULT_CONFIG, ROOT, check_acquisition_ready
+    os.chdir(ROOT)
+    p = argparse.ArgumentParser(description=__doc__)
+    p.add_argument("phase", choices=("query", "slice", "packets", "analyze", "finalize"))
+    p.add_argument("--split", choices=("development", "main"), default="development")
+    p.add_argument("--config", type=Path, default=DEFAULT_CONFIG)
+    p.add_argument("--work", type=Path)
+    args = p.parse_args()
+    manifest = CORPUS / f"{args.split}.jsonl"
+    cases = load_cases(manifest)
+    work = args.work or Path("work/rq1-v2") / args.split
+    with work_lock(work):
+        cfg = check_acquisition_ready(manifest, args.config, phase=args.phase)
+        lock_inputs(work, manifest, args.config, cases, phase=args.phase)
+        check_stage_receipts(work)
+        if args.phase == "query":
+            from .runner import generate_queries
+            generate_queries(cases, work, cfg)
+            write_stage_receipt(work, "query", cases)
+        elif args.phase == "slice":
+            from .runner import extract_slices
+            validate_terminal_records(work, "query", cases)
+            receipts = json.loads((work / "stage_receipts.json").read_text())
+            if "query" not in receipts:
+                raise ValueError("Complete the receipted Q stage first")
+            extract_slices(cases, work, cfg)
+            write_stage_receipt(work, "slice", cases)
+        else:
+            for stage in ("query", "slice"):
+                validate_terminal_records(work, stage, cases)
+            if args.phase == "packets":
+                from .review import build_queue
+                build_queue(cases, work)
+            else:
+                from .analysis import analyze
+                report = analyze(cases, work)
+                print(json.dumps({"completion": report["completion"], "rq1": report["rq1"]}, indent=2))
+                if args.phase == "finalize" and report["completion"] != "complete":
+                    raise SystemExit("PROVISIONAL: complete the frozen 25% reassessment after at least 48 hours")
+    print(f"RQ1_{args.phase.upper()}_OK: {len(cases) * 2} expected primary U/F inputs; {work}")
 
 
 if __name__ == "__main__":

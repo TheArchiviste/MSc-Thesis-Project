@@ -1,67 +1,9 @@
 #!/usr/bin/env bash
-# Local CPU acceptance only. Preserves every attempt; does not generate Q queries.
+# Complete CPU selector conformance; no Q generation.
 set -euo pipefail
 ulimit -c 0
 cd "$(dirname "${BASH_SOURCE[0]}")/.."
-rq1_python="$PWD/.venv/bin/python"
-[[ -x "$rq1_python" && -f work/rq1-config.json ]] || {
-    printf '%s\n' 'Complete rq1/local_prepare.sh first.' >&2
-    exit 1
-}
-[[ ! -f work/rq1-freeze.json ]] || {
-    printf '%s\n' 'Main policy is frozen; preserve it and report this checkpoint request.' >&2
-    exit 1
-}
-mkdir -p work/rq1 work/joern-inputs
-rq1_run=$(mktemp -d "work/rq1/local-readiness-$(date -u +%Y%m%dT%H%M%SZ)-XXXXXX")
-exec > >(tee "$rq1_run/command.log") 2>&1
-
-rq1_finish() {
-    rq1_result=$?
-    trap - EXIT
-    set +e
-    docker compose -f rq1/compose.yml logs --no-color --timestamps joern > "$rq1_run/joern.log" 2>&1
-    docker inspect llmxcpg_joern --format '{{json .State}}' > "$rq1_run/container-state.json" 2>&1
-    docker top llmxcpg_joern -eo pid,args > "$rq1_run/processes.txt" 2>&1
-    docker exec llmxcpg_joern sh -c 'ls -1 "$JOERN_HOME"/lib/*joern-cli*' > "$rq1_run/joern-libraries.txt" 2>&1
-    docker stats --no-stream llmxcpg_joern > "$rq1_run/memory.txt" 2>&1
-    free -h >> "$rq1_run/memory.txt"
-    "$rq1_python" -m pip freeze > "$rq1_run/pip-freeze.txt"
-    cp work/rq1-config.json "$rq1_run/config.json"
-    if [[ "$rq1_result" != 0 ]]; then
-        docker compose -f rq1/compose.yml stop --timeout 10 joern
-    fi
-    "$rq1_python" - "$rq1_run" "$rq1_result" <<'PY'
-import json
-import shutil
-import sys
-from pathlib import Path
-
-work = Path(sys.argv[1])
-ok = sys.argv[2] == "0"
-result = {"checkpoint": "local_cpu_joern", "passed": ok, "exit_code": int(sys.argv[2]),
-          "interpretation": "Readiness only; no Q generation or RQ1 adequacy results."}
-(work / "checkpoint.json").write_text(json.dumps(result, indent=2) + "\n")
-print(f"\nLocal CPU Joern: {'PASS' if ok else 'BLOCKED'}")
-print(result["interpretation"])
-print(f"Reports and diagnostic logs: {work}")
-exports = Path("/mnt/d/Dissertation-RQ1/exports")
-if exports.is_dir():
-    archive = shutil.make_archive(str(exports / work.name), "zip", work.parent, work.name)
-    print(f"Return this ZIP: {archive}")
-PY
-    exit "$rq1_result"
-}
-trap rq1_finish EXIT
-
-"$rq1_python" -m rq1.setup verify
-docker compose -f rq1/compose.yml config > "$rq1_run/compose-resolved.yml"
-docker compose -f rq1/compose.yml up -d joern
-
-# Docker can accept TCP connections while the Scala server is still starting.
-# Require the actual protocol greeting before the one-shot CPG import check.
-timeout --kill-after=10s 330s "$rq1_python" -m rq1.joern_readiness --output "$rq1_run/startup.json"
-
-"$rq1_python" -m rq1.setup pin-joern
-timeout --kill-after=10s 660s "$rq1_python" -m rq1.setup doctor --profile local --work "$rq1_run"
-cat "$rq1_run/readiness.md"
+[[ -x .venv/bin/python && -f work/rq1-v2/config.json ]] || { echo 'Run rq1/local_prepare.sh first.' >&2; exit 1; }
+.venv/bin/python -m rq1.setup conformance
+.venv/bin/python -m rq1.setup doctor --profile local --work work/rq1-v2/local-doctor
+printf '%s\n' 'RQ1_LOCAL_SELECTOR_OK'

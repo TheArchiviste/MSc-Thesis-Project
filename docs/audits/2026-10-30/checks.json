@@ -1,0 +1,73 @@
+{
+  "implementation_contract_sha256": "42580d770835607f9072d669c934a39736b9a348721a8c54aa769ef9661a5def",
+  "implementation_id": "rq1-v2",
+  "meaning": "Software regressions use isolated simulations. Compiler witnesses are actual CPU executions, not adequacy data.",
+  "pending": {
+    "adequacy_assessments": "None; no actual excerpt packets exist.",
+    "fresh_tokenizer_audit": "Laptop checkpoint required; external download not available in this verification environment.",
+    "full_real_Joern_selector": "Laptop conformance required; Docker unavailable here.",
+    "main_freeze": "Not issued.",
+    "original_Q_load_and_generation": "Not attempted."
+  },
+  "real_CPU_witnesses": {
+    "development": {
+      "U_F_inputs": 6,
+      "all_compile_trigger_fixed_pass": true,
+      "cases": 3,
+      "raw_file_sha256": "e428cce7b78092eca87cfd6dbf45109465d77beacf9f3cad9a8e3ff5e713358c"
+    },
+    "main": {
+      "U_F_inputs": 24,
+      "all_compile_trigger_fixed_pass": true,
+      "cases": 12,
+      "raw_file_sha256": "8ec90a5b5bbe6c8d1e87d713c19f657072fd3c885e62cbee55eb54838cb50976"
+    }
+  },
+  "runtime": {
+    "implementation": "CPython",
+    "machine": "x86_64",
+    "packages": {
+      "certifi": "2026.10.23",
+      "charset-normalizer": "3.5.2",
+      "cpgqls-client": "0.0.9",
+      "filelock": "4.2.4",
+      "fsspec": "2026.9.0",
+      "hf-xet": "1.7.1",
+      "huggingface-hub": "0.36.2",
+      "idna": "3.20",
+      "iniconfig": "2.3.1",
+      "jinja2": "3.1.6",
+      "llmxcpg": "0.1.0",
+      "markupsafe": "3.0.4",
+      "numpy": "2.3.5",
+      "packaging": "26.3",
+      "pip": "25.0.1",
+      "pluggy": "1.7.0",
+      "pygments": "2.21.0",
+      "pytest": "9.2.0",
+      "pytest-asyncio": "1.4.1",
+      "pyyaml": "6.0.3",
+      "regex": "2026.9.29",
+      "requests": "2.34.2",
+      "ruff": "0.17.3",
+      "safetensors": "0.8.0",
+      "tokenizers": "0.21.4",
+      "tqdm": "4.70.1",
+      "transformers": "4.47.1",
+      "typing-extensions": "4.16.0",
+      "urllib3": "2.8.0",
+      "websocket-client": "1.9.2",
+      "websockets": "17.3"
+    },
+    "python": "3.12.14"
+  },
+  "software": {
+    "bash_syntax": "pass",
+    "compileall": "pass",
+    "corpus_reconstruction_and_source_hashes": "pass",
+    "git_diff_check": "pass",
+    "pytest_passed": 99,
+    "ruff": "pass"
+  },
+  "utc": "2026-10-30T00:13:13.615962+00:00"
+}

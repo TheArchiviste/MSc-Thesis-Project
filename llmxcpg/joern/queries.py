@@ -10,7 +10,7 @@ queries in sequence:
      union of the execution path and its interacters via PDG flows.
 
 We also expose a fourth helper that extracts the line numbers of every
-node returned by step 3, so we can rebuild a contiguous code snippet from
+node returned by step 3, so we can reconstruct a source excerpt from
 the original source file.
 """
 
@@ -61,6 +61,7 @@ BACKWARD_SLICE_QUERY_TEMPLATE = """\
 val all_path_nodes = execution_path.flatMap(_.elements).l ++ interacters
 val slice = all_path_nodes.reachableByFlows(cpg.all).l
 val slice_lines = slice.flatMap(_.elements).lineNumber.l.toSet.toList.sorted
+println("RQ1_SLICE_LINES=" + slice_lines.mkString(","))
 slice_lines
 """
 
@@ -69,34 +70,6 @@ def build_backward_slice_query() -> str:
     """The final slice query. Assumes `execution_path` and `interacters` are
     already bound from the previous queries (run within the same session)."""
     return BACKWARD_SLICE_QUERY_TEMPLATE
-
-
-# ---------------------------------------------------------------------------
-# A safer drop-in: per-method scoping
-# ---------------------------------------------------------------------------
-#
-# When the user-supplied taint-flow query forgets to constrain itself to a
-# method, slicing can balloon. This helper wraps it.
-#
-def scope_to_method(query: str, method_name: str) -> str:
-    """Restrict a top-level `cpg.X` traversal to a named method."""
-    return query.replace("cpg.", f'cpg.method.name("{method_name}").', 1)
-
-
-# ---------------------------------------------------------------------------
-# Joern-scan style: validity probes used by the bootstrap loop
-# ---------------------------------------------------------------------------
-SYNTAX_PROBE = "1+1"  # cheap query to confirm the session is alive
-
-
-# Hint phrases the bootstrap loop greps for when DeepSeek emits malformed CPGQL.
-COMMON_SYNTAX_ERRORS = (
-    "error: not found:",
-    "error: value",
-    "error: type mismatch",
-    "error: missing argument",
-    "Compilation failed",
-)
 
 
 _UNSAFE_GENERATED_QUERY_PATTERNS = (

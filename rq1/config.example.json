@@ -1,5 +1,4 @@
 {
-  "pipeline_commit": "7023ff49fe7b800e8b26bcae52e2fcdafe95fa9b",
   "query_model": "QCRI/LLMxCPG-Q",
   "query_revision": "1f48ab60420d90277207394f1254d27d3375b07e",
   "query_engine": "vllm",
@@ -8,7 +7,7 @@
   "query_max_context": 8192,
   "query_gpu_memory_utilization": 0.85,
   "query_tensor_parallel_size": 1,
-  "joern_digest": "REPLACE_WITH_INSPECTED_SHA256_DIGEST",
+  "joern_digest": "sha256:b847c9327adf8c3f19ba89bbbd1ce394353967538885ff5c2bcf812b3c3cc1e3",
   "joern_host": "127.0.0.1",
   "joern_port": 8080,
   "joern_rpc_timeout": 120,
@@ -16,6 +15,8 @@
   "infrastructure_attempts": 3,
   "joern_input_dir": "work/joern-inputs",
   "server_input_dir": "/analysis/inputs",
-  "rq1_freeze_file": "work/rq1-freeze.json",
-  "rq1_token_audit_file": "work/rq1-token-audit.json"
+  "rq1_freeze_file": "work/rq1-v2/freeze.json",
+  "rq1_token_audit_file": "work/rq1-v2/token-audit.json",
+  "implementation_id": "rq1-v2",
+  "joern_capability_file": "work/rq1-v2/joern-capability/readiness.json"
 }

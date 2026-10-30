@@ -1,0 +1,22 @@
+# Evaluated implementation: rq1-v2
+
+This is a bounded audit of the configuration described here. It uses the original pretrained Q weights and a released prompt, with an adapted selector and renderer. It is not a bit-for-bit reproduction of every QCRI runtime component. This decision was made before any real Q outputs or experiment excerpts were inspected.
+
+| Component | Contract |
+|---|---|
+| Q checkpoint | `QCRI/LLMxCPG-Q`, revision `1f48ab60420d90277207394f1254d27d3375b07e`; BF16, no training or quantisation |
+| Prompt | Exact `gen_query_prompt` serialization from QCRI commit `fd7af0df8d2221ec196b85bc460da5cb40f6866c`, including its example and spelling; then the checkpoint tokenizer's user chat template |
+| Generation | Local vLLM, seed 0, temperature 0, top-p 1, batch 1, context 8192, output allowance 2048, tensor parallel 1, initial GPU memory fraction 0.85 |
+| Parser | Strict nonempty JSON string list `queries`; retain raw text, finish reason and output token count; require a final `reachableByFlows` query |
+| Selector | Paper-derived execution path → identifier interacters → backward slice. Generated queries are validated and executed once in order. A bare final flow is bound before execution; only the final flow binding supplies the path, and executed commands are retained. A coordinate marker prevents incidental printed lists from being mistaken for the final line set. This repository's query templates are evaluated as fixed code. |
+| Joern | Inspected OCI digest `sha256:b847c9327adf8c3f19ba89bbbd1ce394353967538885ff5c2bcf812b3c3cc1e3`; observed CLI 4.0.667, differing from QCRI's older 4.0.408 deployment |
+| Isolation | Fresh Docker/Scala process per input and retry; no previous input's REPL bindings can supply a missing generated variable |
+| Reconstruction | Selected source lines plus enclosing function/control-block headers and closing braces; quoted/comment braces ignored; braceless immediate control headers retained. Omitted lines are gaps, never invented text. |
+| Coordinate validation | Empty, noninteger, mixed-invalid and out-of-range coordinates fail explicitly. Every packet must reproduce exactly from its recorded source, selected lines and rendered lines. |
+| Runtime evidence | Actual Git commit, core content hashes, source and witness hashes, model load metadata, full Python/package versions separately for Q and CPU slicing, raw traces and output receipts |
+
+The renderer is a lexical implementation for the enrolled Juliet C subset, not a general C/C++ parser. It does not add unseen declarations or values merely because they would help explain a flaw. It deliberately restores enclosing guards, because omitted control headers could misrepresent the visible mechanism. The known-fixture conformance check must exercise the complete fixed selector and retain the guard before experimental inference is permitted.
+
+The older repository core at `7023ff49fe7b800e8b26bcae52e2fcdafe95fa9b` is lineage only. Its prompt and function-only renderer are superseded. Its token audit and work locks cannot be reused as rq1-v2 evidence. The unchanged source corpus and finite witnesses remain historical preparation evidence; fresh local acceptance confirms them again without deleting prior files.
+
+`pipeline_contract.json` records the implementation's file hashes, including acquisition, renderer, assessment and reporting code. `verify` rejects drift. The broader run fingerprint also covers the corpus, source references, scripts, requirements and protocol files. Changes after main acquisition require a versioned protocol deviation and consistently rerun affected inputs, retaining earlier records. No output-driven case replacement or selector tuning is allowed.

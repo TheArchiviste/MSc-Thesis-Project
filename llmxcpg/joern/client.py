@@ -49,7 +49,7 @@ class QueryResult:
 
     Joern returns a stdout-style string with the inferred Scala type, plus the
     raw value it produced. We expose both because slice-construction needs the
-    structured value, while the bootstrap loop's error feedback uses stdout.
+    structured value; diagnostic traces also retain stdout.
     """
     stdout: str
     value: Any
@@ -140,7 +140,7 @@ class JoernClient:
             res = self.run(q)
             results.append(res)
             if not res.success:
-                # Surface failure early so the bootstrap loop can capture it.
+                # Surface failure early and retain it in the extraction trace.
                 break
         return results
 

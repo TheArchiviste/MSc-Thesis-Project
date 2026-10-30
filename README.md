@@ -1,150 +1,38 @@
-# LLMxCPG
+# RQ1 evidence adequacy audit
 
-The current dissertation execution is the **RQ1-only evidence audit**. Start with
-[RQ1 runbook](rq1/RUNBOOK.md), [protocol](rq1/PROTOCOL.md) and
-[readiness and source decisions](rq1/READINESS.md). The general pipeline
-quickstart below includes D and is not the command sequence for that audit.
+This repository now contains only the dissertation's RQ1 experiment: the released **LLMxCPG-Q** generates CPGQL, **Joern** retrieves a source excerpt, and an explicitly labelled **AI-assisted single assessor** evaluates whether that excerpt justifies the documented flaw. The executable detector, calibration, training, transformation experiments and their old commands have been removed. Earlier versions remain in Git history.
 
-An auditable reimplementation of **LLMxCPG: Context-Aware Vulnerability
-Detection Through Code Property Graph-Guided Large Language Models**
-(Lekssays et al., USENIX Security 2025).
+The corpus contains **3 development blocks and 12 main blocks**, with one vulnerable U and one repaired F input per block. There is one primary run per input: 6 development and 24 main Q/slice runs. Fixed controls are reported separately from the 12 main U cases.
 
-The implementation follows the released
-[QCRI pipeline](https://github.com/qcri/llmxcpg): LLMxCPG-Q generates Joern
-CPGQL, Joern constructs a program slice, and LLMxCPG-D scores the slice with a
-two-class `[No, Yes]` output head.
+Start with [execution steps](rq1/RUNBOOK.md), [protocol](rq1/PROTOCOL.md), [implementation contract](rq1/REFERENCE_CONTRACT.md) and [current readiness](rq1/READINESS.md). The source-grounded reference is explained in [SOURCE_REFERENTS.md](rq1/SOURCE_REFERENTS.md).
 
-## What is implemented
+## Next checkpoint: laptop CPU
 
-- `llmxcpg/joern/`: synchronous Joern client, Docker-safe source staging,
-  project lifecycle management, and conservative validation of generated Scala.
-- `llmxcpg/slicing/`: execution paths, interacters, backward slicing, and
-  source reconstruction.
-- `llmxcpg/inference/`: vLLM or OpenAI-compatible Q inference and a genuinely
-  reduced two-output detector head.
-- `llmxcpg/data/`: dataset loaders, DeepSeek bootstrap/repair loop, and
-  Q/D training-set preparation.
-- `llmxcpg/calibration/` and `llmxcpg/evaluation/`: threshold search,
-  coverage-aware metrics, slice statistics, and query auditing.
-
-## Quickstart
-
-Start Joern from the repository root. The compose mount is paired with
-`Config.work_dir/joern-inputs`, allowing the container to read source staged
-by the Python client.
+Keep the rented GPU VM stopped. In the D-backed **Ubuntu-24.04** terminal:
 
 ```bash
-docker compose -f docker/docker-compose.yml up -d
-
-# Lightweight analysis/data utilities
-pip install -e .
-
-# GPU inference dependencies
-pip install -e '.[inference]'
-
-llmxcpg \
-  --code examples/cve_2011_3359.c \
-  --query-model QCRI/LLMxCPG-Q \
-  --detector-model QCRI/LLMxCPG-D \
-  --dataset primevul
+set -euo pipefail
+cd ~/projects/MSc-Thesis-Project
+git fetch origin
+git switch main
+git pull --ff-only origin main
+bash rq1/local_acceptance.sh
 ```
 
-The legacy `python scripts/run_pipeline.py ...` entry point calls the same CLI.
-A failed Q or Joern stage exits with status 2 and produces an abstention, never
-a silent SAFE verdict.
+Return the generated ZIP under `D:\Dissertation-RQ1\exports` before continuing. The script checks all 30 compiler/sanitizer witnesses, downloads only the small pinned tokenizer, and exercises the complete selector on a synthetic fixture using CPU Docker. It does not download Q weights or generate experiment queries. A failure still produces a diagnostic ZIP. Existing `work/rq1` data are preserved; this implementation uses `work/rq1-v2`.
 
-## GPU layouts
+## Developer checks
 
-The two released models are each 32B. With the default local vLLM engine, Q is
-released after query generation and D is loaded lazily, which supports a
-single-GPU, single-call workflow. For a dataset, call `detect_batch` (the
-evaluation script does this) so every query is generated before Q is released.
-
-For repeated online requests, serve Q on a separate GPU/process:
+From a Linux source checkout with Python 3.11 or 3.12:
 
 ```bash
-vllm serve QCRI/LLMxCPG-Q --port 8000
-
-llmxcpg \
-  --code examples/cve_2011_3359.c \
-  --query-engine openai \
-  --query-base-url http://localhost:8000/v1 \
-  --query-model QCRI/LLMxCPG-Q \
-  --detector-model QCRI/LLMxCPG-D
+python -m venv .venv
+.venv/bin/python -m pip install -e '.[dev]'
+.venv/bin/python -m pytest -q
+.venv/bin/ruff check .
+.venv/bin/python -m rq1.setup verify
 ```
 
-Use `--retain-query-model` only when the machine has enough aggregate GPU
-memory for Q and D simultaneously.
+Tests use explicitly isolated simulations. They establish software behavior, not real GPU/Joern experiment success. No adequacy results have been collected. A main run is blocked until real development inference, assessed excerpts, current CPU receipts and a pre-main freeze pass.
 
-## Detector compatibility and thresholds
-
-The released detector is prompted using the upstream
-`## Instruction/## Input/## Response` serialization. The reduced head is
-ordered `[No, Yes]`; `P(vulnerable)` is therefore class 1. The paper's
-calibrated thresholds are:
-
-| Dataset | Threshold |
-|---|---:|
-| PrimeVul | 0.594 |
-| FormAI | 0.547 |
-| SVEN | 0.334 |
-| ReposVul | 0.193 |
-
-These values are only meaningful with the published model/prompt/class
-contract. Recalibrate after fine-tuning or domain changes.
-
-Evaluation excludes pipeline abstentions from classification metrics by
-default and reports `coverage` and `abstentions`. Use
-`--failure-policy safe` only for an explicit sensitivity analysis.
-
-## Training
-
-```bash
-# Query data bootstrap (requires DEEPSEEK_API_KEY)
-python scripts/bootstrap_queries.py \
-  --dataset primevul \
-  --out data/q_train.jsonl \
-  --max-retries 3
-
-llamafactory-cli train configs/llamafactory/train_q.yaml
-
-# Build detector slices without loading a detector model
-python scripts/build_d_training_set.py \
-  --q-model checkpoints/llmxcpg-q \
-  --dataset primevul \
-  --input path/to/primevul.jsonl \
-  --out data/d_train.jsonl
-
-llamafactory-cli train configs/llamafactory/train_d.yaml
-```
-
-The D dataset emits `Yes`/`No`, and its LLaMA-Factory configuration uses
-the raw/empty template so training and inference share the same wire format.
-The standalone PEFT trainer masks prompt tokens and computes loss on the
-response only.
-
-## Security and reproducibility
-
-Joern evaluates CPGQL as Scala. The supplied compose service binds only to
-`127.0.0.1`, mounts staged source read-only, and the client rejects common
-filesystem/process/network APIs in generated queries. This guard is
-defense-in-depth, not a complete Scala sandbox; run untrusted workloads in an
-isolated container/VM with no secrets or sensitive mounts.
-
-Model names and Joern are configurable external artifacts. Record exact model
-revisions, container digests, package versions, and the calibrated threshold
-for reproducible experiments. The CLI accepts `--query-revision` and
-`--detector-revision` for immutable Hugging Face commit IDs.
-
-## Scope
-
-The supported CWEs are 119, 120, 121, 122, 125, 190, 415, 416, and 787.
-Errors can propagate from Q to the slice and D, so inspect the stored queries,
-slice, failure stage, probabilities, and coverage rather than relying on a
-verdict alone.
-
-## Provenance and license
-
-This repository derives from the GPL-3.0-licensed
-[original LLMxCPG implementation](https://github.com/qcri/llmxcpg). See
-`NOTICE` for attribution and `LICENSE` for the GPL-3.0 terms.
+The query prompt follows the [QCRI release](https://github.com/qcri/llmxcpg); the selector and context reconstruction are an explicitly documented adaptation, not a claim of bit-for-bit reproduction. GPL-3.0; see [LICENSE](LICENSE) and [NOTICE](NOTICE).

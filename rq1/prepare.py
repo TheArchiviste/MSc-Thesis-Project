@@ -7,11 +7,9 @@ import hashlib
 import json
 import random
 import re
-import shutil
 from pathlib import Path
 
-from juliet_pilot.prepare import _function, _strip_comment
-from juliet_pilot.templates import template_cluster
+from .source_tools import _function, _strip_comment, template_cluster
 
 ROOT = Path(__file__).resolve().parent
 EXCLUDED = {
@@ -160,10 +158,9 @@ def prepare():
     generated.mkdir(exist_ok=True)
     support.mkdir(exist_ok=True)
     for name in ("std_testcase.h", "std_testcase_io.h", "io.c", "LICENSE"):
-        original = ROOT.parent / "juliet_pilot/upstream" / name
+        original = support / name
         if hashlib.sha256(original.read_bytes()).hexdigest() != selection["support_sha256"][name]:
             raise ValueError(f"Pinned support source changed: {name}")
-        shutil.copyfile(ROOT.parent / "juliet_pilot/upstream" / name, support / name)
     (generated / "driver.c").write_text("void case_entry(void);\nint main(void) { case_entry(); return 0; }\n")
     manifests = {"development": [], "main": []}
     plans, ledger = [], []

@@ -5,11 +5,11 @@ import argparse
 import json
 import math
 import random
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
-from evidence_experiment.review import packet_index
-from evidence_experiment.schema import append_jsonl, load_cases, read_jsonl, run_specs
+from evidence_experiment.review import assessments, packet_index, validate_assessment
+from evidence_experiment.schema import append_jsonl, index_jsonl, load_cases, read_jsonl, run_specs
 
 from .setup import CORPUS, ROOT, write_json
 
@@ -21,8 +21,8 @@ def prepare(split, work):
     cases = load_cases(CORPUS / f"{split}.jsonl")
     packets, joins = packet_index(cases, work, 1)
     issued = read_jsonl(work / "blind_review_packets.jsonl")
-    if {r["review_id"] for r in issued} != packets.keys():
-        raise ValueError("Issue packets with --repeats 1 --duplicate-fraction 0 first")
+    if {r["review_id"]: r for r in issued} != packets or len(issued) != len(packets):
+        raise ValueError("Issue the RQ1 packets first")
     paths = [work / name for name in ("assessment_order.jsonl", "assessments.template.jsonl",
                                       "adjudications.template.jsonl", "assessment_order_metadata.json")]
     if any(p.exists() for p in paths):
@@ -58,8 +58,10 @@ def prepare(split, work):
 
 
 def reassessment_plan(work, first):
-    packets = {r["review_id"]: r for r in read_jsonl(work / "assessment_order.jsonl")}
-    ratings = read_jsonl(first)
+    packets = index_jsonl(work / "assessment_order.jsonl", "review_id")
+    if packets != index_jsonl(work / "blind_review_packets.jsonl", "review_id"):
+        raise ValueError("Assessment order differs from the issued packet contents")
+    ratings = list(assessments(first, packets).values())
     if len({r["review_id"] for r in ratings}) != len(ratings) or {r["review_id"] for r in ratings} != packets.keys():
         raise ValueError("Need exactly one initial assessment per issued unique packet")
     if any(r["adequacy"] not in {"adequate", "inadequate", "uncertain"} or not r.get("assessed_utc") for r in ratings):
@@ -69,7 +71,7 @@ def reassessment_plan(work, first):
     times = {r["review_id"]: datetime.fromisoformat(r["assessed_utc"]) for r in ratings}
     if any(t.tzinfo is None for t in times.values()):
         raise ValueError("Assessment timestamps must include a UTC offset")
-    plan = {"seed": SEED, "fraction": .25, "first_assessments_sha256": _hash(first),
+    plan = {"seed": SEED, "packets_sha256": _hash(work / "assessment_order.jsonl"), "fraction": .25, "first_assessments_sha256": _hash(first),
             "subset": [{"review_id": rid, "not_before_utc": (times[rid] + timedelta(hours=48)).isoformat()}
                        for rid in chosen], "meaning": "Within-assessor consistency; not independent validation"}
     path = work / "reassessment_plan.json"
@@ -85,7 +87,14 @@ def consistency(work, first, second):
     plan = json.loads((work / "reassessment_plan.json").read_text())
     if _hash(first) != plan["first_assessments_sha256"]:
         raise ValueError("Initial ratings changed; retain corrections in a separate final file")
-    initial = {r["review_id"]: r for r in read_jsonl(first)}
+    packets = index_jsonl(work / "assessment_order.jsonl", "review_id")
+    if packets != index_jsonl(work / "blind_review_packets.jsonl", "review_id"):
+        raise ValueError("Assessment order differs from the issued packet contents")
+    initial = assessments(first, packets)
+    chosen = sorted(random.Random(SEED).sample(sorted(packets), math.ceil(.25 * len(packets))))
+    if ([r["review_id"] for r in plan["subset"]] != chosen or
+            plan.get("packets_sha256") != _hash(work / "assessment_order.jsonl")):
+        raise ValueError("The delayed subset or issued packet order changed")
     later_rows = read_jsonl(second)
     later = {r["review_id"]: r for r in later_rows}
     if len(later) != len(later_rows) or later.keys() != {r["review_id"] for r in plan["subset"]}:
@@ -93,19 +102,24 @@ def consistency(work, first, second):
     rows = []
     for rid, row in later.items():
         old = initial[rid]
+        validate_assessment(row, packets[rid])
         if row["assessor_id"] != old["assessor_id"] or row["adequacy"] not in {"adequate", "inadequate", "uncertain"}:
             raise ValueError("Use the same honest assessor identity and a valid decision")
         first_time, second_time = (datetime.fromisoformat(r["assessed_utc"]) for r in (old, row))
         hours = (second_time - first_time).total_seconds() / 3600
-        if hours < 0 or second_time > datetime.now(timezone.utc):
+        if hours < 0 or second_time > datetime.now(UTC):
             raise ValueError("Invalid or future assessment timestamp")
         rows.append({"review_id": rid, "initial": old["adequacy"], "second": row["adequacy"],
                      "delay_hours": hours, "met_48_hours": hours >= 48})
-    write_json(work / "consistency.json", {"n": len(rows), "agreement":
+    result = {"status": "complete" if all(r["met_48_hours"] for r in rows) else "delay_below_48_hours",
+              "first_sha256": _hash(first), "second_sha256": _hash(second),
+              "plan_sha256": _hash(work / "reassessment_plan.json"), "n": len(rows), "agreement":
                sum(r["initial"] == r["second"] for r in rows) / len(rows) if rows else None,
                "all_met_48_hours": all(r["met_48_hours"] for r in rows) if rows else None, "records": rows,
-               "limit": "Within-assessor consistency only; short delays are explicitly reported, not relabelled independent review."})
+               "limit": "Within-assessor consistency only; no independent validation is claimed."}
+    write_json(work / "consistency.json", result)
     print(work / "consistency.json")
+    return result
 
 
 def _hash(path):
@@ -121,7 +135,7 @@ def main():
     parser.add_argument("--first", type=Path)
     parser.add_argument("--second", type=Path)
     args = parser.parse_args()
-    work = args.work or ROOT / "work/rq1" / args.split
+    work = args.work or ROOT / "work/rq1-v2" / args.split
     if args.action == "prepare":
         prepare(args.split, work)
     elif args.action == "reassessment-plan":

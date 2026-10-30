@@ -1,10 +1,15 @@
-LLMxCPG reimplementation
+RQ1 evidence audit of LLMxCPG
 
-This project reimplements and incorporates prompt/query material from the
-original LLMxCPG project by Ismail Lekssays, Mohamed Amine Ferrag, Bilel
-Cherif, and Mourad Debbabi:
+This repository incorporates prompt/query material from the original QCRI
+LLMxCPG project: https://github.com/qcri/llmxcpg
 
-https://github.com/qcri/llmxcpg
+Upstream reference: fd7af0df8d2221ec196b85bc460da5cb40f6866c.
+Released query model: QCRI/LLMxCPG-Q.
+The selected Juliet sources and support files retain their upstream license
+and provenance in rq1/support/LICENSE, selection.json and the manifests.
 
-The upstream project is licensed under GNU GPL version 3. This distribution
-is provided under the same license; see LICENSE.
+Modifications implement a bounded RQ1-only evidence audit. The prompt is
+release-aligned; selector, runtime, validation and reconstruction adaptations
+are described in rq1/REFERENCE_CONTRACT.md.
+
+Distributed under GNU GPL version 3; see LICENSE.
