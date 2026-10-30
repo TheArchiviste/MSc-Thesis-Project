@@ -87,9 +87,11 @@ The original acquisition procedure below is retained as history. It has already 
 
 After access and funding are checked, use the provided exact command for `ops.rq1_api_calibration run`. It acquires the twenty fixed stateless requests once, preserving errors and raw output. Return its D: ZIP and pause for the assistant's source-proof audit. All labels/proofs must pass; no automatic repairs, candidate search or threshold relaxation. See ASSESSMENT.md. A failure does not authorize opening already sealed main outcomes for instrument tuning.
 
-## 4. Sealed development acquisition — current action
+## 4. Sealed development acquisition — paused for diagnosis
 
-The successful follow-up VM inspection is accepted. Detailed hardware, disk and software receipts remain private; the returned acquisition contract and technical checks passed. [Accepted host receipt](../docs/audits/2026-10-30-q-host-accepted/checks.json). The missing assessor directory on this acquisition-only host is expected. Original Q loading and generation remain pending.
+**Paused for infrastructure diagnosis:** the latest development wrapper passed SSH readiness, launched the collector, and returned exit 1 with no acquisition seal. Its preserved failed-attempt archive transferred to the laptop and passed its checksum. Do not repeat Q acquisition or remove its marker. Keep the VM stopped. Use `python3 ops/rq1_q_diagnose.py PRIVATE_FAILED_ARCHIVE EXPECTED_ARCHIVE_SHA256` on the laptop and return only the new diagnostic JSON. This read-only inspection reports counts; it discloses the final Python traceback only when there are zero Q sessions and zero query records. Otherwise exception messages stay hidden. The original archive and failed attempt remain unchanged. Do not change the frozen apparatus or assessor from this diagnostic.
+
+The successful follow-up VM inspection is accepted. Detailed hardware, disk and software receipts remain private; the returned acquisition contract and technical checks passed. [Accepted host receipt](../docs/audits/2026-10-30-q-host-accepted/checks.json). The missing assessor directory on this acquisition-only host is expected. Successful original-Q loading and generation are not established. The launch procedure below records the attempted checkpoint; do not repeat it while diagnosis is pending.
 
 Start the existing GPU VM for the original-Q checkpoint and wait for Running. Read its current public IP from the console. From the existing laptop's Ubuntu terminal:
 
