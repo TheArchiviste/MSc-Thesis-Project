@@ -39,6 +39,23 @@ except ImportError:  # pragma: no cover - handled at construction for light impo
 logger = logging.getLogger(__name__)
 
 
+_ANSI_ESCAPE = re.compile(r"\x1b\[[0-?]*[ -/]*[@-~]")
+# The Scala REPL can return protocol success=true while printing a compiler
+# diagnostic to stdout. Preserve that raw text, but do not treat it as success.
+_SCALA_FAILURE = re.compile(
+    r"(?m)^\s*(?:"
+    r"--(?: \[E\d+\])? [^\r\n]*\bError:"
+    r"|[^\s:]+\.(?:scala|sc):\d+(?::\d+)?:\s*(?:error|Error):"
+    r"|(?:java|scala|io\.joern|io\.shiftleft|flatgraph)\.[\w.$]*(?:Exception|Error)(?::|$)"
+    r")"
+)
+
+
+def has_repl_failure(stdout: str) -> bool:
+    """Recognise structured REPL diagnostics, not incidental words in source strings."""
+    return _SCALA_FAILURE.search(_ANSI_ESCAPE.sub("", stdout)) is not None
+
+
 class JoernError(RuntimeError):
     """Raised on protocol-level Joern errors (timeouts, invalid syntax, etc.)."""
 
@@ -119,7 +136,7 @@ class JoernClient:
 
         stdout = raw.get("stdout", "") or ""
         stderr = raw.get("stderr", "") or ""
-        success = raw.get("success", False) and not stderr
+        success = bool(raw.get("success", False)) and not stderr and not has_repl_failure(stdout)
 
         # Joern wraps results in `valX: T = ...`. Extract the RHS as best we can.
         value = self._extract_value(stdout) if success else None
@@ -243,6 +260,7 @@ class JoernClient:
         if not stdout:
             return None
         # Pattern: `val42: List[Int] = List(1, 2, 3)`
+        stdout = _ANSI_ESCAPE.sub("", stdout)
         m = re.match(r"^val\d+:\s*[^=]+=\s*(.*)$", stdout.strip(), re.DOTALL)
         rhs = m.group(1) if m else stdout.strip()
 

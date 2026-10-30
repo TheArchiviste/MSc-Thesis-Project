@@ -1,0 +1,29 @@
+{
+  "utc": "2026-10-30T13:11:06.778260+00:00",
+  "implementation_id": "rq1-v4",
+  "laptop_archive": "local-attempt-20261030T130250Z-b0Nzl9.zip",
+  "laptop_v3_contract_match": true,
+  "verified_laptop_witness_case_pairs": 15,
+  "verified_laptop_U_F_sources": 30,
+  "verified_laptop_token_prompts": 30,
+  "laptop_prompts_fit": 30,
+  "laptop_v3_fixture": "failed_backward_query_compile",
+  "v4_validation": {
+    "unit_tests_passed": 139,
+    "ruff": "passed",
+    "compileall": "passed",
+    "shell_syntax": "passed",
+    "source_contract": "passed"
+  },
+  "fixes": [
+    "Narrow backward-slice sink union from AstNode to CfgNode",
+    "Recognize Scala diagnostics on stdout despite success envelope"
+  ],
+  "real_v4_joern_execution": "pending_on_laptop",
+  "real_Q_runs": 0,
+  "actual_excerpt_grades": 0,
+  "cloud_actions": 0,
+  "unchanged_scientific_design": true,
+  "source_C_maps_selection_witness_plans_unchanged": true,
+  "pipeline_contract_sha256": "1a87a53ab190de33b8adbcdc11110cd32297685362f3d2020ac6c90d63ed7aef"
+}

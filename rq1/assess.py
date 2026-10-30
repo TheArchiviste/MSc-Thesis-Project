@@ -134,7 +134,7 @@ def main():
     p.add_argument('--first', type=Path)
     p.add_argument('--second', type=Path)
     a = p.parse_args()
-    work = a.work or ROOT / 'work/rq1-v3' / a.split
+    work = a.work or ROOT / 'work/rq1-v4' / a.split
     with work_lock(work):
         if a.action == 'prepare':
             prepare(a.split, work)

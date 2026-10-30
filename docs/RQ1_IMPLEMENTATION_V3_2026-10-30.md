@@ -1,3 +1,5 @@
+> Historical v3 methodology change record. The current implementation adds the [v4 Joern compatibility repair](RQ1_JOERN_FIX_2026-10-30.md) without changing these scientific rules.
+
 # RQ1 v3 methodology implementation — 30 October 2026
 
 This revision applies the RQ1-only methodology evaluation before any real Q acquisition. It keeps the original Q, CPU Joern, 3 development/12 main disjoint blocks, one U/F run per case and finite source witnesses. No D, classifier, transformation or robustness experiment is added.

@@ -53,12 +53,16 @@ def build_interacters_query(execution_path_binding: str) -> str:
 # Step 3: Backward slicing (Listing 3)
 # ---------------------------------------------------------------------------
 #
-# `reachableByFlows(cpg.all)` is the paper's exact expression. Internally Joern
+# The engine accepts CFG nodes as sinks. Path.elements has static type AstNode,
+# so narrow the union before invoking the CFG-only extension (Joern 4.0.667).
+# Keep cpg.all as the unrestricted source traversal; this argument accepts any
+# node type in that pinned API. `reachableByFlows(cpg.all)` retains the intended expression. Internally Joern
 # uses the PDG to find every node that can flow to any element of the union of
 # execution path nodes and interacters.
 #
 BACKWARD_SLICE_QUERY_TEMPLATE = """\
-val all_path_nodes = execution_path.flatMap(_.elements).l ++ interacters
+val all_path_nodes = (execution_path.flatMap(_.elements).l ++ interacters)
+    .collect { case node: io.shiftleft.codepropertygraph.generated.nodes.CfgNode => node }
 val slice = all_path_nodes.reachableByFlows(cpg.all).l
 val slice_lines = slice.flatMap(_.elements).lineNumber.l.toSet.toList.sorted
 println("RQ1_SLICE_LINES=" + slice_lines.mkString(","))

@@ -1,6 +1,6 @@
 # RQ1 execution checkpoints
 
-Use clean `main` and fresh `work/rq1-v3`. Preserve all earlier work. Execute **only the current checkpoint**, return its output, and pause. The assistant performs the delegated source/proof judgments and explains them. Empty forms and software simulations are never experiment results.
+Use clean `main` and fresh `work/rq1-v4`. Preserve all earlier work. Execute **only the current checkpoint**, return its output, and pause. The assistant performs the delegated source/proof judgments and explains them. Empty forms and software simulations are never experiment results.
 
 ## 1. Laptop CPU checkpoint — run now
 
@@ -27,14 +27,14 @@ This is evidence-assessor calibration, not detector calibration. Neither D nor a
 
 ## 3. GPU transfer and doctor — after calibration acceptance
 
-Package current `work/rq1-v3/config.json`, `token-audit.json`, the full `calibration` directory including response provenance, `joern-capability/readiness.json`, and development/main witness records. Include SHA256. Exact packaging/SCP commands will use the accepted files and current console IP. The previous uploaded archive is historical. Never transfer SSH private keys or API secrets. Archive paths remain relative to the repo; credentials/profile are not required by Q.
+Package current `work/rq1-v4/config.json`, `token-audit.json`, the full `calibration` directory including response provenance, `joern-capability/readiness.json`, and development/main witness records. Include SHA256. Exact packaging/SCP commands will use the accepted files and current console IP. The previous uploaded archive is historical. Never transfer SSH private keys or API secrets. Archive paths remain relative to the repo; credentials/profile are not required by Q.
 
 Start the H100 only at this checkpoint. Update `~/rq1-project` to current clean `main`, install the pinned GPU environment, verify the input archive checksum, extract it preserving paths, and run:
 
 ```bash
 set -euo pipefail
 .venv-q/bin/python -m rq1.setup verify
-.venv-q/bin/python -m rq1.setup doctor --profile gpu --work work/rq1-v3/gpu-doctor
+.venv-q/bin/python -m rq1.setup doctor --profile gpu --work work/rq1-v4/gpu-doctor
 ```
 
 Return the doctor output and pause **before Q weights are downloaded/loaded**. The CPU Joern receipt is transferred; Docker is not needed on the Q host. See [Nebius handoff](../docs/NEBIUS_RQ1_GUIDE.md).
@@ -45,7 +45,7 @@ Inside tmux on the VM:
 
 ```bash
 set -euo pipefail
-.venv-q/bin/python -m evidence_experiment query --split development 2>&1 | tee work/rq1-v3/development/query-command.log
+.venv-q/bin/python -m evidence_experiment query --split development 2>&1 | tee work/rq1-v4/development/query-command.log
 .venv-q/bin/python -m rq1.setup status --split development
 ```
 
@@ -84,7 +84,7 @@ Transfer the accepted freeze and current inputs, preserve the development Q envi
 
 ```bash
 set -euo pipefail
-.venv-q/bin/python -m evidence_experiment query --split main 2>&1 | tee work/rq1-v3/main/query-command.log
+.venv-q/bin/python -m evidence_experiment query --split main 2>&1 | tee work/rq1-v4/main/query-command.log
 .venv-q/bin/python -m rq1.setup status --split main
 ```
 

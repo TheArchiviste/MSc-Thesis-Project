@@ -6,7 +6,7 @@ Updated 30 October 2026. **Current action: finish laptop CPU acceptance and retu
 
 The user has already funded the account with $25 and configured a budget. The observed VM has one regular H100 80 GB, 16 vCPU, approximately 200 GiB RAM, a 250 GiB SSD, and the Ubuntu 24.04 CUDA image in Finland. SSH user is `rq1`; the private key stays at `~/.ssh/nebius_rq1` on the laptop. The last public IP was `89.169.114.61`; read the current console IP after restarting instead of assuming it is unchanged.
 
-The VM source at the earlier hardware checkpoint was `81a7a8a7543a8c5bc9fab4ffc759b9e9f202b643`. Python 3.11.18, Torch 2.5.1+cu124, Transformers 4.47.1, vLLM 0.6.6.post1 and BF16 imports passed. No original Q weights have been deliberately loaded. The previous input archive reached `/home/rq1/` but belongs to the older pipeline; preserve it without extracting over rq1-v3.
+The VM source at the earlier hardware checkpoint was `81a7a8a7543a8c5bc9fab4ffc759b9e9f202b643`. Python 3.11.18, Torch 2.5.1+cu124, Transformers 4.47.1, vLLM 0.6.6.post1 and BF16 imports passed. No original Q weights have been deliberately loaded. The previous input archive reached `/home/rq1/` but belongs to the older pipeline; preserve it without extracting over rq1-v4.
 
 ## Budget and stopping
 
@@ -18,7 +18,7 @@ Current official references: [prices](https://nebius.com/prices), [budgets](http
 
 ## After accepted laptop CPU output and assessor calibration
 
-The new inputs live under `work/rq1-v3`. Package the accepted config, tokenizer audit, selector capability receipt, development/main witness files, and full accepted calibration directory with public requests, raw responses, private key, proof audit and acceptance/provenance receipts. Exclude the API profile/credentials. Q readiness revalidates this calibration without contacting the grader. Use a fresh archive name, compute SHA256, upload archive and checksum, and verify before extraction. Keep all relative paths. The assistant will issue the exact SCP command after the current IP and accepted files are known; no private keys or model weights belong in the archive.
+The new inputs live under `work/rq1-v4`. Package the accepted config, tokenizer audit, selector capability receipt, development/main witness files, and full accepted calibration directory with public requests, raw responses, private key, proof audit and acceptance/provenance receipts. Exclude the API profile/credentials. Q readiness revalidates this calibration without contacting the grader. Use a fresh archive name, compute SHA256, upload archive and checksum, and verify before extraction. Keep all relative paths. The assistant will issue the exact SCP command after the current IP and accepted files are known; no private keys or model weights belong in the archive.
 
 On the VM, after the explicit restart/transfer checkpoint, update the existing checkout and Q environment:
 
@@ -31,10 +31,10 @@ git pull --ff-only origin main
 .venv-q/bin/python -m pip install --no-cache-dir -r rq1/requirements-gpu.txt
 .venv-q/bin/python -m pip install --no-cache-dir -e .
 .venv-q/bin/python -m pip check
-mkdir -p ~/rq1-storage/huggingface work/rq1-v3/development work/rq1-v3/main
+mkdir -p ~/rq1-storage/huggingface work/rq1-v4/development work/rq1-v4/main
 export HF_HOME="$HOME/rq1-storage/huggingface"
 .venv-q/bin/python -m rq1.setup verify
-.venv-q/bin/python -m rq1.setup doctor --profile gpu --work work/rq1-v3/gpu-doctor
+.venv-q/bin/python -m rq1.setup doctor --profile gpu --work work/rq1-v4/gpu-doctor
 ```
 
 The accepted archive must be checksum-verified and extracted **before doctor**; do not substitute old checked-in workspace logs for the user's actual laptop files. Return the doctor output and pause before downloading/loading Q. No Docker selector is needed on the GPU VM; its CPU capability receipt is transferred from the laptop. Q and slicing have distinct locked environments.
@@ -47,7 +47,7 @@ Only after doctor acceptance, run the following inside tmux on the VM:
 set -euo pipefail
 cd ~/rq1-project
 export HF_HOME="$HOME/rq1-storage/huggingface"
-.venv-q/bin/python -m evidence_experiment query --split development 2>&1 | tee work/rq1-v3/development/query-command.log
+.venv-q/bin/python -m evidence_experiment query --split development 2>&1 | tee work/rq1-v4/development/query-command.log
 .venv-q/bin/python -m rq1.setup status --split development
 ```
 
@@ -61,7 +61,7 @@ Transfer the accepted `freeze.json` and main witnesses, use the same clean imple
 set -euo pipefail
 cd ~/rq1-project
 export HF_HOME="$HOME/rq1-storage/huggingface"
-.venv-q/bin/python -m evidence_experiment query --split main 2>&1 | tee work/rq1-v3/main/query-command.log
+.venv-q/bin/python -m evidence_experiment query --split main 2>&1 | tee work/rq1-v4/main/query-command.log
 .venv-q/bin/python -m rq1.setup status --split main
 ```
 

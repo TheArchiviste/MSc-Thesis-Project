@@ -2,7 +2,9 @@
 
 This repository implements the dissertation's **RQ1 baseline evidence audit**. Original pretrained **LLMxCPG-Q** generates queries, **Joern** retrieves excerpts, a calibrated AI grades each excerpt in a stateless request, and a separate source-informed AI audit checks the visible justification. No independent human validation is claimed. Detector training/classification and transformation experiments are outside this experiment.
 
-There are **3 development blocks and 12 main blocks**, each with vulnerable U and repaired F source. One primary run per input gives 6 development and 24 main Q/slice runs. F is reported separately. The evaluated configuration is **rq1-v3**, with fresh outputs in `work/rq1-v3`; preserve earlier runs.
+There are **3 development blocks and 12 main blocks**, each with vulnerable U and repaired F source. One primary run per input gives 6 development and 24 main Q/slice runs. F is reported separately. The evaluated configuration is **rq1-v4**, with fresh outputs in `work/rq1-v4`; preserve earlier runs.
+
+The returned v3 CPU ZIP exposed a backward-helper type error and a client diagnostic-handling defect. Both are repaired in v4; a fresh laptop Joern checkpoint is required. See the [repair record](docs/RQ1_JOERN_FIX_2026-10-30.md).
 
 Read [the execution runbook](rq1/RUNBOOK.md), [protocol](rq1/PROTOCOL.md), [assessment procedure](rq1/ASSESSMENT.md), [implementation contract](rq1/REFERENCE_CONTRACT.md), and [current readiness](rq1/READINESS.md). The [source references](rq1/SOURCE_REFERENTS.md) explain each case's mechanism and required relationships.
 
