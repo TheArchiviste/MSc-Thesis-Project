@@ -1,0 +1,48 @@
+{
+  "acceptance_sha256": "147e45534195d5b00872ade49af0154ee6ff2948c198270575c15238fe6defba",
+  "accepted": true,
+  "all_adequate_premises_and_negative_gaps_individually_audited": true,
+  "assessor_model": "gpt-6-astra",
+  "audited_utc": "2026-10-30T21:14:44.150332+00:00",
+  "citation_note": "R17 loop proofs cite the header/body without separately citing visible L6 size_t i. The finite range is supported by the displayed declaration and loop. Audited as visible support, not an exact-reference-line checklist; raw answers unchanged.",
+  "cohorts": {
+    "assessor_holdout": {
+      "n": 8,
+      "passed": true
+    },
+    "development": {
+      "n": 12,
+      "passed": true
+    }
+  },
+  "correct_labels": 20,
+  "cost_basis": "Recorded tokens at $10/M uncached input, $1/M cache-hit input, $12.50/M cache-write input and $50/M output including reasoning. Estimate only; billing dashboard is authoritative.",
+  "credit_expiry_verified": false,
+  "estimated_usage_cost_usd": 1.53385,
+  "execution_commit": "3e7c3ad0e20df1466c9ea02b3b29b6657e40f153",
+  "export_manifest_verified": true,
+  "frozen_requests_and_bank_unchanged": true,
+  "implementation_id": "rq1-v7",
+  "limitations": "Small correlated curated instrument screen (12 reused development / 8 held-out response checks), AI-assisted key and audit, no independent human validation or population accuracy; snprintf/strncat-specific calibration remains absent.",
+  "new_Q_generations": 0,
+  "new_experiment_slices": 0,
+  "next_action": "Install the acceptance receipt against unchanged local calibration artifacts; then inspect the existing Q GPU host with the already accepted input bundle. No new API calibration attempt.",
+  "protocol": "rq1-excerpt-v3",
+  "raw_response_provenance_verified": true,
+  "reported_cache_write_tokens": 26672,
+  "reported_cached_input_tokens": 0,
+  "reported_input_tokens": 26732,
+  "reported_model_consistent": true,
+  "reported_output_tokens_including_reasoning": 23997,
+  "reported_reasoning_effort": "high",
+  "reported_reasoning_tokens": 11266,
+  "reported_service_tier": "default",
+  "responses": 20,
+  "source_archive": "rq1-assessor-v3-20261030T210917019796Z.zip",
+  "source_archive_library_file_id": "libfile_7699cd059ee881919c10bca51fbbec48",
+  "source_archive_sha256": "618921067de09920f3d03583575243b87d7c463deddb1511069b1309bd53cf31",
+  "source_audit_sha256": "797564ae9244a4eda2138d068f59213ae0bee804fa1d5ad80545a6e12b8c047d",
+  "strict_imports": 20,
+  "supported_source_proofs": 20,
+  "user_reported_starting_API_credit_balance_usd": 91
+}

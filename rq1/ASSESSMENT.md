@@ -10,9 +10,9 @@ The API adapter omits temperature and uses high reasoning, 25,000 maximum output
 
 ## Current checkpoint
 
-Run only the laptop CPU checkpoint in RUNBOOK.md and return the ZIP. It creates twenty **ungraded** anchors with a frozen private source key. Keep the full diagnostic ZIP and private key away from the excerpt grader. Never paste an API key into chat or commit it.
+The first v3 attempt has acquired and imported all twenty responses. Its separate source-proof audit accepts all labels and proofs (12/12 reused development, 8/8 held-out response checks). [Full audit](../docs/RQ1_ASSESSOR_V3_RESULT_2026-10-30.md). Install the three accepted receipt files using RUNBOOK.md checkpoint 3; no repeated calibration is needed. No Q/Joern experiment output has yet been collected. Keep the full diagnostic ZIP and source key away from the excerpt grader. Never paste an API key into chat or commit it.
 
-## Later: read-only access, then one paid acquisition
+## Completed preparation: read-only access, then one paid acquisition
 
 After CPU acceptance, the assistant provides the exact access command. Enter the API key privately through the terminal; the value stays in `OPENAI_API_KEY`, outside files and command history. `ops.rq1_api_calibration access` performs a GET-only selected-model lookup and returns a receipt. It establishes neither paid-generation permission nor grading quality. Return that receipt and pause.
 

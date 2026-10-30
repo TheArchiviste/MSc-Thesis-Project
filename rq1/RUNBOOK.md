@@ -54,13 +54,42 @@ cd ~/projects/MSc-Thesis-Project
 
 Return only the printed summary. Keep the transfer archive on D: for the later mechanical VM handoff. Do not rerun the completed CPU checkpoint or change the accepted Python/packages.
 
-## 3. Assessor calibration — current action: verify funding first
+## 3. Assessor calibration — accepted; install the receipt
 
-Read-only access is accepted. Check the actual API credit balance and expiry in the organization owning the selected project, including any eligible Pro benefit that has been claimed and linked. Return that funding information before the paid command. The current conservative planning estimate is $27.70 for calibration only; it is not a provider-enforced cap. No v3 inference has been sent. Keep the VM stopped while preparing this independent API checkpoint.
+The user reported $91 available before the declared attempt. It acquired and strictly imported twenty real responses from 21:01:19 to 21:09:17 UTC. All twenty labels and subsequent source-proof audits pass, with development 12/12 and held-out 8/8 separately reported. [Detailed audit and limits](../docs/RQ1_ASSESSOR_V3_RESULT_2026-10-30.md). No repeat paid command is needed.
+
+On the existing laptop, install only the three new audit/acceptance files. The original requests, bank, profile and raw responses stay in place. Any conflicting existing audit file is preserved and blocks this command; the final status check verifies every bound artifact:
+
+```bash
+set -euo pipefail
+cd ~/projects/MSc-Thesis-Project
+git pull --ff-only origin main
+.venv/bin/python - <<'PY'
+from pathlib import Path
+source = Path('docs/audits/2026-10-30-assessor-v3-accepted')
+target = Path('work/rq1-v7/calibration')
+names = ('source_audit.jsonl', 'evaluation.json', 'acceptance.json')
+data = {name: (source / name).read_bytes() for name in names}
+for name, content in data.items():
+    path = target / name
+    if path.exists() and path.read_bytes() != content:
+        raise SystemExit(f'Preserving conflicting existing file: {path}')
+for name, content in data.items():
+    path = target / name
+    if not path.exists():
+        path.write_bytes(content)
+print('Accepted audit and receipt installed; original responses preserved.')
+PY
+.venv/bin/python -m rq1.calibration status
+```
+
+The original acquisition procedure below is retained as history. It has already been executed once; do not rerun it.
 
 After access and funding are checked, use the provided exact command for `ops.rq1_api_calibration run`. It acquires the twenty fixed stateless requests once, preserving errors and raw output. Return its D: ZIP and pause for the assistant's source-proof audit. All labels/proofs must pass; no automatic repairs, candidate search or threshold relaxation. See ASSESSMENT.md. A failure does not authorize opening already sealed main outcomes for instrument tuning.
 
-## 4. Sealed development acquisition — independent of step 3 completion
+## 4. Sealed development acquisition — next: Q-host technical inspection
+
+The exact Q-input bundle is accepted and the assessor has passed. Prepare the separate VM inspection from checkpoint 2 using the current Nebius console IP/status and current resource estimate/balance. Keep the VM stopped while preparing the exact transfer command. Retain its existing packages and cached weights. No original Q load is authorized by an assessor acceptance file alone; return the GPU-host inspection before the query command below.
 
 Only after the Q host inspection is accepted, run the supplied command for:
 

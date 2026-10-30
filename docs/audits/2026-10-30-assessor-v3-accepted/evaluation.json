@@ -1,0 +1,218 @@
+{
+  "accepted": true,
+  "assessor_signature": "474aa7855d840e4d244b35653954d6c8745f8e412c76e5632476d592d879e9ed",
+  "cohorts": {
+    "assessor_holdout": {
+      "n": 8,
+      "passed": true
+    },
+    "development": {
+      "n": 12,
+      "passed": true
+    }
+  },
+  "meaning": "All 20 predeclared labels and source-proof audits must pass, with reused and held-out cohorts separately reported. This is an instrument screen, not population accuracy or human validation.",
+  "n": 20,
+  "records": [
+    {
+      "case_id": "D01",
+      "cohort": "development",
+      "expected": "adequate",
+      "kind": "complete_U",
+      "label_correct": true,
+      "observed": "adequate",
+      "proof_supported": "yes",
+      "review_id": "4b68a139116ee6b9b8bcc9442994f6ec62fbda7081cedd506fb3c346ea475768"
+    },
+    {
+      "case_id": "D01",
+      "cohort": "development",
+      "expected": "inadequate",
+      "kind": "complete_F",
+      "label_correct": true,
+      "observed": "inadequate",
+      "proof_supported": "yes",
+      "review_id": "11dac1464d3130e3d92c58244c7b81a8a320b0b4d867b129e6c9b855285c28bc"
+    },
+    {
+      "case_id": "D01",
+      "cohort": "development",
+      "expected": "adequate",
+      "kind": "reduced_sufficient_U",
+      "label_correct": true,
+      "observed": "adequate",
+      "proof_supported": "yes",
+      "review_id": "4a0856e3edd2437e6f8a4ec7b13cc6860d3fcccec840aecd8d9c670086d834b9"
+    },
+    {
+      "case_id": "D01",
+      "cohort": "development",
+      "expected": "inadequate",
+      "kind": "indistinguishable_incomplete",
+      "label_correct": true,
+      "observed": "inadequate",
+      "proof_supported": "yes",
+      "review_id": "5a0df3abb0902cf0770a8be1ba8814e80bed7dc47352a0a1573ebf9a3281cb67"
+    },
+    {
+      "case_id": "D02",
+      "cohort": "development",
+      "expected": "adequate",
+      "kind": "complete_U",
+      "label_correct": true,
+      "observed": "adequate",
+      "proof_supported": "yes",
+      "review_id": "f6526d234dd28050582f74da9eb23a955cad6e62f077dbf99d9b0e9eb44ac24b"
+    },
+    {
+      "case_id": "D02",
+      "cohort": "development",
+      "expected": "inadequate",
+      "kind": "complete_F",
+      "label_correct": true,
+      "observed": "inadequate",
+      "proof_supported": "yes",
+      "review_id": "42d19ed58e1dc7fcd4a42f5d4aaece89e7fc89f9bdb43fe687ea6b6e19af013b"
+    },
+    {
+      "case_id": "D02",
+      "cohort": "development",
+      "expected": "adequate",
+      "kind": "reduced_sufficient_U",
+      "label_correct": true,
+      "observed": "adequate",
+      "proof_supported": "yes",
+      "review_id": "a1ad5b22308c84a3d929dd64ef66b99d00620390871f221ff418dff43d2c8d9b"
+    },
+    {
+      "case_id": "D02",
+      "cohort": "development",
+      "expected": "inadequate",
+      "kind": "indistinguishable_incomplete",
+      "label_correct": true,
+      "observed": "inadequate",
+      "proof_supported": "yes",
+      "review_id": "86bbbe383797318565d2183d840defd5204edf4f24687e2745edf3c231289269"
+    },
+    {
+      "case_id": "D03",
+      "cohort": "development",
+      "expected": "adequate",
+      "kind": "complete_U",
+      "label_correct": true,
+      "observed": "adequate",
+      "proof_supported": "yes",
+      "review_id": "e3b1d29a82d228fbb9141b8afefb1feaaa71cca3a8ba0beb6a94f85a293da7a6"
+    },
+    {
+      "case_id": "D03",
+      "cohort": "development",
+      "expected": "inadequate",
+      "kind": "complete_F",
+      "label_correct": true,
+      "observed": "inadequate",
+      "proof_supported": "yes",
+      "review_id": "0d8ef066c6eae55811decd566b412746fb538ae1ef4e0001ad2174006ccae338"
+    },
+    {
+      "case_id": "D03",
+      "cohort": "development",
+      "expected": "adequate",
+      "kind": "reduced_sufficient_U",
+      "label_correct": true,
+      "observed": "adequate",
+      "proof_supported": "yes",
+      "review_id": "652e63294acdcaf29f64cd14c9fe48ff2d73a11f81e7776e2cbd0eaab7a49cbe"
+    },
+    {
+      "case_id": "D03",
+      "cohort": "development",
+      "expected": "inadequate",
+      "kind": "indistinguishable_incomplete",
+      "label_correct": true,
+      "observed": "inadequate",
+      "proof_supported": "yes",
+      "review_id": "aecc26c35c50926787ec4aded1775430189fc1b7f64083a126be2e44ed7d1e81"
+    },
+    {
+      "case_id": "R15",
+      "cohort": "assessor_holdout",
+      "expected": "adequate",
+      "kind": "complete_U",
+      "label_correct": true,
+      "observed": "adequate",
+      "proof_supported": "yes",
+      "review_id": "90522a90d67b57b773b4db4ea5823efc13d2f6b892ce3efe49622e26f55a00ef"
+    },
+    {
+      "case_id": "R15",
+      "cohort": "assessor_holdout",
+      "expected": "inadequate",
+      "kind": "complete_F",
+      "label_correct": true,
+      "observed": "inadequate",
+      "proof_supported": "yes",
+      "review_id": "0a0acdd3b0214877c9dd10c2c4a4875a9e1333ee016ef3ca0a765c8039bac341"
+    },
+    {
+      "case_id": "R15",
+      "cohort": "assessor_holdout",
+      "expected": "adequate",
+      "kind": "reduced_sufficient_U",
+      "label_correct": true,
+      "observed": "adequate",
+      "proof_supported": "yes",
+      "review_id": "dbf5061f3de756bea8f5868174ab466446075d271e0b22f633ba1be7aeef366b"
+    },
+    {
+      "case_id": "R15",
+      "cohort": "assessor_holdout",
+      "expected": "inadequate",
+      "kind": "indistinguishable_incomplete",
+      "label_correct": true,
+      "observed": "inadequate",
+      "proof_supported": "yes",
+      "review_id": "0beb3d2594de64e20c07ee94d94d7ee7cc7235b76d8c46d8f6659c1c912180b1"
+    },
+    {
+      "case_id": "R17",
+      "cohort": "assessor_holdout",
+      "expected": "adequate",
+      "kind": "complete_U",
+      "label_correct": true,
+      "observed": "adequate",
+      "proof_supported": "yes",
+      "review_id": "a64f7fd3e4dbee04dfc164a9df717da394f31011a906073bbe45c1232ae5de7e"
+    },
+    {
+      "case_id": "R17",
+      "cohort": "assessor_holdout",
+      "expected": "inadequate",
+      "kind": "complete_F",
+      "label_correct": true,
+      "observed": "inadequate",
+      "proof_supported": "yes",
+      "review_id": "1d7e2b3a2df835b0214400177ccfb4e7daeede76dfebd3546b21a99fa56c8213"
+    },
+    {
+      "case_id": "R17",
+      "cohort": "assessor_holdout",
+      "expected": "adequate",
+      "kind": "reduced_sufficient_U",
+      "label_correct": true,
+      "observed": "adequate",
+      "proof_supported": "yes",
+      "review_id": "2fc74f8df646f5e1b806a1f59307529d8b8a6f22edf2e35e57e5d4501477d2e0"
+    },
+    {
+      "case_id": "R17",
+      "cohort": "assessor_holdout",
+      "expected": "inadequate",
+      "kind": "indistinguishable_incomplete",
+      "label_correct": true,
+      "observed": "inadequate",
+      "proof_supported": "yes",
+      "review_id": "13469d99ec4bf9699e5c9b43f6bb1cb4ae029abbce81ca90cee97793a1e03b98"
+    }
+  ]
+}
