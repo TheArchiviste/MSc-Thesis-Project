@@ -8,22 +8,13 @@ The returned v4 run passed both real selector fixtures. Its 30 graph results wer
 
 Read [the execution runbook](rq1/RUNBOOK.md), [protocol](rq1/PROTOCOL.md), [assessment procedure](rq1/ASSESSMENT.md), [implementation contract](rq1/REFERENCE_CONTRACT.md), and [current readiness](rq1/READINESS.md). The [source references](rq1/SOURCE_REFERENTS.md) explain each case's mechanism and required relationships.
 
-## Next checkpoint: prepare the v6 VM transfer bundle
+## Current checkpoint: v2 assessor calibration failed; pause inference
 
-The H100 loaded the assessor and returned all twelve v1 calibration responses, which failed. [The repair record](docs/RQ1_ASSESSOR_REPAIR_2026-10-30.md) preserves that failure and defines rq1-excerpt-v2. The fresh v6 laptop CPU checkpoint is now accepted: thirty source witnesses, thirty fitting Q prompts, both real selector fixtures and all thirty corpus graphs passed. The twelve revised calibration packets reproduce exactly and remain ungraded. [CPU acceptance](docs/audits/2026-10-30-v6-cpu-accepted/checks.json) records the uploaded ZIP and source hashes. No Q/main outputs have been inspected.
+The fresh v6 laptop CPU checkpoint and VM inspection passed. The one predeclared v2 assessor attempt then returned twelve nontruncated JSON responses. Four omit required fields; three declared labels disagree with the development key. Even some matching labels have unsupported explanations. The complete strict import failed, and calibration is **not accepted**. [The result and next decision](docs/RQ1_ASSESSOR_V2_RESULT_2026-10-30.md) include a twelve-row source audit and verified archive/provenance hashes. Earlier v1 evidence and its [repair record](docs/RQ1_ASSESSOR_REPAIR_2026-10-30.md) remain unchanged.
 
-Keep the VM stopped. In the laptop's D-backed Ubuntu-24.04 terminal:
+Keep the Nebius VM stopped and preserve both calibration archives. No new command is required. The protocol explicitly pauses after a failed v2 attempt for an assessor/design decision; do not rerun responses, repair grades, lower the acceptance rule or start Q acquisition. The recommendation is to replace the assessor in a separately declared revision, keeping the existing source bank, proof requirements and failed-attempt history. Such a revision has **not** been implemented or run.
 
-```bash
-set -euo pipefail
-cd ~/projects/MSc-Thesis-Project
-git fetch origin
-git switch main
-git pull --ff-only origin main
-.venv/bin/python -m ops.rq1_vm_checkpoint prepare
-```
-
-Return the printed summary or its .summary.json file from D:\Dissertation-RQ1\exports and pause. This revalidates the accepted laptop environment, audits the revised assessor requests with the small pinned tokenizer, and packages checksummed public inputs/CPU proofs for transfer. It loads no model weights and starts no VM. The accepted scientific core stays unchanged; do not repeat the CPU scan. After this summary is checked, the [VM guide](docs/RQ1_VM_ONLY_CHECKPOINTS.md) covers transfer, fresh VM inspection and the one predeclared v2 calibration attempt. Preserve every v5 response and cached model weights.
+The accepted CPU evidence still covers thirty witnesses, thirty fitting Q prompts, both real selector fixtures and all thirty corpus graphs. [CPU acceptance](docs/audits/2026-10-30-v6-cpu-accepted/checks.json) binds those inputs. Documentation of the result does not change the sealed scientific core or require another CPU scan. Real Q outputs and experiment slices have not been collected. The [VM guide](docs/RQ1_VM_ONLY_CHECKPOINTS.md) records the completed handoff and session procedure for reference.
 
 ## Developer checks
 
@@ -37,6 +28,6 @@ python -m venv .venv
 .venv/bin/python -m rq1.setup verify
 ```
 
-Tests use isolated simulations, never empirical experiment results. Actual failed v1 calibration responses are reported separately. No Q/slice development or main results have been collected. Main is blocked until current CPU checks, source-checked calibration, real development inference/assessments and an immutable freeze pass.
+Tests use isolated simulations, never empirical experiment results. Actual failed v1 and v2 calibration responses are reported separately. No Q/slice development or main results have been collected. Main is blocked until source-checked calibration, real development inference/assessments and an immutable freeze pass.
 
 The prompt follows the [QCRI release](https://github.com/qcri/llmxcpg). Selector and reconstruction adaptations are explicit; this is a bounded audit of the documented configuration. GPL-3.0; see [LICENSE](LICENSE) and [NOTICE](NOTICE).

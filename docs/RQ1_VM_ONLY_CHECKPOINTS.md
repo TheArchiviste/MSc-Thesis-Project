@@ -1,6 +1,8 @@
 # RQ1 execution using the existing Nebius VM
 
-Current route: **existing H100 VM for Q and a separate assessor, used sequentially; laptop CPU for Joern.** Token Factory is optional. The first v5/rq1-excerpt-v1 calibration failed; its evidence is preserved. Fresh v6 CPU acceptance has passed, including thirty witnesses, both actual selector fixtures and all thirty source graphs. [The acceptance record](audits/2026-10-30-v6-cpu-accepted/checks.json) binds the uploaded ZIP and source contract. Current action is section 1's bundle preparation; keep the VM stopped. Do not repeat the CPU scan or rerun the old v1 response set. The later VM commands require the new bundle and a fresh VM inspection.
+**Current status: the v6 CPU handoff and VM inspection passed, but the one predeclared v2 calibration failed. Keep the VM stopped. Do not execute the commands below again.** [The v2 result](RQ1_ASSESSOR_V2_RESULT_2026-10-30.md) records the twelve responses, strict import failure, source audit and required assessor/design decision. A new revision has not been declared or implemented. Q acquisition remains blocked.
+
+The intended route remains **existing H100 VM for Q and a separate assessor, used sequentially; laptop CPU for Joern.** Token Factory is optional. The first v5/rq1-excerpt-v1 calibration also failed; its evidence is preserved. Fresh v6 CPU acceptance passed, including thirty witnesses, both actual selector fixtures and all thirty source graphs. [The acceptance record](audits/2026-10-30-v6-cpu-accepted/checks.json) binds the uploaded ZIP and source contract. The numbered sections below preserve the completed v2 procedure for reference; they are not the current next action. Do not repeat the CPU scan or either calibration response set.
 
 ## Why this assessor candidate
 

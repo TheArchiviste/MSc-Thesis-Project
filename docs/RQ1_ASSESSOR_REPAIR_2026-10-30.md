@@ -18,6 +18,8 @@ No case-specific worked answer, private source key, sibling packet or prior resp
 
 ## Current CPU command
 
+**Historical procedure:** the fresh v6 CPU checkpoint and VM inspection subsequently passed, followed by the one predeclared v2 GPU attempt. That calibration failed. See [the result](RQ1_ASSESSOR_V2_RESULT_2026-10-30.md). Keep the VM stopped and do not repeat the commands in this record. The account above preserves what was declared before the v2 responses were observed.
+
 The sealed content contract includes the changed assessor code/protocol. V5 receipts cannot be relabelled as v6. Run fresh witnesses, tokenizer and actual Joern conformance into work/rq1-v6, preserving work/rq1-v5 and the cached VM weights. Historical v4-to-v5 recovery is not a v6 migration route.
 
 Keep the VM stopped. In D-backed Ubuntu-24.04:
