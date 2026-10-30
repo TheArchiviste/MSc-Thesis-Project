@@ -71,7 +71,7 @@ def test_implementation_drift_rejected(tmp_path, monkeypatch):
     (tmp_path / 'rq1').mkdir()
     source = tmp_path / 'module.py'
     source.write_text('before')
-    write_json(tmp_path / 'rq1/pipeline_contract.json', {'implementation_id': 'rq1-v4',
+    write_json(tmp_path / 'rq1/pipeline_contract.json', {'implementation_id': 'rq1-v5',
                                                        'files': {'module.py': file_digest(source)}})
     monkeypatch.setattr(setup, 'ROOT', tmp_path)
     monkeypatch.setattr(setup, 'CORPUS', tmp_path / 'rq1')

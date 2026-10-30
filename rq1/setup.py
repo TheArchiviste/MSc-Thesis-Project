@@ -39,7 +39,7 @@ from .prepare import reference, render, sha, verify_selection
 
 ROOT = CORPUS.parent
 SPLITS = ("development", "main")
-DEFAULT_CONFIG = Path("work/rq1-v4/config.json")
+DEFAULT_CONFIG = Path("work/rq1-v5/config.json")
 
 
 def corpus_contract():
@@ -110,14 +110,14 @@ def load_config(path):
     cfg = json.loads(Path(path).read_text())
     example = json.loads((CORPUS / "config.example.json").read_text())
     if set(cfg) != set(example):
-        raise ValueError("RQ1-v4 config fields differ; initialize a fresh config, preserving old runs")
+        raise ValueError("RQ1-v5 config fields differ; initialize a fresh config, preserving old runs")
     fixed = {"implementation_id": IMPLEMENTATION_ID, "query_model": "QCRI/LLMxCPG-Q",
              "query_revision": "1f48ab60420d90277207394f1254d27d3375b07e",
              "query_engine": "vllm", "query_temperature": 0.0, "query_batch_size": 1,
              "query_max_context": 8192, "query_tensor_parallel_size": 1,
              "infrastructure_attempts": 3}
     if any(cfg[k] != v for k, v in fixed.items()):
-        raise ValueError("Config changes the frozen RQ1-v4 Q/selector design")
+        raise ValueError("Config changes the frozen RQ1-v5 Q/selector design")
     if (not re.fullmatch(r"sha256:[0-9a-f]{64}", cfg["joern_digest"]) or
             not 0 < cfg["query_gpu_memory_utilization"] < 1 or
             not 0 < cfg["joern_rpc_timeout"] <= cfg["joern_case_timeout"]):
@@ -153,7 +153,7 @@ def capability_valid(cfg):
             result.get("corpus_contract") != corpus_contract() or result.get("policy") != policy(cfg)):
         raise ValueError("Fresh full-selector CPU conformance is required")
     from .conformance import validate_receipt
-    validate_receipt(result)
+    validate_receipt(result, evidence_root=(ROOT / cfg["joern_capability_file"]).parent)
     return result
 
 
@@ -357,7 +357,7 @@ def main():
     parser.add_argument("--work", type=Path)
     parser.add_argument("--profile", choices=("local", "gpu"), default="local")
     args = parser.parse_args()
-    work = args.work or Path("work/rq1-v4") / args.split
+    work = args.work or Path("work/rq1-v5") / args.split
     if args.action == "verify":
         verify_implementation()
         print(json.dumps(verify_corpus(), indent=2))

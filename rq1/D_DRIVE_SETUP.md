@@ -13,7 +13,7 @@ The new local scripts explicitly place Hugging Face cache files in
 `D:\Dissertation-RQ1\huggingface` and return ZIPs in
 `D:\Dissertation-RQ1\exports`. They disable pip's download cache. Docker
 images and named volumes use the already configured D-backed Docker disk.
-They preserve old `work/rq1` files and write new records in `work/rq1-v4`.
+They preserve old `work/rq1` files and write new records in `work/rq1-v5`.
 
 Open **Ubuntu-24.04**, not PowerShell or the older Ubuntu distribution, then
 run checkpoint 1 in [RUNBOOK.md](RUNBOOK.md). It uses the CPU for compilation,

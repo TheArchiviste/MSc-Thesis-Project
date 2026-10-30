@@ -37,15 +37,21 @@ INTERPROCEDURAL_QUERIES = [
     'val sink = cpg.call.nameExact("<operator>.indirectIndexAccess").argument(2).l',
     'val execution_path = sink.reachableByFlows(source).l',
 ]
-GRAPH_QUERY = ('println("RQ1_GRAPH=" + List(cpg.method.nameExact("case_entry").size, '
+GRAPH_QUERY = ('val rq1_graph = "RQ1_GRAPH=" + List(cpg.method.nameExact("case_entry").size, '
                'cpg.method.nameExact("case_sink").size, cpg.call.nameExact("case_sink").size, '
                'cpg.method.nameExact("case_sink").parameter.index(1).size).mkString(",") + "|" + '
-               'cpg.call.nameExact("case_sink").lineNumber.l.toSet.toList.sorted.mkString(","))')
-CALLS_QUERY = 'println("RQ1_CALLS=" + cpg.call.name.l.distinct.sorted.mkString(","))'
+               'cpg.call.nameExact("case_sink").lineNumber.l.toSet.toList.sorted.mkString(",")')
+CALLS_QUERY = 'val rq1_calls = "RQ1_CALLS=" + cpg.call.name.l.distinct.sorted.mkString(",")'
 
 
 def parse_graph(stdout, source):
-    matches = re.findall(r'(?m)^RQ1_GRAPH=([0-9,]+)\|([0-9,]*)\s*$', stdout)
+    clean = re.sub(r"\x1b\[[0-?]*[ -/]*[@-~]", "", stdout)
+    # A val binding is captured by the REPL; println goes to Docker's log.
+    bound = re.findall(r'(?m)^val rq1_graph: String = "(RQ1_GRAPH=[0-9,]+\|[0-9,]*)"\s*$', clean)
+    if len(bound) > 1:
+        raise ValueError('Ambiguous bound corpus graph marker')
+    text = bound[0] if bound else clean
+    matches = re.findall(r'(?m)^RQ1_GRAPH=([0-9,]+)\|([0-9,]*)\s*$', text)
     if len(matches) != 1:
         raise ValueError('Missing or ambiguous corpus graph marker')
     counts = [int(n) for n in matches[0][0].split(',')]
@@ -71,7 +77,7 @@ def expected_graphs():
             for c in load_cases(CORPUS / f'{split}.jsonl') for arm, source in c.sources.items()}
 
 
-def validate_receipt(result):
+def validate_receipt(result, *, evidence_root=None):
     if (result.get('source') != SOURCE or result.get('queries') != QUERIES or
             not fixture_valid(result.get('outcome', {})) or
             result.get('interprocedural_source') != INTERPROCEDURAL_SOURCE or
@@ -89,6 +95,9 @@ def validate_receipt(result):
         if row.get('status') != 'ok' or row.get('reset_ok') is not True:
             raise ValueError('A corpus graph import/mapping/reset remains blocked')
         parse_graph(row['graph_stdout'], sources[row['case_id'], row['arm']])
+    if result.get('recovery'):
+        from .recover_cpu import validate_recovery
+        validate_recovery(result, evidence_root)
 
 
 def check(config):
@@ -124,6 +133,8 @@ def check(config):
                                 client.import_code(source, project_name=f'rq1_graph_{case.case_id}_{arm}')
                                 query = client.run(GRAPH_QUERY)
                                 record['graph_stdout'] = query.stdout
+                                record['graph_query'] = GRAPH_QUERY
+                                record['graph_query_success'] = query.success
                                 if not query.success:
                                     raise ValueError('Graph structural query failed')
                                 record.update(parse_graph(query.stdout, source))
@@ -139,6 +150,8 @@ def check(config):
                         record['traceback'] = traceback.format_exc()
                     result['corpus_graphs'].append(record)
                     write_json(destination, result)
+                    if record['status'] != 'ok':
+                        raise ValueError('Corpus apparatus check failed; saved the first failure instead of repeating it across all inputs')
         validate_receipt(result)
         result['ready'] = True
     except Exception as exc:  # noqa: BLE001 - retain full diagnostic, never manufacture readiness

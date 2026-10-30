@@ -1,4 +1,4 @@
-# Evaluated implementation: rq1-v4
+# Evaluated implementation: rq1-v5
 
 This is a bounded audit of the configuration described here. It uses the original pretrained Q weights and a released prompt, with an adapted selector and renderer. It is not a bit-for-bit reproduction of every QCRI runtime component. This decision was made before any real Q outputs or experiment excerpts were inspected.
 
@@ -17,10 +17,12 @@ This is a bounded audit of the configuration described here. It uses the origina
 
 The renderer is a lexical implementation for the enrolled Juliet C subset, not a general C/C++ parser. It does not add unseen declarations or values merely because they would help explain a flaw. It deliberately restores enclosing guards, because omitted control headers could misrepresent the visible mechanism. The CPU conformance check must exercise the complete selector on local and interprocedural/macro fixtures, retain the guard, and structurally import/map/reset all 30 corpus sources. It does not require main fact coverage. A separate 12-anchor, source-checked stateless grader calibration is required before experimental inference.
 
-The older repository core at `7023ff49fe7b800e8b26bcae52e2fcdafe95fa9b` is lineage only. Its prompt and function-only renderer are superseded. Its token audit and work locks cannot be reused as rq1-v4 evidence. The unchanged source corpus and finite witnesses remain historical preparation evidence; fresh local acceptance confirms them again without deleting prior files.
+The older repository core at `7023ff49fe7b800e8b26bcae52e2fcdafe95fa9b` is lineage only. Its prompt and function-only renderer are superseded. Its token audit and work locks cannot be reused as rq1-v5 evidence. The unchanged source corpus and finite witnesses remain historical preparation evidence; fresh local acceptance confirms them again without deleting prior files.
 
 `pipeline_contract.json` records the implementation's file hashes, including acquisition, renderer, assessment and reporting code. `verify` rejects drift. The broader run fingerprint also covers the corpus, source references, scripts, requirements and protocol files. Changes after main acquisition require a versioned protocol deviation and consistently rerun affected inputs, retaining earlier records. No output-driven case replacement or selector tuning is allowed.
 
 The v3 assessment contract binds the public rubric and assumptions into every packet ID. Only first excerpt-only grades, conservatively confirmed by source support, enter the primary result. Reference-informed corrections are secondary. Calibration acceptance, exact messages/raw responses and actual assessor model/settings are receipted; no service identity or stateless isolation is fabricated. See [ASSESSMENT.md](ASSESSMENT.md).
 
 The laptop v3 fixture exposed a Scala type error: `Path.elements` widens the sink union to `AstNode`, whereas the pinned data-flow extension requires `CfgNode`. V4 explicitly collects CFG sink nodes before the backward call and retains `cpg.all` as its source argument. It also interprets structured Scala diagnostics on stdout as failed queries even if the WebSocket envelope says success. Raw stdout remains preserved. This compatibility repair precedes all Q acquisition; see the [repair record](../docs/RQ1_JOERN_FIX_2026-10-30.md).
+
+V5 corrects readiness diagnostics to return a bound string instead of relying on `println` in the RPC response. The audited v4 scan can be recovered only with its exact source contract, unchanged scientific core/environment, all 30 source-scoped raw log markers, the original two successful selector fixtures and one fresh diagnostic probe. The derived receipt retains actual historical execution provenance; no new full scan is claimed. See [recovery details](../docs/RQ1_CPU_RECOVERY_2026-10-30.md).

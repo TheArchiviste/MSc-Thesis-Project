@@ -1,0 +1,542 @@
+[
+  {
+    "case_id": "D01",
+    "arm": "F",
+    "project": "rq1_graph_D01_F_43de47651338",
+    "import_path": "/analysis/inputs/llmxcpg_2uvsdg_n/rq1_graph_D01_F.c",
+    "marker": "RQ1_GRAPH=1,1,1,1|15",
+    "method_call_parameter_counts": [
+      1,
+      1,
+      1,
+      1
+    ],
+    "caller_lines": [
+      15
+    ],
+    "source_sha256": "f9069c27cb6081da4a2d67278a3ed358be03fd41e28d8e7f7d891d69f509009c",
+    "server_log_sha256": "fd040beb29fb50d20230cc381e08a4b0d7efbeb1bdb7f6a2a307d29472ac0fd8"
+  },
+  {
+    "case_id": "D01",
+    "arm": "U",
+    "project": "rq1_graph_D01_U_f8478d6ff947",
+    "import_path": "/analysis/inputs/llmxcpg_3pup61n9/rq1_graph_D01_U.c",
+    "marker": "RQ1_GRAPH=1,1,1,1|15",
+    "method_call_parameter_counts": [
+      1,
+      1,
+      1,
+      1
+    ],
+    "caller_lines": [
+      15
+    ],
+    "source_sha256": "d1d18c9c816dafb9e9f5423194e9056e4011693bf051a3aa7e461e593b1efcbf",
+    "server_log_sha256": "eb932d3326d687a93e9d8d530b940bc7d2eaec57b02f8b376961930eea72569b"
+  },
+  {
+    "case_id": "D02",
+    "arm": "F",
+    "project": "rq1_graph_D02_F_0fa7be7547b7",
+    "import_path": "/analysis/inputs/llmxcpg_jwp3pazu/rq1_graph_D02_F.c",
+    "marker": "RQ1_GRAPH=1,1,1,1|43",
+    "method_call_parameter_counts": [
+      1,
+      1,
+      1,
+      1
+    ],
+    "caller_lines": [
+      43
+    ],
+    "source_sha256": "bdb7222f140bee259472f921464d8d2bec742f93b7a2cbfc1e1c3898fa425e03",
+    "server_log_sha256": "48cd14c5376ffde7124f396c5b48c895617a4b53aa6f6a5e44ef0c584f4cca86"
+  },
+  {
+    "case_id": "D02",
+    "arm": "U",
+    "project": "rq1_graph_D02_U_1b6c9db52142",
+    "import_path": "/analysis/inputs/llmxcpg_d3pfey02/rq1_graph_D02_U.c",
+    "marker": "RQ1_GRAPH=1,1,1,1|43",
+    "method_call_parameter_counts": [
+      1,
+      1,
+      1,
+      1
+    ],
+    "caller_lines": [
+      43
+    ],
+    "source_sha256": "3d21363294b6ec6b4a56054bee072aac5a182ccf6361088a9641855f8991ffa3",
+    "server_log_sha256": "b401d6ed19f7d02f6dbb8e0e248ed8f7d1f7e4aff2b9a5e5365e1d53c0aca9b4"
+  },
+  {
+    "case_id": "D03",
+    "arm": "F",
+    "project": "rq1_graph_D03_F_fcafa64f4b25",
+    "import_path": "/analysis/inputs/llmxcpg_59xod2e9/rq1_graph_D03_F.c",
+    "marker": "RQ1_GRAPH=1,1,1,1|21",
+    "method_call_parameter_counts": [
+      1,
+      1,
+      1,
+      1
+    ],
+    "caller_lines": [
+      21
+    ],
+    "source_sha256": "912435c6b9e02ff5f398a3d3cd11e867f126cb8a5be1622539e24186dfd0f529",
+    "server_log_sha256": "31ad380da9517bf9c52197a2e2b0ede68ecec67a156609992264e633f53454b4"
+  },
+  {
+    "case_id": "D03",
+    "arm": "U",
+    "project": "rq1_graph_D03_U_faa19643cf88",
+    "import_path": "/analysis/inputs/llmxcpg_9n17z28u/rq1_graph_D03_U.c",
+    "marker": "RQ1_GRAPH=1,1,1,1|21",
+    "method_call_parameter_counts": [
+      1,
+      1,
+      1,
+      1
+    ],
+    "caller_lines": [
+      21
+    ],
+    "source_sha256": "7ff0e736f6f56aedbba84c0768cbfb1b250743312628628a67ef6b28dc54ed02",
+    "server_log_sha256": "25996278e57994f52fc21abe5072300048dc8f001258d1062cd736b809e997a1"
+  },
+  {
+    "case_id": "R02",
+    "arm": "F",
+    "project": "rq1_graph_R02_F_e7bce095948f",
+    "import_path": "/analysis/inputs/llmxcpg_4r2ur35h/rq1_graph_R02_F.c",
+    "marker": "RQ1_GRAPH=1,1,1,1|20",
+    "method_call_parameter_counts": [
+      1,
+      1,
+      1,
+      1
+    ],
+    "caller_lines": [
+      20
+    ],
+    "source_sha256": "1821cc7328aa71e0abaeaf0a83ea7ba2ecf23214e3ba35bfd2e728f6a4070b5c",
+    "server_log_sha256": "c4ff0a636ec11790c2e1f580f4d6ab4154443c8257c35df08eb046203d45a3b1"
+  },
+  {
+    "case_id": "R02",
+    "arm": "U",
+    "project": "rq1_graph_R02_U_6157e53ebfcc",
+    "import_path": "/analysis/inputs/llmxcpg_p9kb_et0/rq1_graph_R02_U.c",
+    "marker": "RQ1_GRAPH=1,1,1,1|20",
+    "method_call_parameter_counts": [
+      1,
+      1,
+      1,
+      1
+    ],
+    "caller_lines": [
+      20
+    ],
+    "source_sha256": "a7817601412c8f387d8fa879197926a291861c98b35c71545b42c22e804fab34",
+    "server_log_sha256": "6671a537880a7e948fee4b67cf680b54ee61db55a1252ba6f0c049246188d7aa"
+  },
+  {
+    "case_id": "R03",
+    "arm": "F",
+    "project": "rq1_graph_R03_F_e24f68b906b5",
+    "import_path": "/analysis/inputs/llmxcpg_giydq8hp/rq1_graph_R03_F.c",
+    "marker": "RQ1_GRAPH=1,1,1,1|25",
+    "method_call_parameter_counts": [
+      1,
+      1,
+      1,
+      1
+    ],
+    "caller_lines": [
+      25
+    ],
+    "source_sha256": "3285001fcb3b5504a14c3a065bb7f113a1a4d83c9f9320b91054dacf8d6e2cb2",
+    "server_log_sha256": "1270b8636ec305ab288c595e158725fc1923394cfd6ba830b21eb1fe76e27105"
+  },
+  {
+    "case_id": "R03",
+    "arm": "U",
+    "project": "rq1_graph_R03_U_f359b89cb799",
+    "import_path": "/analysis/inputs/llmxcpg_9_wn279i/rq1_graph_R03_U.c",
+    "marker": "RQ1_GRAPH=1,1,1,1|25",
+    "method_call_parameter_counts": [
+      1,
+      1,
+      1,
+      1
+    ],
+    "caller_lines": [
+      25
+    ],
+    "source_sha256": "b86b26112b87f1a0091de427230e6741c35b543f3c34af2138f76f7cbadd1792",
+    "server_log_sha256": "a90286abe5cc6d3077f571c0a79a1dc484803ad460ed1d419ed8b18b93f5cd93"
+  },
+  {
+    "case_id": "R04",
+    "arm": "F",
+    "project": "rq1_graph_R04_F_279d265b9382",
+    "import_path": "/analysis/inputs/llmxcpg_tqeskjx5/rq1_graph_R04_F.c",
+    "marker": "RQ1_GRAPH=1,1,1,1|18",
+    "method_call_parameter_counts": [
+      1,
+      1,
+      1,
+      1
+    ],
+    "caller_lines": [
+      18
+    ],
+    "source_sha256": "e6e433475d30b01380be1553034ce9f84e400607f55c80c49d97ec534523156d",
+    "server_log_sha256": "020173f3eeacd6d0d6be25c7f1e33af76f89f6d4ba30149052ead9a21bbfe7dd"
+  },
+  {
+    "case_id": "R04",
+    "arm": "U",
+    "project": "rq1_graph_R04_U_9569b6cb6c58",
+    "import_path": "/analysis/inputs/llmxcpg_pu3gxpyq/rq1_graph_R04_U.c",
+    "marker": "RQ1_GRAPH=1,1,1,1|18",
+    "method_call_parameter_counts": [
+      1,
+      1,
+      1,
+      1
+    ],
+    "caller_lines": [
+      18
+    ],
+    "source_sha256": "643439e0f4610c0d505ee377c70e7a009e690d9a2e6c9be72c092d16297312c1",
+    "server_log_sha256": "27e5c97cbb09306150bee7e9443862372aa3aedf17110074d5ce8b51fc1df1a3"
+  },
+  {
+    "case_id": "R05",
+    "arm": "F",
+    "project": "rq1_graph_R05_F_c8a05d543af5",
+    "import_path": "/analysis/inputs/llmxcpg_wafbvl0d/rq1_graph_R05_F.c",
+    "marker": "RQ1_GRAPH=1,1,1,1|20",
+    "method_call_parameter_counts": [
+      1,
+      1,
+      1,
+      1
+    ],
+    "caller_lines": [
+      20
+    ],
+    "source_sha256": "5725409befe84fdcbe4973b4d0913c26d572394b00016f6f456cea70ce23f886",
+    "server_log_sha256": "fa9950cf833f7c3f11aa2e98df56a7fd9c5914cd989757d57efb05e604d33067"
+  },
+  {
+    "case_id": "R05",
+    "arm": "U",
+    "project": "rq1_graph_R05_U_d48d1733b3fe",
+    "import_path": "/analysis/inputs/llmxcpg_in538x5x/rq1_graph_R05_U.c",
+    "marker": "RQ1_GRAPH=1,1,1,1|20",
+    "method_call_parameter_counts": [
+      1,
+      1,
+      1,
+      1
+    ],
+    "caller_lines": [
+      20
+    ],
+    "source_sha256": "d52136af0209e2b859eb9403f083a4f9206e7db172035c72f4a9aac87e8250df",
+    "server_log_sha256": "4f41e3e35bd1c6d1a69ab3cdd12010c6128dda38c40fff44c2250f08986ba840"
+  },
+  {
+    "case_id": "R06",
+    "arm": "F",
+    "project": "rq1_graph_R06_F_a242524a1999",
+    "import_path": "/analysis/inputs/llmxcpg_e684vsf1/rq1_graph_R06_F.c",
+    "marker": "RQ1_GRAPH=1,1,1,1|20",
+    "method_call_parameter_counts": [
+      1,
+      1,
+      1,
+      1
+    ],
+    "caller_lines": [
+      20
+    ],
+    "source_sha256": "8b4b06d46c8f868d1a98fe95b7efb1059ba2004dc92c757416dfabe145474377",
+    "server_log_sha256": "f5f9b862016938d0a8f97972606b73ebbd2985111f26e6696c311c5221426e1b"
+  },
+  {
+    "case_id": "R06",
+    "arm": "U",
+    "project": "rq1_graph_R06_U_43f5a22b0c6e",
+    "import_path": "/analysis/inputs/llmxcpg_amrtcp21/rq1_graph_R06_U.c",
+    "marker": "RQ1_GRAPH=1,1,1,1|20",
+    "method_call_parameter_counts": [
+      1,
+      1,
+      1,
+      1
+    ],
+    "caller_lines": [
+      20
+    ],
+    "source_sha256": "d2f25152ba3c39de6ab760f9995a21080f9603222ec33406292286255d427481",
+    "server_log_sha256": "22b4648c5403c014797f90de57563335d8d6667171823cf40512b80c7f2504df"
+  },
+  {
+    "case_id": "R07",
+    "arm": "F",
+    "project": "rq1_graph_R07_F_9d5c06e34447",
+    "import_path": "/analysis/inputs/llmxcpg_mtozjkza/rq1_graph_R07_F.c",
+    "marker": "RQ1_GRAPH=1,1,1,1|21",
+    "method_call_parameter_counts": [
+      1,
+      1,
+      1,
+      1
+    ],
+    "caller_lines": [
+      21
+    ],
+    "source_sha256": "98dfaa06edbdebe39ab0438f6b2c2fe2fe66ca7e6b290eca2094dbcd9251bef5",
+    "server_log_sha256": "906c26fe642f58f9948649cc6f2261efd7771b8f58325599eac664df3297b632"
+  },
+  {
+    "case_id": "R07",
+    "arm": "U",
+    "project": "rq1_graph_R07_U_ebbde023e2d0",
+    "import_path": "/analysis/inputs/llmxcpg_bd57m7sx/rq1_graph_R07_U.c",
+    "marker": "RQ1_GRAPH=1,1,1,1|21",
+    "method_call_parameter_counts": [
+      1,
+      1,
+      1,
+      1
+    ],
+    "caller_lines": [
+      21
+    ],
+    "source_sha256": "55c3930a6352c4ea0a56eb642b4b9ecf97416f4988b22877742724abd0e7690b",
+    "server_log_sha256": "3489d56ea77435584a739f0b41d5bffef1abe48e8d2fc0ba47acbd89a4084c36"
+  },
+  {
+    "case_id": "R08",
+    "arm": "F",
+    "project": "rq1_graph_R08_F_aa4ae1c192da",
+    "import_path": "/analysis/inputs/llmxcpg_k_zoshbm/rq1_graph_R08_F.c",
+    "marker": "RQ1_GRAPH=1,1,1,1|23",
+    "method_call_parameter_counts": [
+      1,
+      1,
+      1,
+      1
+    ],
+    "caller_lines": [
+      23
+    ],
+    "source_sha256": "beec3622e34a620e85300695613f11b6ab4ce9593e156edef3a4ef5d1d34f209",
+    "server_log_sha256": "c109d4b03428003dc14289c3be396990ce1a5d444c8167c8326e7967aa602963"
+  },
+  {
+    "case_id": "R08",
+    "arm": "U",
+    "project": "rq1_graph_R08_U_a5cb2396e9c2",
+    "import_path": "/analysis/inputs/llmxcpg_h3st3ql5/rq1_graph_R08_U.c",
+    "marker": "RQ1_GRAPH=1,1,1,1|23",
+    "method_call_parameter_counts": [
+      1,
+      1,
+      1,
+      1
+    ],
+    "caller_lines": [
+      23
+    ],
+    "source_sha256": "32edaf3d6c60a55cba572530880ddf2169d78710146b565a4c818370d59c077f",
+    "server_log_sha256": "0de67e8bd38b32774050c52e808165d2839193fd3d36f4989dc798a454c9501f"
+  },
+  {
+    "case_id": "R09",
+    "arm": "F",
+    "project": "rq1_graph_R09_F_73af7c221a1f",
+    "import_path": "/analysis/inputs/llmxcpg_enxoew_9/rq1_graph_R09_F.c",
+    "marker": "RQ1_GRAPH=1,1,1,1|19",
+    "method_call_parameter_counts": [
+      1,
+      1,
+      1,
+      1
+    ],
+    "caller_lines": [
+      19
+    ],
+    "source_sha256": "4b4c936abeed80cb3e0f18f1b759122a58b4ec0e0ddcaebaa1112c44616b924e",
+    "server_log_sha256": "7e526ede35fd8d53f55eac9cbc5564d0266d7ea88563c69055da5b2ddbcc1ee3"
+  },
+  {
+    "case_id": "R09",
+    "arm": "U",
+    "project": "rq1_graph_R09_U_09dab9f8f6a4",
+    "import_path": "/analysis/inputs/llmxcpg_rcry3m1a/rq1_graph_R09_U.c",
+    "marker": "RQ1_GRAPH=1,1,1,1|19",
+    "method_call_parameter_counts": [
+      1,
+      1,
+      1,
+      1
+    ],
+    "caller_lines": [
+      19
+    ],
+    "source_sha256": "5355c1e3fb83062174faf23bca77182948cf55b115452db654d3e39367b7cbb3",
+    "server_log_sha256": "c3b511ed75ed58bfb51b081ea739b20a3a5660328e45f35425325e9bd147f9fa"
+  },
+  {
+    "case_id": "R10",
+    "arm": "F",
+    "project": "rq1_graph_R10_F_bd71aa7d6885",
+    "import_path": "/analysis/inputs/llmxcpg_kqpmyjvh/rq1_graph_R10_F.c",
+    "marker": "RQ1_GRAPH=1,1,1,1|25",
+    "method_call_parameter_counts": [
+      1,
+      1,
+      1,
+      1
+    ],
+    "caller_lines": [
+      25
+    ],
+    "source_sha256": "54323afacc337b39b08b37a98cd03189e7a374fecddde6d432cf5c61ca2602ba",
+    "server_log_sha256": "4acaa55ab50586a0b7564ab2feaebc3db091f6910866f342ccd8b8af2c8ff387"
+  },
+  {
+    "case_id": "R10",
+    "arm": "U",
+    "project": "rq1_graph_R10_U_5cbcd669bde5",
+    "import_path": "/analysis/inputs/llmxcpg_auk1bdb6/rq1_graph_R10_U.c",
+    "marker": "RQ1_GRAPH=1,1,1,1|25",
+    "method_call_parameter_counts": [
+      1,
+      1,
+      1,
+      1
+    ],
+    "caller_lines": [
+      25
+    ],
+    "source_sha256": "7aa599e51a5e094fa4153f269cd8130e368e2fd024f3b6db51f471bc4c23f711",
+    "server_log_sha256": "deef526042e190cd9051bf94448722f6635ffe9a07bc67de32155e9b573b2d40"
+  },
+  {
+    "case_id": "R12",
+    "arm": "F",
+    "project": "rq1_graph_R12_F_229530e399c6",
+    "import_path": "/analysis/inputs/llmxcpg_8s1i2z_6/rq1_graph_R12_F.c",
+    "marker": "RQ1_GRAPH=1,1,1,1|19",
+    "method_call_parameter_counts": [
+      1,
+      1,
+      1,
+      1
+    ],
+    "caller_lines": [
+      19
+    ],
+    "source_sha256": "fbc86a4b8dc98881747595a553dfb020d4c50276cba317ec3a472908b0fb7a79",
+    "server_log_sha256": "e4df8327d2128436c3f59276583ebe188bacbba42053b7745813419b0f3e3d43"
+  },
+  {
+    "case_id": "R12",
+    "arm": "U",
+    "project": "rq1_graph_R12_U_2b23f8e9e895",
+    "import_path": "/analysis/inputs/llmxcpg_wt1v2gqx/rq1_graph_R12_U.c",
+    "marker": "RQ1_GRAPH=1,1,1,1|19",
+    "method_call_parameter_counts": [
+      1,
+      1,
+      1,
+      1
+    ],
+    "caller_lines": [
+      19
+    ],
+    "source_sha256": "6b6f764c7c57830011d3c0b19c2f6fe941da92d60804a6affbfd0ecf0ca0772d",
+    "server_log_sha256": "b3c638ef007526150b819638efd5e7d36723d099481a6b6fcb61a6f6dc1b82a8"
+  },
+  {
+    "case_id": "R13",
+    "arm": "F",
+    "project": "rq1_graph_R13_F_91ab765b0ea2",
+    "import_path": "/analysis/inputs/llmxcpg_4odl_fd4/rq1_graph_R13_F.c",
+    "marker": "RQ1_GRAPH=1,1,1,1|22",
+    "method_call_parameter_counts": [
+      1,
+      1,
+      1,
+      1
+    ],
+    "caller_lines": [
+      22
+    ],
+    "source_sha256": "01d91abd1f610cd6918c3e19c33f841d066a38b82eb4c36d9497ab9ce1135248",
+    "server_log_sha256": "38d16fe5a6a91dcbfc8ab48923e23f72c658762a2595538c9ae2b2083c4dde38"
+  },
+  {
+    "case_id": "R13",
+    "arm": "U",
+    "project": "rq1_graph_R13_U_6640a45fdd06",
+    "import_path": "/analysis/inputs/llmxcpg_m_kf60kv/rq1_graph_R13_U.c",
+    "marker": "RQ1_GRAPH=1,1,1,1|22",
+    "method_call_parameter_counts": [
+      1,
+      1,
+      1,
+      1
+    ],
+    "caller_lines": [
+      22
+    ],
+    "source_sha256": "de73771ba13fb7db99bb24a612c655c404a47024f581d011b4c50f97f3264582",
+    "server_log_sha256": "f977cad7832a6ebb2ca0921b66ef51ac31949205f009bde662262caef21587a9"
+  },
+  {
+    "case_id": "R14",
+    "arm": "F",
+    "project": "rq1_graph_R14_F_79ceeda91580",
+    "import_path": "/analysis/inputs/llmxcpg_nupzh6pt/rq1_graph_R14_F.c",
+    "marker": "RQ1_GRAPH=1,1,1,1|26",
+    "method_call_parameter_counts": [
+      1,
+      1,
+      1,
+      1
+    ],
+    "caller_lines": [
+      26
+    ],
+    "source_sha256": "138f79c6c63dd41999cbadfd8df2e4b38b099d02122272aa9607be4fa809d965",
+    "server_log_sha256": "e7aea78f69524f312f59723b5f36dcbb420419efc8a7259a54d255f11fb92e27"
+  },
+  {
+    "case_id": "R14",
+    "arm": "U",
+    "project": "rq1_graph_R14_U_a43110b37b9d",
+    "import_path": "/analysis/inputs/llmxcpg_xwj25rdl/rq1_graph_R14_U.c",
+    "marker": "RQ1_GRAPH=1,1,1,1|26",
+    "method_call_parameter_counts": [
+      1,
+      1,
+      1,
+      1
+    ],
+    "caller_lines": [
+      26
+    ],
+    "source_sha256": "74970ad1d1510683b7990e3c39f8639f9f822ea2706340241c899922cc11daab",
+    "server_log_sha256": "f1e8189142a3d936bae1f28987fbaea595d1f2544524e49f4d605d6070863887"
+  }
+]

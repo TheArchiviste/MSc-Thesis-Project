@@ -4,8 +4,8 @@ set -euo pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")/.."
 rq1_exports=/mnt/d/Dissertation-RQ1/exports
 [[ -d /mnt/d ]] || { echo 'Use D-backed Ubuntu-24.04 WSL.' >&2; exit 1; }
-mkdir -p "$rq1_exports" work/rq1-v4
-rq1_attempt=$(mktemp -d "work/rq1-v4/local-attempt-$(date -u +%Y%m%dT%H%M%SZ)-XXXXXX")
+mkdir -p "$rq1_exports" work/rq1-v5
+rq1_attempt=$(mktemp -d "work/rq1-v5/local-attempt-$(date -u +%Y%m%dT%H%M%SZ)-XXXXXX")
 exec > >(tee "$rq1_attempt/command.log") 2>&1
 rq1_finish() {
     rq1_exit=$?
@@ -24,7 +24,7 @@ attempt, code, exports = Path(sys.argv[1]), int(sys.argv[2]), Path(sys.argv[3])
     'meaning': 'CPU technical readiness only; assessor calibration remains pending. No generated queries or evidence-adequacy results.'}, indent=2)+'\n')
 # Collect the exact new inputs and diagnostics; historical work/rq1 files are preserved.
 for rel in ('config.json', 'token-audit.json', 'joern-capability', 'local-doctor', 'development', 'main', 'calibration'):
-    source = Path('work/rq1-v4') / rel
+    source = Path('work/rq1-v5') / rel
     target = attempt / 'inputs' / rel
     target.parent.mkdir(parents=True, exist_ok=True)
     if source.is_dir(): shutil.copytree(source, target)
@@ -35,6 +35,15 @@ PY
     exit "$rq1_exit"
 }
 trap rq1_finish EXIT
-bash rq1/local_prepare.sh
-bash rq1/local_joern.sh
+if [[ "${1:-}" == "--recover-v4" ]]; then
+    export HF_HOME=/mnt/d/Dissertation-RQ1/huggingface
+    [[ -x .venv/bin/python ]] || { echo 'The existing v4 CPU environment is required.' >&2; exit 1; }
+    .venv/bin/python -m rq1.recover_cpu
+elif [[ $# -eq 0 ]]; then
+    bash rq1/local_prepare.sh
+    bash rq1/local_joern.sh
+else
+    echo 'Usage: bash rq1/local_acceptance.sh [--recover-v4]' >&2
+    exit 2
+fi
 printf '%s\n' 'RQ1_LOCAL_CPU_CHECKPOINT_OK: assessor calibration is the next checkpoint; pause here and return the ZIP before any cloud work.'

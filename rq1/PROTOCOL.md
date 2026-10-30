@@ -1,6 +1,6 @@
 # RQ1 baseline evidence protocol
 
-Implementation **rq1-v4**, revised 30 October 2026. This repairs the v3 Joern adapter before any Q outputs; the v3 scientific measurement rules are retained. It explicitly narrows backward-slice sinks to CFG nodes and recognizes compiler errors printed on stdout. Earlier outputs are preserved. No RQ2/RQ3 experiment is included.
+Implementation **rq1-v5**, revised 30 October 2026. This retains the v4 selector/client repairs and corrects diagnostic return capture. Its bounded recovery route verifies all 30 existing v4 graph outputs from their exact source-scoped Docker logs, retains both actual selector fixtures, and requires one fresh diagnostic-return probe. The evaluated scientific core and grading rules are unchanged. Earlier outputs are preserved. No RQ2/RQ3 experiment is included.
 
 The 5 October literature review states RQ1: “How well do selected slices from original programs represent externally supported mechanism elements and their context, and when do they supply enough information for an independent, justified vulnerability assessment?”
 

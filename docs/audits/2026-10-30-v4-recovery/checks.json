@@ -1,0 +1,19 @@
+{
+  "source_archive": "local-attempt-20261030T131526Z-WiXdr2.zip",
+  "archive_sha256": "1159523b05a5bdbef8d41f82788a8daf37861b5d3c30a8120506782afb425d3d",
+  "source_implementation": "rq1-v4",
+  "current_implementation": "rq1-v5",
+  "actual_full_selector_fixtures_passed": 2,
+  "verified_source_inputs": 30,
+  "verified_token_prompts": 30,
+  "graph_markers_verified_from_latest_matching_Docker_import": 30,
+  "new_live_diagnostic_probe": "pending_on_laptop",
+  "actual_Q_runs": 0,
+  "actual_excerpt_grades": 0,
+  "software_tests_passed": 156,
+  "ci": "pending",
+  "ruff": "passed",
+  "compileall": "passed",
+  "shell_syntax": "passed",
+  "meaning": "Real v4 graph results were located in Docker stdout. Software tests of safe recovery are simulations; no live v5 probe has been substituted."
+}

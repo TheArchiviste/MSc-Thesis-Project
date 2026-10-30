@@ -1,3 +1,5 @@
+> Historical v4 type/client repair. Both repaired selector fixtures subsequently passed. Current diagnostics and the verified recovery route are documented in [the v5 recovery record](RQ1_CPU_RECOVERY_2026-10-30.md).
+
 # Joern compatibility repair — rq1-v4
 
 The returned laptop archive `local-attempt-20261030T130250Z-b0Nzl9.zip` reports a failed v3 CPU apparatus checkpoint. Its code/corpus hashes match the published v3 contract. All 15 witness pairs (30 U/F sources) passed with matching source/witness hashes, all 30 tokenizer records fit, and 12 calibration packets were prepared without grading.

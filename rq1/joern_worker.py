@@ -40,6 +40,7 @@ def _fresh_worker(cfg, work):
     config = work / "worker-config.json"
     write_json(config, cfg)
     compose = ["docker", "compose", "-f", str(ROOT / "rq1/compose.yml")]
+    started_at = None
     try:
         with (work / "worker.log").open("a") as log:
             for args in (compose + ["up", "-d"], compose + ["restart", "joern"]):
@@ -47,6 +48,11 @@ def _fresh_worker(cfg, work):
             subprocess.run([sys.executable, "-m", "rq1.joern_readiness", "--config", str(config),
                             "--output", str(work / "startup.json")], cwd=ROOT, stdout=log,
                            stderr=log, check=True, timeout=330)
+        started_at = subprocess.run(
+            ["docker", "inspect", "llmxcpg_joern", "--format", "{{.State.StartedAt}}"],
+            capture_output=True, text=True, check=True, timeout=30).stdout.strip()
+        write_json(work / "worker.json", {"container_started_at": started_at,
+                                         "server_log_scope": "current container restart"})
         if inspected_digest() != cfg["joern_digest"]:
             raise ValueError("The running Joern image differs from the configured digest")
         inner = JoernClient(host=cfg["joern_host"], port=cfg["joern_port"],
@@ -59,7 +65,8 @@ def _fresh_worker(cfg, work):
         # Capture failed startup as well as successful runs. Never replace the primary error.
         try:
             with (work / "server.log").open("w") as log:
-                subprocess.run(["docker", "logs", "--timestamps", "llmxcpg_joern"],
+                subprocess.run(["docker", "logs", "--timestamps",
+                                *(["--since", started_at] if started_at else []), "llmxcpg_joern"],
                                stdout=log, stderr=subprocess.STDOUT, timeout=30, check=False)
         except (OSError, subprocess.TimeoutExpired):
             pass

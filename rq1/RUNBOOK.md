@@ -1,6 +1,6 @@
 # RQ1 execution checkpoints
 
-Use clean `main` and fresh `work/rq1-v4`. Preserve all earlier work. Execute **only the current checkpoint**, return its output, and pause. The assistant performs the delegated source/proof judgments and explains them. Empty forms and software simulations are never experiment results.
+Use clean `main` and fresh `work/rq1-v5`. Preserve all earlier work. Execute **only the current checkpoint**, return its output, and pause. The assistant performs the delegated source/proof judgments and explains them. Empty forms and software simulations are never experiment results.
 
 ## 1. Laptop CPU checkpoint — run now
 
@@ -12,10 +12,12 @@ cd ~/projects/MSc-Thesis-Project
 git fetch origin
 git switch main
 git pull --ff-only origin main
-bash rq1/local_acceptance.sh
+bash rq1/local_acceptance.sh --recover-v4
 ```
 
-Expected: `RQ1_LOCAL_CPU_CHECKPOINT_OK`, 30 passing source witnesses, 12 **ungraded** calibration tasks, 30 tokenizer records, full selector fixtures and 30 structural Joern graph records. `readiness.json` distinguishes **technical_ready** from **ready**: full experiment readiness remains false while assessor calibration is pending. The script stops Docker and always creates a diagnostic ZIP in `D:\Dissertation-RQ1\exports`, including failures. CPU graph import can take several minutes; it prints progress. Return the ZIP and pause. No Q weights, experiment queries, grader calls or cloud resources are used.
+For this already completed v4 scan, the recovery route validates its exact code/source/environment and all 30 Docker-side graph results, retains both real full-selector fixtures, and runs one fresh diagnostic-return probe. Original logs and witnesses are retained in the derived v5 receipt. It does not repeat the full corpus scan. Fresh installations use the same command without `--recover-v4`. See [recovery details](../docs/RQ1_CPU_RECOVERY_2026-10-30.md).
+
+Expected: `RQ1_CPU_RECOVERY_OK`, `RQ1_LOCAL_CPU_CHECKPOINT_OK`, 30 passing source witnesses, 12 **ungraded** calibration tasks, 30 tokenizer records, full selector fixtures and 30 structural Joern graph records. `readiness.json` distinguishes **technical_ready** from **ready**: full experiment readiness remains false while assessor calibration is pending. The script stops Docker and always creates a diagnostic ZIP in `D:\Dissertation-RQ1\exports`, including failures. CPU graph import can take several minutes; it prints progress. Return the ZIP and pause. No Q weights, experiment queries, grader calls or cloud resources are used.
 
 Hugging Face files and exports explicitly use D:. The project/virtual environment are on the previously verified D-backed WSL disk. See [D_DRIVE_SETUP.md](D_DRIVE_SETUP.md).
 
@@ -27,14 +29,14 @@ This is evidence-assessor calibration, not detector calibration. Neither D nor a
 
 ## 3. GPU transfer and doctor — after calibration acceptance
 
-Package current `work/rq1-v4/config.json`, `token-audit.json`, the full `calibration` directory including response provenance, `joern-capability/readiness.json`, and development/main witness records. Include SHA256. Exact packaging/SCP commands will use the accepted files and current console IP. The previous uploaded archive is historical. Never transfer SSH private keys or API secrets. Archive paths remain relative to the repo; credentials/profile are not required by Q.
+Package current `work/rq1-v5/config.json`, `token-audit.json`, the full `calibration` directory including response provenance, the entire `joern-capability` directory (including recovery proofs and probe logs), and development/main witness records. Include SHA256. Exact packaging/SCP commands will use the accepted files and current console IP. The previous uploaded archive is historical. Never transfer SSH private keys or API secrets. Archive paths remain relative to the repo; credentials/profile are not required by Q.
 
 Start the H100 only at this checkpoint. Update `~/rq1-project` to current clean `main`, install the pinned GPU environment, verify the input archive checksum, extract it preserving paths, and run:
 
 ```bash
 set -euo pipefail
 .venv-q/bin/python -m rq1.setup verify
-.venv-q/bin/python -m rq1.setup doctor --profile gpu --work work/rq1-v4/gpu-doctor
+.venv-q/bin/python -m rq1.setup doctor --profile gpu --work work/rq1-v5/gpu-doctor
 ```
 
 Return the doctor output and pause **before Q weights are downloaded/loaded**. The CPU Joern receipt is transferred; Docker is not needed on the Q host. See [Nebius handoff](../docs/NEBIUS_RQ1_GUIDE.md).
@@ -45,7 +47,7 @@ Inside tmux on the VM:
 
 ```bash
 set -euo pipefail
-.venv-q/bin/python -m evidence_experiment query --split development 2>&1 | tee work/rq1-v4/development/query-command.log
+.venv-q/bin/python -m evidence_experiment query --split development 2>&1 | tee work/rq1-v5/development/query-command.log
 .venv-q/bin/python -m rq1.setup status --split development
 ```
 
@@ -84,7 +86,7 @@ Transfer the accepted freeze and current inputs, preserve the development Q envi
 
 ```bash
 set -euo pipefail
-.venv-q/bin/python -m evidence_experiment query --split main 2>&1 | tee work/rq1-v4/main/query-command.log
+.venv-q/bin/python -m evidence_experiment query --split main 2>&1 | tee work/rq1-v5/main/query-command.log
 .venv-q/bin/python -m rq1.setup status --split main
 ```
 
