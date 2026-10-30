@@ -1,0 +1,20 @@
+{
+  "Q_host_inspection_completed": false,
+  "confirmation_basis": "Two user-provided terminal screenshots show accepted=true, n=20, and both cohorts passed=true after installation.",
+  "local_calibration_receipt_confirmed": true,
+  "new_Q_generations": 0,
+  "new_experiment_slices": 0,
+  "screenshot_filenames": [
+    "image(20261030-212539).png",
+    "image(20261030-212558).png"
+  ],
+  "validation": {
+    "bash_syntax": "passed",
+    "existing_acquisition_freeze": "unchanged_and_valid",
+    "existing_assessor_acceptance": "unchanged_and_valid",
+    "three_embedded_Python_blocks_compile": "passed"
+  },
+  "wrapper": "ops/rq1_q_vm_inspect.sh",
+  "wrapper_limit": "Inspects existing host and transfers accepted CPU proof files. No dependency installation, model download/load, inference or power-state control. Live SSH execution is pending on the user laptop.",
+  "wrapper_sha256": "62001b0447e1d4d69bf068018af22589872ae02054b9b23ff476d28af22eccbf"
+}

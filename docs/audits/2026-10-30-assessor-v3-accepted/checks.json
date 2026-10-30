@@ -43,6 +43,5 @@
   "source_archive_sha256": "618921067de09920f3d03583575243b87d7c463deddb1511069b1309bd53cf31",
   "source_audit_sha256": "797564ae9244a4eda2138d068f59213ae0bee804fa1d5ad80545a6e12b8c047d",
   "strict_imports": 20,
-  "supported_source_proofs": 20,
-  "user_reported_starting_API_credit_balance_usd": 91
+  "supported_source_proofs": 20
 }

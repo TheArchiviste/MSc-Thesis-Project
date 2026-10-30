@@ -56,7 +56,7 @@ Return only the printed summary. Keep the transfer archive on D: for the later m
 
 ## 3. Assessor calibration — accepted; install the receipt
 
-The user reported $91 available before the declared attempt. It acquired and strictly imported twenty real responses from 21:01:19 to 21:09:17 UTC. All twenty labels and subsequent source-proof audits pass, with development 12/12 and held-out 8/8 separately reported. [Detailed audit and limits](../docs/RQ1_ASSESSOR_V3_RESULT_2026-10-30.md). No repeat paid command is needed.
+API funding was checked privately before the declared attempt. It acquired and strictly imported twenty real responses from 21:01:19 to 21:09:17 UTC. All twenty labels and subsequent source-proof audits pass, with development 12/12 and held-out 8/8 separately reported. [Detailed audit and limits](../docs/RQ1_ASSESSOR_V3_RESULT_2026-10-30.md). No repeat paid command is needed.
 
 On the existing laptop, install only the three new audit/acceptance files. The original requests, bank, profile and raw responses stay in place. Any conflicting existing audit file is preserved and blocks this command; the final status check verifies every bound artifact:
 
@@ -89,7 +89,22 @@ After access and funding are checked, use the provided exact command for `ops.rq
 
 ## 4. Sealed development acquisition — next: Q-host technical inspection
 
-The exact Q-input bundle is accepted and the assessor has passed. Prepare the separate VM inspection from checkpoint 2 using the current Nebius console IP/status and current resource estimate/balance. Keep the VM stopped while preparing the exact transfer command. Retain its existing packages and cached weights. No original Q load is authorized by an assessor acceptance file alone; return the GPU-host inspection before the query command below.
+The exact Q-input bundle is accepted, the assessor has passed, and the user returned screenshots confirming its local acceptance receipt verifies (`accepted: true`, `n: 20`, both cohorts pass). Keep the current VM address and account balance private. The Nebius resource estimate and balance are checked in its console separately from API credits.
+
+Start the existing H100 in Nebius only for this technical checkpoint and wait for Running. Check the current console address; if it has changed, use that address in the command. On the existing laptop's Ubuntu terminal:
+
+```bash
+set -euo pipefail
+cd ~/projects/MSc-Thesis-Project
+git pull --ff-only origin main
+bash ops/rq1_q_vm_inspect.sh CURRENT_VM_PUBLIC_IP
+```
+
+This wrapper checks the exact accepted archive/checksum locally and remotely, transfers it using the existing `~/.ssh/nebius_rq1` key, updates the existing VM checkout, preserves any conflicting v7 inputs, and invokes only `ops.rq1_q_handoff inspect` in the existing `.venv-q`. It retains installed packages and cached weights. It checks the GPU, disk headroom, source contracts, tokenizer audit and CPU capability proofs without loading original Q or sending an assessor request. Available receipts and logs are returned even when inspection blocks; no input or model retry is performed.
+
+After it returns, **Stop the VM in the Nebius console and verify Stopped**, then return `rq1-q-vm-inspection-*.zip` from **D:\Dissertation-RQ1\exports**. If it errors before an export is created, return the error and stop the VM. The wrapper does not control the console's VM power state. Return the GPU-host inspection before the query command below.
+
+The Q host intentionally has no assessor calibration directory: its doctor's `ready: false` may reflect that absent assessment receipt. For this separated checkpoint, the required result is technical readiness, including the top-level `q-vm-inspection.json`. Calibration stays on the laptop, and its accepted result does not replace the GPU inspection.
 
 Only after the Q host inspection is accepted, run the supplied command for:
 
