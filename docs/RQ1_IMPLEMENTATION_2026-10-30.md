@@ -29,3 +29,5 @@ Software test results and CPU verification are recorded alongside this change be
 - Raw CPU records and the verification environment are retained in [audits/2026-10-30](audits/2026-10-30/).
 - Fresh token counting still requires the laptop checkpoint; the tokenizer download was unavailable in this verification environment. Real full-selector Docker acceptance and Q model loading are also pending. No simulated result substitutes for these gates.
 - CI runs the software suite on Python 3.11 and 3.12. Its final commit status is checked before moving the tested version to main.
+
+Verified remote CI: [run 40978604777](https://github.com/TheArchiviste/MSc-Thesis-Project/actions/runs/40978604777) passed installation, all 99 tests, Ruff and compilation on both Python 3.11 and 3.12 for implementation commit `b0e9c2f233e5a6108ff278bba2df561dee22fa37`. Main was fast-forwarded to the tested implementation; PR #8 was marked merged by GitHub.
