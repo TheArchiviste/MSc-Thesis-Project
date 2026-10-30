@@ -21,7 +21,7 @@ def test_corpus_sources_maps_abi_and_disjoint_blocks():
 
 
 def test_implementation_contract():
-    assert verify_implementation()['implementation_id'] == 'rq1-v5'
+    assert verify_implementation()['implementation_id'] == 'rq1-v6'
 
 
 def test_config_legacy_or_changed_design_rejected(tmp_path, cfg):

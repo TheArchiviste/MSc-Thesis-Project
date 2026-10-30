@@ -226,7 +226,11 @@ def recover(previous, config, *, worker_factory=None):
 
 
 def main():
+    from evidence_experiment.schema import IMPLEMENTATION_ID
+
     from .setup import DEFAULT_CONFIG, ROOT
+    if IMPLEMENTATION_ID != 'rq1-v5':
+        raise SystemExit('Historical v4-to-v5 recovery only. V6 requires a fresh local CPU checkpoint; preserve old receipts.')
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument('--previous', type=Path, default=ROOT / 'work/rq1-v4')
     p.add_argument('--config', type=Path, default=DEFAULT_CONFIG)

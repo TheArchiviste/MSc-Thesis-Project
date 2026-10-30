@@ -1,4 +1,6 @@
-# Evaluated implementation: rq1-v5
+# Evaluated implementation: rq1-v6
+
+V6 follows the failed real twelve-anchor assessor calibration at v5. It versions the public task to rq1-excerpt-v2, makes its output schema explicit and clarifies general sufficiency reasoning. Q, its prompt/settings, C sources, referents, witnesses, selector and renderer are unchanged. Because the sealed content contract includes the changed assessment code and protocol, do not relabel v5 receipts: obtain fresh CPU witnesses/tokenizer/conformance receipts in work/rq1-v6. Preserve the failed v1 responses. The operational runner now distinguishes live workers from dead process entries and preserves acquisition/import errors if cleanup also fails. See [the audit and repair record](../docs/RQ1_ASSESSOR_REPAIR_2026-10-30.md).
 
 This is a bounded audit of the configuration described here. It uses the original pretrained Q weights and a released prompt, with an adapted selector and renderer. It is not a bit-for-bit reproduction of every QCRI runtime component. This decision was made before any real Q outputs or experiment excerpts were inspected.
 
@@ -17,7 +19,7 @@ This is a bounded audit of the configuration described here. It uses the origina
 
 The renderer is a lexical implementation for the enrolled Juliet C subset, not a general C/C++ parser. It does not add unseen declarations or values merely because they would help explain a flaw. It deliberately restores enclosing guards, because omitted control headers could misrepresent the visible mechanism. The CPU conformance check must exercise the complete selector on local and interprocedural/macro fixtures, retain the guard, and structurally import/map/reset all 30 corpus sources. It does not require main fact coverage. A separate 12-anchor, source-checked stateless grader calibration is required before experimental inference.
 
-The older repository core at `7023ff49fe7b800e8b26bcae52e2fcdafe95fa9b` is lineage only. Its prompt and function-only renderer are superseded. Its token audit and work locks cannot be reused as rq1-v5 evidence. The unchanged source corpus and finite witnesses remain historical preparation evidence; fresh local acceptance confirms them again without deleting prior files.
+The older repository core at `7023ff49fe7b800e8b26bcae52e2fcdafe95fa9b` is lineage only. Its prompt and function-only renderer are superseded. Its token audit and work locks cannot be reused as rq1-v6 evidence. The unchanged source corpus and finite witnesses remain historical preparation evidence; fresh local acceptance confirms them again without deleting prior files.
 
 `pipeline_contract.json` records the implementation's file hashes, including acquisition, renderer, assessment and reporting code. `verify` rejects drift. The broader run fingerprint also covers the corpus, source references, scripts, requirements and protocol files. Changes after main acquisition require a versioned protocol deviation and consistently rerun affected inputs, retaining earlier records. No output-driven case replacement or selector tuning is allowed.
 

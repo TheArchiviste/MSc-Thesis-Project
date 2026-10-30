@@ -18,7 +18,7 @@ from evidence_experiment.schema import file_digest, load_cases, read_jsonl, writ
 
 MODEL = 'Qwen/Qwen2.5-32B-Instruct'
 REVISION = '5ede1c97bbab6ce5cda5812749b4c0bdf79b18dd'
-WORK = Path('work/rq1-v5')
+WORK = Path('work/rq1-v6')
 
 
 def plan():

@@ -3,7 +3,7 @@
 set -euo pipefail
 ulimit -c 0
 cd "$(dirname "${BASH_SOURCE[0]}")/.."
-[[ -x .venv/bin/python && -f work/rq1-v5/config.json ]] || { echo 'Run rq1/local_prepare.sh first.' >&2; exit 1; }
+[[ -x .venv/bin/python && -f work/rq1-v6/config.json ]] || { echo 'Run rq1/local_prepare.sh first.' >&2; exit 1; }
 .venv/bin/python -m rq1.setup conformance
-.venv/bin/python -m rq1.setup doctor --profile local --work work/rq1-v5/local-doctor
+.venv/bin/python -m rq1.setup doctor --profile local --work work/rq1-v6/local-doctor
 printf '%s\n' 'RQ1_LOCAL_SELECTOR_OK'

@@ -33,7 +33,8 @@ def test_report_separates_u_f_and_provisional_delayed_work(completed, cases):
     {'assessed_utc': None}, {'assessed_utc': '2020-01-01T00:00:00'},
     {'assessed_utc': '2099-01-01T00:00:00+00:00'}, {'explanation': ''},
     {'cited_lines': [999]}, {'relationships': []}, {'limitations': None},
-    {'adequacy': 'unassessed'}, {'assessment_context': 'reference_informed'},
+    {'adequacy': 'unassessed'}, {'adequacy': 'ADEQUATE'}, {'cited_lines': ['L1']},
+    {'assessment_context': 'reference_informed'},
     {'assessor_identity': {}}, {'premises': []}, {'assumptions_used': ['hidden_source_length']},
 ])
 def test_assessment_identity_time_explanation_and_visible_citations(changes):

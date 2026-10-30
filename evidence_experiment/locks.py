@@ -15,7 +15,7 @@ from .schema import file_digest, index_jsonl, run_specs, write_json
 ROOT = Path(__file__).resolve().parents[1]
 DEPLOYMENT_SETTINGS = {"joern_host", "joern_port", "joern_input_dir", "server_input_dir",
                        "rq1_freeze_file", "rq1_token_audit_file", "joern_capability_file", "rq1_calibration_file"}
-LOCK_VERSION = 5
+LOCK_VERSION = 6
 
 
 def now():

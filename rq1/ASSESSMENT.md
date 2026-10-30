@@ -1,12 +1,14 @@
 # RQ1 assessment procedure
 
+Current public task: **rq1-excerpt-v2**, implementation **rq1-v6**. The first real v1 calibration failed; raw responses are preserved. See [the audit and predeclared repair](../docs/RQ1_ASSESSOR_REPAIR_2026-10-30.md). V2 supplies the explicit schema matching unchanged importer rules: lowercase terminal labels, integer visible citations, cited premises and nonempty relationship explanations for adequate. Do not repair old responses or reuse v1 packets/acceptance as v2 evidence.
+
 The assistant performs the delegated source reasoning and proof audits. No human reviewers are required. The first excerpt grade uses a **separate stateless request**, because an assistant that has already read a referent cannot honestly claim to have forgotten it.
 
 `assessment_protocol.py` contains the public rubric, assumptions and response schema. `judge.py` sends exactly two messages: a fixed system task and one numbered excerpt/claim. There is no conversation history, private reference, arm label, case ID, witness result or sibling excerpt. The same service can still recognize familiar code; stateless requests cannot remove pretraining knowledge. Do not describe this as independent human validation.
 
 ## First checkpoint: prepare, without inference
 
-`rq1/local_acceptance.sh` creates 12 packets under `work/rq1-v5/calibration/public` and the source answer key under `private`. The diagnostic ZIP includes private material for the assistant's source audit. **Never send that whole ZIP, the private key, or the repository to the excerpt grader.** The CPU checkpoint does not contact an assessor endpoint.
+`rq1/local_acceptance.sh` creates 12 packets under `work/rq1-v6/calibration/public` and the source answer key under `private`. The diagnostic ZIP includes private material for the assistant's source audit. **Never send that whole ZIP, the private key, or the repository to the excerpt grader.** The CPU checkpoint does not contact an assessor endpoint.
 
 ## Next checkpoint: configure and calibrate the real assessor
 
@@ -16,13 +18,13 @@ The later commands, after the profile is configured, are:
 
 ```bash
 .venv/bin/python -m rq1.judge run \
-  --profile work/rq1-v5/assessor.json \
-  --requests work/rq1-v5/calibration/public/requests.jsonl \
-  --responses work/rq1-v5/calibration/responses.jsonl
+  --profile work/rq1-v6/assessor.json \
+  --requests work/rq1-v6/calibration/public/requests.jsonl \
+  --responses work/rq1-v6/calibration/responses.jsonl
 .venv/bin/python -m rq1.judge import \
-  --requests work/rq1-v5/calibration/public/requests.jsonl \
-  --responses work/rq1-v5/calibration/responses.jsonl \
-  --output work/rq1-v5/calibration/assessments.initial.jsonl
+  --requests work/rq1-v6/calibration/public/requests.jsonl \
+  --responses work/rq1-v6/calibration/responses.jsonl \
+  --output work/rq1-v6/calibration/assessments.initial.jsonl
 ```
 
 Return raw responses, imported grades and `source_audit.template.jsonl`. The assistant compares each actual response's reasoning against the source answer key, cites visible lines and records a detailed yes/no/uncertain proof audit in `source_audit.jsonl`. An expected label alone cannot pass. Then:

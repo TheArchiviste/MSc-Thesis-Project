@@ -1,0 +1,25 @@
+{
+  "Q_selector_renderer_corpus_referents_witness_plans_unchanged": true,
+  "VM_action": "Keep stopped during fresh CPU acceptance.",
+  "calibration_threshold_unchanged": true,
+  "implementation_id": "rq1-v6",
+  "laptop_v6_CPU_acceptance": "pending",
+  "new_calibration_accepted": false,
+  "new_calibration_responses": 0,
+  "planned_v2_attempts": 1,
+  "predecessor_commit": "6f02208769d2aeee6711dc04f7f3453237576fba",
+  "protocol_id": "rq1-excerpt-v2",
+  "request_token_audit": {
+    "all_fit": true,
+    "complete_requests": 12,
+    "context_limit": 8192,
+    "maximum_prompt_tokens": 3055,
+    "reserved_response_tokens": 3072,
+    "weights_downloaded": false
+  },
+  "software_tests": {
+    "passed": 194,
+    "skip_reason": "Executor exposes host /proc with different PID mapping; real process-group lifecycle test requires matching Linux namespaces and is scheduled in CI.",
+    "skipped": 1
+  }
+}

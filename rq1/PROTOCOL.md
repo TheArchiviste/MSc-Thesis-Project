@@ -1,6 +1,6 @@
 # RQ1 baseline evidence protocol
 
-Implementation **rq1-v5**, revised 30 October 2026. This retains the v4 selector/client repairs and corrects diagnostic return capture. Its bounded recovery route verifies all 30 existing v4 graph outputs from their exact source-scoped Docker logs, retains both actual selector fixtures, and requires one fresh diagnostic-return probe. The evaluated scientific core and grading rules are unchanged. Earlier outputs are preserved. No RQ2/RQ3 experiment is included.
+Implementation **rq1-v6**, revised 30 October 2026 after the first real development-anchor calibration failed. The public assessor task is now **rq1-excerpt-v2**, with an explicit response schema and general clarifications about bounds comparison, input-dependent existence arguments and omitted context. The Q checkpoint, Q prompt, selector, renderer, corpus, referents and acceptance threshold are unchanged. Preserve all v5 requests/responses and the failed audit. V6 uses fresh CPU receipts and a separate work/rq1-v6 directory; historical v4-to-v5 recovery is not used. No RQ2/RQ3 experiment is included.
 
 The 5 October literature review states RQ1: “How well do selected slices from original programs represent externally supported mechanism elements and their context, and when do they supply enough information for an independent, justified vulnerability assessment?”
 
@@ -25,6 +25,8 @@ Public assumptions: Linux LP64 (`char=1`, `int=4`, pointer/long=8 bytes), reacha
 Every U must compile and produce the predeclared ASan class on its finite witness; F must compile, run cleanly on that witness and repair the mechanism by source reasoning. D02 also has a benign witness. Other U paths unconditionally reach the invalid access, so their benign check is not applicable. Retain compiler, flags, inputs, stdout/stderr, exit status, source and witness-plan hashes. Finite tests do not prove all-input safety. Witness-only headers/driver are outside Q/Joern inputs.
 
 ## Instrument calibration and grading
+
+The failed v1 attempt and prompt defects are documented in [the repair record](../docs/RQ1_ASSESSOR_REPAIR_2026-10-30.md). V2 is one predeclared development-only instrument revision using the same pinned assessor and anchor-construction rule, before any Q/main outcomes. Require lowercase verdicts, integer visible citations, cited premises and nonempty relationship explanations for adequate. Missing facts belong in missing_context/limitations rather than fabricated premise rows. No case-specific worked answers, source key, content repair, post-hoc case folding or lowered screen is permitted. If this v2 attempt fails, preserve it and pause for an explicit instrument/design decision; no automatic further prompt/model search is part of this revision. Report this development history and the limits of reusing calibration anchors.
 
 See [ASSESSMENT.md](ASSESSMENT.md) for the exact boundary and commands. Before any Q acquisition, calibrate on **12 dev-only source anchors**: complete U, complete F, reduced sufficient U, and deliberately incomplete views for each of the three development cases. This gives 6 adequate and 6 inadequate anchors. Incomplete anchors omit all U/F-discriminating lines and are byte-identical under either source. Calibration is independent of Q retrieval, so failed F retrieval cannot erase its negative anchors.
 

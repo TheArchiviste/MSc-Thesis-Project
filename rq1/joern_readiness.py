@@ -75,7 +75,7 @@ async def wait_for_protocol(host, port, *, seconds=300, interval=3, attempt_seco
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--config", type=Path, default=Path("work/rq1-v5/config.json"))
+    parser.add_argument("--config", type=Path, default=Path("work/rq1-v6/config.json"))
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()
     cfg = json.loads(args.config.read_text())

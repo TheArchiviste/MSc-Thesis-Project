@@ -78,8 +78,8 @@ def main():
     exports = Path('/mnt/d/Dissertation-RQ1/exports')
     if not exports.is_dir():
         raise SystemExit('Use the D-backed Ubuntu terminal with its existing exports folder')
-    work = ROOT / 'work/rq1-v5/assessor-preflight'
-    profile_path = ROOT / 'work/rq1-v5/assessor.json'
+    work = ROOT / 'work/rq1-v6/assessor-preflight'
+    profile_path = ROOT / 'work/rq1-v6/assessor.json'
     key = getpass.getpass('Nebius Token Factory API key (hidden; not saved): ')
     report = preflight(key, profile_path, work / 'preflight.json')
     key = None

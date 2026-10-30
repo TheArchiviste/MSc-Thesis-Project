@@ -45,7 +45,7 @@ def test_bundle_manifest_and_checksum_are_portable_and_exclude_private_keys(tmp_
     assert verify_manifest(tmp_path) == manifest
     with tarfile.open(archive) as tar:
         names = tar.getnames()
-        assert all(n.startswith('work/rq1-v5/') and '..' not in Path(n).parts for n in names)
+        assert all(n.startswith('work/rq1-v6/') and '..' not in Path(n).parts for n in names)
         assert not any('private' in n or 'answer_key' in n or 'accidental-secret' in n for n in names)
         assert any(n.endswith('calibration/public/requests.jsonl') for n in names)
     checksum = archive.with_suffix('.tgz.sha256').read_text()

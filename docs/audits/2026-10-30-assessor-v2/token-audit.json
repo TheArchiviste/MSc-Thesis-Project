@@ -1,0 +1,92 @@
+{
+  "max_model_len": 8192,
+  "meaning": "CPU tokenizer only; no model weights, responses or grades.",
+  "model": "Qwen/Qwen2.5-32B-Instruct",
+  "records": [
+    {
+      "fits": true,
+      "maximum_response_tokens": 3072,
+      "prompt_tokens": 3008,
+      "request_id": "c9d7fb1336b30b80c80ad0d5e44c1c5dbbd785fee6d0c781baa7845a64c7ead8",
+      "request_sha256": "e09f6e69c608ecd00b43d73b52d212adf2eac5d62017668b0bcdf28e96d6b4ac"
+    },
+    {
+      "fits": true,
+      "maximum_response_tokens": 3072,
+      "prompt_tokens": 2741,
+      "request_id": "334844bdff9b383cc8dac0f55f877ca7b6cf6b9323369327329e6fa93f181ead",
+      "request_sha256": "52f25f79a0be68cb64f59343a34db697e6e0675090b89bc7c68bdb9b7157fa6c"
+    },
+    {
+      "fits": true,
+      "maximum_response_tokens": 3072,
+      "prompt_tokens": 2823,
+      "request_id": "752216a7748410cb4d41146676e1af90bc685128b1a9e8098d69028012c01ca8",
+      "request_sha256": "49ea22dc8fdc70096be0cea940c9a840ddec0c37c7b07ab0cbeff7c4c9b3a0d2"
+    },
+    {
+      "fits": true,
+      "maximum_response_tokens": 3072,
+      "prompt_tokens": 2725,
+      "request_id": "8d0f19849e04b2024733b70f277939f24f90d8ed710139bfd4aee1eb0307b988",
+      "request_sha256": "84e34584acfc61abd1d26b56392141dce76859864087ed50dc9472197937c038"
+    },
+    {
+      "fits": true,
+      "maximum_response_tokens": 3072,
+      "prompt_tokens": 3047,
+      "request_id": "b169fab9f8b3f64060b61b628bcc142337188a24d87e9e93644f5a877a1e81b2",
+      "request_sha256": "df615fc68735d2a7b90bd4db4e39c66d3d5ea20a5fd32bbc7d4cb7dfec4bb05b"
+    },
+    {
+      "fits": true,
+      "maximum_response_tokens": 3072,
+      "prompt_tokens": 2823,
+      "request_id": "d0d00880ddba018f462ff29462fca56eedf46b00261d60e3093c7eecbaf86499",
+      "request_sha256": "738c3a65075317b569e235c0e8f7119e6fa4aee1ed54888ccc8bc6a7b299a2d7"
+    },
+    {
+      "fits": true,
+      "maximum_response_tokens": 3072,
+      "prompt_tokens": 2744,
+      "request_id": "8356610086a261e768026aaf714238568079060f79ccb6c254b609f358d84286",
+      "request_sha256": "9ccb5144b1ff7cba87a5693032a4a959e8cd50e96aa0ad2a821a428a0e89afdc"
+    },
+    {
+      "fits": true,
+      "maximum_response_tokens": 3072,
+      "prompt_tokens": 2988,
+      "request_id": "aa0ceb574f8dd4d25bf205609e3824410780da88cfca71f074e2a08c4983c4c8",
+      "request_sha256": "d408451d3e53e4800ee2a60d16969147fe684495b5938d6f62c466fa7186eb15"
+    },
+    {
+      "fits": true,
+      "maximum_response_tokens": 3072,
+      "prompt_tokens": 3055,
+      "request_id": "fe4e17ef13129cef8bd4ce1a84aa282cf631d10cd94e6ce8ee8f6ed49dbf197f",
+      "request_sha256": "6c91ded28d39ca553f8e0f2c7d50b0c57057859b532bd071982e0edb8f18c21a"
+    },
+    {
+      "fits": true,
+      "maximum_response_tokens": 3072,
+      "prompt_tokens": 2807,
+      "request_id": "1dbe52f42389f552754ea59acac76e4381cd2233db32837b7d306cf83dc2f61e",
+      "request_sha256": "f65bf3c46cd58279c13a8f5cba3320ccef3c605c1d36fc65cc9581b19f391cd7"
+    },
+    {
+      "fits": true,
+      "maximum_response_tokens": 3072,
+      "prompt_tokens": 2720,
+      "request_id": "2127921cd3c2b4e4a8b7ca69cc9f7d2a3a5604fbabb0c40336c4cd5fd306f77b",
+      "request_sha256": "ad27a124ef4318bf418cf071f269c125f693f1bb9e38f10d587a3703507fcc2b"
+    },
+    {
+      "fits": true,
+      "maximum_response_tokens": 3072,
+      "prompt_tokens": 2829,
+      "request_id": "3d59f3ef5c4db9104140289204e1f508716bb54f4c431cba9b9d214ce7be00ff",
+      "request_sha256": "0b3b25ad4a699d93cac1739b3d61be284482f626706b824339430b776b3f5088"
+    }
+  ],
+  "revision": "5ede1c97bbab6ce5cda5812749b4c0bdf79b18dd"
+}

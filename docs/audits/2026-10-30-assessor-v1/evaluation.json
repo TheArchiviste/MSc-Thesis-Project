@@ -1,0 +1,277 @@
+{
+  "accepted": false,
+  "all_export_manifest_hashes_verified": true,
+  "archive": "rq1-assessor-calibration-20261030T150951Z-2433.tgz",
+  "archive_sha256": "39ab2fdbf1beb8692434a0f2ac9fc53ceebf06b41d020400d6deb1077d8a7644",
+  "calibration_requests_sha256": "a813488bdad8406af0b055ed0600b5962f186a4039d2b55be5dcde48ead4fe40",
+  "cleanup_confirmed": false,
+  "cleanup_limitation": "Original log has no process-state snapshot; dead/zombie entries versus live workers cannot be established retrospectively.",
+  "declared_labels_matching_key_diagnostic_only": 5,
+  "diagnostic_rule": "Reading the declared label informally does not repair raw responses or create valid grades. These development anchors are not a population accuracy estimate.",
+  "implementation_id": "rq1-v5",
+  "model": "Qwen/Qwen2.5-32B-Instruct",
+  "model_loaded": true,
+  "nontruncated_responses": 12,
+  "original_import_error_reproduced": "ValueError: Assessment is missing or not terminal",
+  "prompt_defects": [
+    "Rubric names uppercase decisions but importer accepts only lowercase.",
+    "The object called response_schema was an unassessed template rather than an explicit typed/enumerated schema.",
+    "Integer citation types and nonempty adequate relationships were insufficiently specified."
+  ],
+  "protocol_id": "rq1-excerpt-v1",
+  "raw_response_path": "work/rq1-v5/calibration/responses.jsonl",
+  "raw_responses": 12,
+  "raw_responses_sha256": "79bd31b822c5f6aadfe908b19bfedce12326d5eb1cbe8e4db0d516f4350aa086",
+  "records": [
+    {
+      "audited_utc": "2026-10-30T15:35:53.274804+00:00",
+      "case_id": "D01",
+      "declared_label_matches_key_diagnostic_only": false,
+      "declared_label_verbatim": "ADEQUATE",
+      "expected": "inadequate",
+      "kind": "complete_F",
+      "review_id": "b6307d026b8677e350bca3c41087f89260c12a25b0237aa2a8f2ea848864c374",
+      "source_audit_reason": "The repaired allocation and fixed copy both have extent 10*sizeof(int)=40 bytes. Lack of an additional bounds check does not make this fitting constant copy overflow.",
+      "source_proof_support_diagnostic_only": "unsupported",
+      "strict_import_valid": false,
+      "valid_JSON": true,
+      "visible_audit_citations": [
+        6,
+        14,
+        15
+      ]
+    },
+    {
+      "audited_utc": "2026-10-30T15:35:53.275218+00:00",
+      "case_id": "D01",
+      "declared_label_matches_key_diagnostic_only": false,
+      "declared_label_verbatim": "INADEQUATE",
+      "expected": "adequate",
+      "kind": "complete_U",
+      "review_id": "c759b5983ef0d28bf0451e90ac06e6355f8d4cce0f927a67af0975229f8ee0af",
+      "source_audit_reason": "Visible ALLOCA(10) gives ten bytes and memcpy writes 10*sizeof(int)=40 bytes. The call at line 15 binds this object to the sink; the claimed missing allocation size is present.",
+      "source_proof_support_diagnostic_only": "unsupported",
+      "strict_import_valid": false,
+      "valid_JSON": true,
+      "visible_audit_citations": [
+        6,
+        14,
+        15
+      ]
+    },
+    {
+      "audited_utc": "2026-10-30T15:35:53.275475+00:00",
+      "case_id": "D01",
+      "declared_label_matches_key_diagnostic_only": true,
+      "declared_label_verbatim": "INADEQUATE",
+      "expected": "inadequate",
+      "kind": "indistinguishable_incomplete",
+      "review_id": "0eebde2c5a45773d39a73bd93b5b27ea60b87b2c944a23e545e93556df735091",
+      "source_audit_reason": "The allocation line 14 is absent. The visible copy count and pointer declaration do not establish the destination capacity on the selected entry path; both U and F yield this exact view.",
+      "source_proof_support_diagnostic_only": "supported",
+      "strict_import_valid": false,
+      "valid_JSON": true,
+      "visible_audit_citations": [
+        6,
+        12,
+        13,
+        15
+      ]
+    },
+    {
+      "audited_utc": "2026-10-30T15:35:53.274971+00:00",
+      "case_id": "D01",
+      "declared_label_matches_key_diagnostic_only": true,
+      "declared_label_verbatim": "ADEQUATE",
+      "expected": "adequate",
+      "kind": "reduced_sufficient_U",
+      "review_id": "b04a021d41dccd13cc119a511f664ae571b4f43eb0028ffa84dbef6aa16868d6",
+      "source_audit_reason": "The numerical argument 40>10 matches the source. However, its binding-premise citations name only the source array/copy, rather than the actual-to-formal link at lines 15 and 2; relationships are empty.",
+      "source_proof_support_diagnostic_only": "partial",
+      "strict_import_valid": false,
+      "valid_JSON": true,
+      "visible_audit_citations": [
+        2,
+        6,
+        14,
+        15
+      ]
+    },
+    {
+      "audited_utc": "2026-10-30T15:35:53.275361+00:00",
+      "case_id": "D02",
+      "declared_label_matches_key_diagnostic_only": true,
+      "declared_label_verbatim": "INADEQUATE",
+      "expected": "inadequate",
+      "kind": "complete_F",
+      "review_id": "dc28819366aed924386f560311178c19f46495d73d177d233e6deb7256d7240a",
+      "source_audit_reason": "The visible guard requires data>=0 and data<10 before buffer[data]. This does not support the claimed heap overflow at that access.",
+      "source_proof_support_diagnostic_only": "supported",
+      "strict_import_valid": false,
+      "valid_JSON": true,
+      "visible_audit_citations": [
+        7,
+        13,
+        15
+      ]
+    },
+    {
+      "audited_utc": "2026-10-30T15:35:53.275077+00:00",
+      "case_id": "D02",
+      "declared_label_matches_key_diagnostic_only": false,
+      "declared_label_verbatim": "INADEQUATE",
+      "expected": "adequate",
+      "kind": "complete_U",
+      "review_id": "c7722b1e684e66bef377376f3b16ba14d0dc93aa653a78dbbb09836108548fdd",
+      "source_audit_reason": "A decimal input such as 11 fits the visible input acquisition, reaches the nonnegative-only guard, and indexes a ten-int object outside 0..9. A recorded run-time value is not necessary for this visible existence argument.",
+      "source_proof_support_diagnostic_only": "unsupported",
+      "strict_import_valid": false,
+      "valid_JSON": true,
+      "visible_audit_citations": [
+        3,
+        7,
+        13,
+        15,
+        34,
+        36,
+        43
+      ]
+    },
+    {
+      "audited_utc": "2026-10-30T15:35:53.274686+00:00",
+      "case_id": "D02",
+      "declared_label_matches_key_diagnostic_only": false,
+      "declared_label_verbatim": "ADEQUATE",
+      "expected": "inadequate",
+      "kind": "indistinguishable_incomplete",
+      "review_id": "48ac81c907d3efc63bb6f19eef6bddd1e0a70b4e95d9f7d70a6ea35bceaaa51c",
+      "source_audit_reason": "The guard at line 13 is missing. This exact excerpt is compatible with the repaired upper-bound check; visible input and an indexed write do not establish that an invalid index passes the omitted guard.",
+      "source_proof_support_diagnostic_only": "unsupported",
+      "strict_import_valid": false,
+      "valid_JSON": true,
+      "visible_audit_citations": [
+        7,
+        12,
+        14,
+        15,
+        34,
+        36,
+        43
+      ]
+    },
+    {
+      "audited_utc": "2026-10-30T15:35:53.275290+00:00",
+      "case_id": "D02",
+      "declared_label_matches_key_diagnostic_only": false,
+      "declared_label_verbatim": "INADEQUATE",
+      "expected": "adequate",
+      "kind": "reduced_sufficient_U",
+      "review_id": "ddeeebb638bd82d56ffa57354af60cd3bad77c31b26e4abd16990fd29f131985",
+      "source_audit_reason": "The bounded initialization loop writes buffer[i]; the dangerous write uses buffer[data] under the separate nonnegative-only guard. The response incorrectly transfers the initialization loop bound to the input-indexed write.",
+      "source_proof_support_diagnostic_only": "unsupported",
+      "strict_import_valid": false,
+      "valid_JSON": true,
+      "visible_audit_citations": [
+        7,
+        9,
+        11,
+        13,
+        15,
+        34,
+        36,
+        43
+      ]
+    },
+    {
+      "audited_utc": "2026-10-30T15:35:53.275148+00:00",
+      "case_id": "D03",
+      "declared_label_matches_key_diagnostic_only": false,
+      "declared_label_verbatim": "ADEQUATE",
+      "expected": "inadequate",
+      "kind": "complete_F",
+      "review_id": "66277da3c7c97d1704ae549ddd30fb2ea8f2ed9fcd7c0b65a66fff4a2838f0a4",
+      "source_audit_reason": "The caller selects buffer_8, whose eleven-byte capacity accommodates the ten characters and NUL copied by strcpy. Equal source extent and destination capacity do not establish overflow.",
+      "source_proof_support_diagnostic_only": "unsupported",
+      "strict_import_valid": false,
+      "valid_JSON": false,
+      "visible_audit_citations": [
+        5,
+        9,
+        10,
+        18,
+        19,
+        21
+      ]
+    },
+    {
+      "audited_utc": "2026-10-30T15:35:53.275533+00:00",
+      "case_id": "D03",
+      "declared_label_matches_key_diagnostic_only": true,
+      "declared_label_verbatim": "ADEQUATE",
+      "expected": "adequate",
+      "kind": "complete_U",
+      "review_id": "72aa3128dea7744202f338abb1c6f0fbc224ae7c2e2378834ce5d97b28da3f57",
+      "source_audit_reason": "The declared label and eleven-byte-into-ten-byte explanation match the source. Its citations omit the macro definition at line 5 and the explicit argument/formal link; JSON is malformed and relationships are empty, so this is not an accepted proof.",
+      "source_proof_support_diagnostic_only": "partial",
+      "strict_import_valid": false,
+      "valid_JSON": false,
+      "visible_audit_citations": [
+        5,
+        6,
+        9,
+        10,
+        17,
+        19,
+        21
+      ]
+    },
+    {
+      "audited_utc": "2026-10-30T15:35:53.275420+00:00",
+      "case_id": "D03",
+      "declared_label_matches_key_diagnostic_only": false,
+      "declared_label_verbatim": "ADEQUATE",
+      "expected": "inadequate",
+      "kind": "indistinguishable_incomplete",
+      "review_id": "4cf2655cb5590c4e03537281b6ff93a8b2da1648af111bdca776cea0d184e68b",
+      "source_audit_reason": "The object-selection assignment at line 19 is absent. Both ten-byte and eleven-byte objects remain visible; assuming that data selects buffer_7 invents the missing alias fact. U and F have this same view.",
+      "source_proof_support_diagnostic_only": "unsupported",
+      "strict_import_valid": false,
+      "valid_JSON": true,
+      "visible_audit_citations": [
+        10,
+        17,
+        18,
+        20,
+        21
+      ]
+    },
+    {
+      "audited_utc": "2026-10-30T15:35:53.274876+00:00",
+      "case_id": "D03",
+      "declared_label_matches_key_diagnostic_only": true,
+      "declared_label_verbatim": "ADEQUATE",
+      "expected": "adequate",
+      "kind": "reduced_sufficient_U",
+      "review_id": "36f50bca7505c3e2efceaf6c32f4a0ca7d53adbc87855753260d26f3f3d4b91d",
+      "source_audit_reason": "The selected ten-byte object and eleven-byte copy support the intended label. The extent premise cites initialization line 9 without the supplying macro at line 5; the response omits explicit relationships and is not a valid imported assessment.",
+      "source_proof_support_diagnostic_only": "partial",
+      "strict_import_valid": false,
+      "valid_JSON": true,
+      "visible_audit_citations": [
+        5,
+        6,
+        9,
+        10,
+        17,
+        19,
+        21
+      ]
+    }
+  ],
+  "request_provenance_verified": true,
+  "revision": "5ede1c97bbab6ce5cda5812749b4c0bdf79b18dd",
+  "source_commit": "6f02208769d2aeee6711dc04f7f3453237576fba",
+  "source_key_sha256": "c15f584ccf5fcfbf28091cf08db74f4630c32bb5330cb045ba2d467dfac6b0f9",
+  "valid_JSON": 10,
+  "valid_imported_assessments": 0
+}

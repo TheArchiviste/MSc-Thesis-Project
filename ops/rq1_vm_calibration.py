@@ -51,22 +51,55 @@ def wait_for_server(process, destination, *, timeout=1800):
     raise TimeoutError('Assessor startup exceeded 30 minutes; partial downloads are retained')
 
 
+def proc_namespace_matches():
+    try:
+        raw = Path('/proc/self/stat').read_text()
+        fields = raw[raw.rfind(')') + 2:].split()
+        return int(raw.split(' ', 1)[0]) == os.getpid() and int(fields[2]) == os.getpgrp()
+    except (OSError, ValueError, IndexError):
+        return False
+
+
+def live_group_members(group, *, proc_root=Path('/proc')):
+    """Linux process states distinguish live workers from already-dead zombie entries."""
+    if proc_root == Path('/proc') and not proc_namespace_matches():
+        raise RuntimeError('Cannot confirm shutdown: /proc and Python process namespaces differ')
+    members = []
+    for directory in proc_root.iterdir():
+        if not directory.name.isdecimal():
+            continue
+        try:
+            raw = (directory / 'stat').read_text()
+        except (FileNotFoundError, ProcessLookupError):
+            continue
+        # comm may contain spaces and parentheses; state is the first field after its closing ).
+        fields = raw[raw.rfind(')') + 2:].split()
+        if int(fields[2]) == group and fields[0] not in {'Z', 'X', 'x'}:
+            members.append(int(directory.name))
+    return sorted(members)
+
+
 def stop_owned_server(process):
-    """Signal only the new process group created for this session, including its workers."""
+    """Reap our launcher and wait for its live process-group workers after each signal."""
     for sig, timeout in ((signal.SIGINT, 20), (signal.SIGTERM, 10), (signal.SIGKILL, 10)):
+        process.poll()
+        if not live_group_members(process.pid):
+            process.wait(timeout=10)
+            return True
         try:
             os.killpg(process.pid, sig)
         except ProcessLookupError:
             process.wait(timeout=10)
             return True
-        try:
-            process.wait(timeout=timeout)
-        except subprocess.TimeoutExpired:
-            continue
-        try:
-            os.killpg(process.pid, 0)
-        except ProcessLookupError:
-            return True
+        deadline = time.monotonic() + timeout
+        while True:
+            process.poll()
+            if not live_group_members(process.pid):
+                process.wait(timeout=10)
+                return True
+            if time.monotonic() >= deadline:
+                break
+            time.sleep(.1)
     return False
 
 
@@ -116,6 +149,8 @@ def acquire(root, session, summary):
     receipt = json.loads((root / WORK / 'vm-preflight/vm-preflight.json').read_text())
     cache = Path(os.environ.get('HF_HOME', Path.home() / '.cache/huggingface'))
     validate_preflight(receipt, environment(), corpus_contract(), cache)
+    if not proc_namespace_matches():
+        raise RuntimeError('Cannot manage an owned server safely: /proc and Python process namespaces differ')
     packets, _ = bank()
     if index_jsonl(calibration / 'public/packets.jsonl', 'review_id') != packets:
         raise ValueError('The public calibration bank differs from the frozen 12 anchors')
@@ -137,6 +172,7 @@ def acquire(root, session, summary):
     command = [sys.executable, '-u', '-m', 'ops.rq1_vm_checkpoint', 'serve-assessor']
     write_json(session / 'launcher.json', {'utc': now(), 'command': command}, exclusive=True)
     process = None
+    primary_failed = False
     try:
         print('Downloading/loading the pinned assessor. Startup is limited to 30 minutes.', flush=True)
         with (session / 'server.log').open('w') as stream:
@@ -152,11 +188,21 @@ def acquire(root, session, summary):
             import_responses(calibration / 'public/requests.jsonl', calibration / 'responses.jsonl',
                              calibration / 'assessments.initial.jsonl')
             summary['assessments_imported'] = True
+    except BaseException as exc:  # Retain the acquisition error while cleaning up.
+        primary_failed = True
+        summary['acquisition_error'] = {'error_type': type(exc).__name__, 'error': str(exc)}
+        raise
     finally:
         if process is not None:
-            summary['owned_server_stopped'] = stop_owned_server(process)
+            try:
+                summary['owned_server_stopped'] = stop_owned_server(process)
+            except Exception as exc:  # noqa: BLE001 - cleanup must not mask a primary error
+                summary['owned_server_stopped'] = False
+                summary['cleanup_error'] = {'error_type': type(exc).__name__, 'error': str(exc)}
             if not summary['owned_server_stopped']:
-                raise RuntimeError('Owned process group did not fully stop; stop the VM in the console')
+                summary['cleanup_warning'] = 'Could not confirm that owned live workers stopped; stop the VM in the console'
+                if not primary_failed:
+                    raise RuntimeError(summary['cleanup_warning'])
 
 
 def interrupted(signum, frame):

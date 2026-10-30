@@ -27,8 +27,9 @@ def real_graph(prior):
     return row, (AUDIT / 'sample-project-log.txt').read_text(), source
 
 
-def test_original_v4_contract_fixtures_and_complete_graph_set_are_admissible(prior):
-    verify_legacy(prior)
+def test_original_v4_receipt_cannot_be_relabelled_after_assessor_protocol_change(prior):
+    with pytest.raises(ValueError, match='Scientific code/source changed'):
+        verify_legacy(prior)
 
 
 def test_real_marker_is_recovered_from_its_exact_project(real_graph):
@@ -119,7 +120,7 @@ def prepare_recovery_fixture(tmp_path, prior, cfg):
     return previous, config, root
 
 
-def test_full_recovery_requires_proofs_and_current_probe(tmp_path, prior, cfg, monkeypatch):
+def test_v6_blocks_legacy_recovery_before_a_live_probe_or_new_receipt(tmp_path, prior, cfg, monkeypatch):
     from contextlib import contextmanager
 
     from llmxcpg.joern.client import QueryResult
@@ -141,16 +142,11 @@ def test_full_recovery_requires_proofs_and_current_probe(tmp_path, prior, cfg, m
     @contextmanager
     def factory(cfg, work):
         yield Probe()
-    result = recover_cpu.recover(previous, config, worker_factory=factory)
-    assert result['ready'] and len(result['corpus_graphs']) == 30
-    assert len([c for c in calls if c[0] == 'import']) == 1
-    assert len([c for c in calls if c[0] == 'reset']) == 1
-    assert setup.capability_valid(cfg)['recovery']['source_implementation'] == 'rq1-v4'
-    # Changing a retained raw proof is rejected even though the ready flag remains true.
-    log = root / 'joern-capability/recovery/v4/D01-U/server.log'
-    log.write_text(log.read_text().replace('|15', '|999'))
-    with pytest.raises(ValueError):
-        setup.capability_valid(cfg)
+    with pytest.raises(ValueError, match='Scientific code/source changed'):
+        recover_cpu.recover(previous, config, worker_factory=factory)
+    assert not calls
+    assert not (root / 'joern-capability/readiness.json').exists()
+    assert not (root / 'calibration/acceptance.json').exists()
 
 
 def test_failed_current_probe_cannot_accept_recovery(tmp_path, prior, cfg, monkeypatch):
@@ -170,10 +166,9 @@ def test_failed_current_probe_cannot_accept_recovery(tmp_path, prior, cfg, monke
     @contextmanager
     def factory(cfg, work):
         yield Probe()
-    with pytest.raises(ValueError, match='Missing or ambiguous'):
+    with pytest.raises(ValueError, match='Scientific code/source changed'):
         recover_cpu.recover(previous, config, worker_factory=factory)
-    result = json.loads((root / 'joern-capability/readiness.json').read_text())
-    assert not result['ready'] and result['live_diagnostic_probe']['status'] == 'blocked'
-    with pytest.raises(ValueError, match='Fresh full-selector'):
+    assert not (root / 'joern-capability/readiness.json').exists()
+    with pytest.raises(FileNotFoundError):
         setup.capability_valid(cfg)
     assert not (root / 'calibration/acceptance.json').exists()

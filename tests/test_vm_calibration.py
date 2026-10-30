@@ -1,8 +1,11 @@
 import io
 import json
 import signal
+import subprocess
+import sys
 import tarfile
 from contextlib import nullcontext
+from itertools import count
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -61,14 +64,56 @@ def test_startup_failure_stops_before_sending_any_requests(tmp_path, monkeypatch
 
 def test_shutdown_escalates_only_the_owned_process_group(monkeypatch):
     calls = []
+    live = [123456]
     def killpg(group, sig):
         calls.append((group, sig))
-        if sig == 0 and any(s == signal.SIGTERM for _, s in calls):
-            raise ProcessLookupError
+        if sig == signal.SIGTERM:
+            live.clear()
     monkeypatch.setattr(vm.os, 'killpg', killpg)
-    process = SimpleNamespace(pid=123456, wait=lambda **kw: 0)
+    monkeypatch.setattr(vm, 'live_group_members', lambda group: live[:])
+    clock = count(step=10)
+    monkeypatch.setattr(vm.time, 'monotonic', lambda: next(clock))
+    monkeypatch.setattr(vm.time, 'sleep', lambda delay: None)
+    process = SimpleNamespace(pid=123456, poll=lambda: 0, wait=lambda **kw: 0)
     assert vm.stop_owned_server(process)
-    assert calls == [(123456, signal.SIGINT), (123456, 0), (123456, signal.SIGTERM), (123456, 0)]
+    assert calls == [(123456, signal.SIGINT), (123456, signal.SIGTERM)]
+
+
+def test_dead_zombie_entries_do_not_count_as_live_workers(tmp_path):
+    for pid, state, group in ((101, 'S', 10), (102, 'Z', 10), (103, 'D', 10), (104, 'R', 20)):
+        p = tmp_path / str(pid)
+        p.mkdir()
+        (p / 'stat').write_text(f'{pid} (name with ) parentheses) {state} 1 {group} 10 0 0\n')
+    assert vm.live_group_members(10, proc_root=tmp_path) == [101, 103]
+
+
+def test_mismatched_proc_namespace_cannot_falsely_confirm_shutdown(monkeypatch):
+    monkeypatch.setattr(vm, 'proc_namespace_matches', lambda: False)
+    with pytest.raises(RuntimeError, match='namespaces differ'):
+        vm.live_group_members(123456)
+
+
+@pytest.mark.skipif(sys.platform != 'linux', reason='The deployment and /proc lifecycle are Linux-specific')
+def test_real_owned_launcher_and_child_are_stopped():
+    if not vm.proc_namespace_matches():
+        pytest.skip('This executor exposes host /proc with different PID mappings; CI and the VM use normal Linux namespaces')
+    code = ('import subprocess, sys, time; '
+            'child = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(60)"]); '
+            'print(child.pid, flush=True); time.sleep(60)')
+    p = subprocess.Popen([sys.executable, '-u', '-c', code], stdout=subprocess.PIPE,
+                         stderr=subprocess.DEVNULL, text=True, start_new_session=True)
+    try:
+        child = int(p.stdout.readline())
+        assert {p.pid, child} <= set(vm.live_group_members(p.pid))
+        assert vm.stop_owned_server(p)
+        assert not vm.live_group_members(p.pid)
+    finally:
+        try:
+            vm.os.killpg(p.pid, signal.SIGKILL)
+        except ProcessLookupError:
+            pass
+        p.wait(timeout=10)
+        p.stdout.close()
 
 
 def put(root, path, content):
@@ -122,12 +167,14 @@ def test_existing_acquisition_is_never_retried_or_replaced(tmp_path, monkeypatch
 
 
 @pytest.mark.parametrize('failure_stage', ('generation', 'import'))
-def test_owned_server_is_stopped_and_raw_output_retained_after_failure(tmp_path, monkeypatch, failure_stage):
+@pytest.mark.parametrize('cleanup', ('success', 'unconfirmed', 'exception'))
+def test_owned_server_is_stopped_and_raw_output_retained_after_failure(tmp_path, monkeypatch, failure_stage, cleanup):
     from rq1 import calibration, judge, setup
 
     r = receipt(tmp_path / 'cache')
     monkeypatch.setenv('HF_HOME', r['cache_path'])
     monkeypatch.setattr(vm, 'environment', lambda: r['environment'])
+    monkeypatch.setattr(vm, 'proc_namespace_matches', lambda: True)
     monkeypatch.setattr(vm, 'verify_manifest', lambda root: {'core_contract': r['core_contract']})
     monkeypatch.setattr(vm, 'git_provenance', lambda: {'commit': 'fixed', 'modified_tracked_files': ''})
     monkeypatch.setattr(setup, 'verify_implementation', lambda: None)
@@ -147,7 +194,12 @@ def test_owned_server_is_stopped_and_raw_output_retained_after_failure(tmp_path,
         return process
     monkeypatch.setattr(vm.subprocess, 'Popen', start)
     monkeypatch.setattr(vm, 'wait_for_server', lambda *a: None)
-    monkeypatch.setattr(vm, 'stop_owned_server', lambda p: stopped.append(p) or True)
+    def stop(p):
+        stopped.append(p)
+        if cleanup == 'exception':
+            raise OSError('cleanup failed')
+        return cleanup == 'success'
+    monkeypatch.setattr(vm, 'stop_owned_server', stop)
     raw = tmp_path / WORK / 'calibration/responses.jsonl'
     def generate(*args):
         raw.write_text('{"content":"actual response retained"}\n')
@@ -160,11 +212,14 @@ def test_owned_server_is_stopped_and_raw_output_retained_after_failure(tmp_path,
     session = tmp_path / 'session'
     session.mkdir()
     summary = {}
-    with pytest.raises(RuntimeError, match='failed'):
+    with pytest.raises(RuntimeError, match=f'{failure_stage} failed'):
         vm.acquire(tmp_path, session, summary)
     assert started[0]['start_new_session'] is True
     assert stopped == [process]
-    assert summary['owned_server_stopped'] is True
+    assert summary['owned_server_stopped'] == (cleanup == 'success')
+    assert summary['acquisition_error']['error'] == f'{failure_stage} failed'
+    if cleanup != 'success':
+        assert summary['cleanup_warning']
     assert summary.get('responses_complete', False) == (failure_stage == 'import')
     assert raw.read_text() == '{"content":"actual response retained"}\n'
     assert not (tmp_path / WORK / 'calibration/acceptance.json').exists()
