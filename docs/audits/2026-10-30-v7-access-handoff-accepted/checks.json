@@ -1,0 +1,48 @@
+{
+  "API_access": {
+    "API_funding_verified": false,
+    "access_http_status": 200,
+    "acquisition_freeze_present": true,
+    "calibration_accepted": false,
+    "calibration_planning_upper_estimate_usd": 27.7,
+    "development": 12,
+    "evidence": "User-provided terminal screenshot; original api-access.json remains on laptop and was not attached",
+    "fresh_heldout": 8,
+    "generation_access_established": false,
+    "inference_requests": 0,
+    "max_output_tokens_including_reasoning": 25000,
+    "model": "gpt-6-astra",
+    "model_listed": true,
+    "observed_utc": "2026-10-30T20:51:34.860366+00:00",
+    "prepared_requests": 20,
+    "prior_attempt_present": false,
+    "profile_hash_matches_frozen_assessor": true,
+    "profile_sha256": "33d1b337fffd67c759f8ba3de23fb14860088497138d1c8e2c236332e5ae1abc",
+    "reasoning_effort": "high",
+    "status": "accepted_read_only_model_lookup"
+  },
+  "Q_handoff": {
+    "GPU_inspection_accepted": false,
+    "VM_transfer_performed": false,
+    "all_manifest_hashes_verified": true,
+    "all_payload_bytes_match_accepted_CPU_checkpoint": true,
+    "archive": "rq1-q-inputs-20261030T204312205833Z.tgz",
+    "archive_sha256": "8499daf11a7c85fdf7d4899ab82f34497e602856d79250cd586389b41106b367",
+    "contains_Q_or_slice_outputs": false,
+    "contains_calibration_or_assessor_profile": false,
+    "contains_credentials": false,
+    "contains_model_weights": false,
+    "core_contract_matches_frozen_v7": true,
+    "file_count_excluding_manifest": 167,
+    "status": "accepted_for_transfer"
+  },
+  "basis_commit": "4dfbccb688365d2f49d44b7a2ee9d590864fac9c",
+  "experiment_counts": {
+    "new_Q_generations": 0,
+    "new_experiment_slices": 0,
+    "new_real_assessor_responses": 0
+  },
+  "implementation_id": "rq1-v7",
+  "meaning": "Technical preparation only. A successful model lookup does not establish funding, successful inference, or assessor correctness.",
+  "next_action": "Check actual OpenAI API credit balance and expiry before the one declared calibration attempt. Q-host transfer/inspection remains separate; current VM IP and console status are not established by these artifacts."
+}

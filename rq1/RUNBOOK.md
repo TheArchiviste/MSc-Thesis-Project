@@ -21,7 +21,9 @@ Expected: 34 U/F source witnesses (30 experiment plus 4 assessor-only), 30 fitti
 
 V7 uses new stage-scoped receipts. Do not use `--recover-v4`, relabel v6 files, or repeat this checkpoint after Q acquisition begins. The collector refuses that situation to avoid exposing sealed data. The project is in the verified D-backed WSL distribution; HF caches and exports explicitly use D:.
 
-## 2. Two independent preparations — current action
+## 2. Two independent preparations — accepted 30 October 2026
+
+The Astra model lookup returned HTTP 200 at 20:51:34 UTC, with the frozen profile hash and zero inference requests. The exact 167-file Q handoff archive and all payload hashes also passed. See [the access/handoff record](../docs/audits/2026-10-30-v7-access-handoff-accepted/checks.json). These commands document the completed preparations; no repeat is needed. Funding and GPU-host inspection remain unverified.
 
 **Assessor:** prepare the OpenAI API account/access and separate budget. The assistant supplies a private-terminal-key command for `ops.rq1_api_calibration access`, a GET-only model check. Return its receipt; pause before paid inference. The offline inspection reports the conservative twenty-request estimate. API funding is separate from Nebius.
 
@@ -52,7 +54,9 @@ cd ~/projects/MSc-Thesis-Project
 
 Return only the printed summary. Keep the transfer archive on D: for the later mechanical VM handoff. Do not rerun the completed CPU checkpoint or change the accepted Python/packages.
 
-## 3. Assessor calibration — one bounded paid checkpoint
+## 3. Assessor calibration — current action: verify funding first
+
+Read-only access is accepted. Check the actual API credit balance and expiry in the organization owning the selected project, including any eligible Pro benefit that has been claimed and linked. Return that funding information before the paid command. The current conservative planning estimate is $27.70 for calibration only; it is not a provider-enforced cap. No v3 inference has been sent. Keep the VM stopped while preparing this independent API checkpoint.
 
 After access and funding are checked, use the provided exact command for `ops.rq1_api_calibration run`. It acquires the twenty fixed stateless requests once, preserving errors and raw output. Return its D: ZIP and pause for the assistant's source-proof audit. All labels/proofs must pass; no automatic repairs, candidate search or threshold relaxation. See ASSESSMENT.md. A failure does not authorize opening already sealed main outcomes for instrument tuning.
 

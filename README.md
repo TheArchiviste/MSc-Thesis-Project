@@ -4,24 +4,15 @@ Original pretrained **LLMxCPG-Q** generates CPGQL, **Joern** retrieves excerpts,
 
 The active implementation is **rq1-v7**, with public assessor task **rq1-excerpt-v3** and new outputs in `work/rq1-v7`. Preserve all v5/v6 evidence. Three development blocks and twelve main blocks remain enrolled, each with U/F sources: six development and twenty-four main primary Q/slice runs. Two unused blocks, R15 and R17, now supply assessor-only source anchors; they do not enter the main denominator or Q census.
 
-## Current action: API access check and Q-input packaging
+## Current action: verify API funding before assessor calibration
 
 V1 and v2 assessor calibration failed. [The v3 amendment](docs/RQ1_V3_AMENDMENT_2026-10-30.md) repairs the interface and anchor design, declares one GPT-6 Astra API candidate, and separates sealed acquisition from grading. The original Q checkpoint/settings and all thirty experiment C inputs are unchanged. Source dependency references were improved before any Q output. New stage-scoped receipts must be collected; do not relabel v6 receipts.
 
 The fresh v7 laptop CPU checkpoint is accepted. The returned archive verifies 34 U/F source witnesses, 30 fitting Q prompts, both real selector fixtures, all 30 source graphs and the acquisition freeze. See [the checkpoint record](docs/RQ1_V7_CPU_CHECKPOINT_2026-10-30.md) and [checks](docs/audits/2026-10-30-v7-cpu-accepted/checks.json). Assessor access/calibration and Q acquisition remain pending; no experiment outcome is inferred from technical readiness.
 
-Keep Nebius stopped. In your existing D-backed Ubuntu-24.04 terminal, update the documentation and prepare the transfer summary:
+The GET-only Astra model lookup passed with HTTP 200; the screenshot's profile hash matches the frozen assessor. The Q-input archive `rq1-q-inputs-20261030T204312205833Z.tgz` also passed: all 167 manifest-bound files match the accepted CPU evidence. See [access/handoff checks](docs/audits/2026-10-30-v7-access-handoff-accepted/checks.json). No inference was sent, and API funding is not established by the lookup.
 
-```bash
-set -euo pipefail
-cd ~/projects/MSc-Thesis-Project
-git fetch origin
-git switch main
-git pull --ff-only origin main
-.venv/bin/python -m ops.rq1_q_handoff prepare
-```
-
-Return only the transfer summary. Independently, follow [runbook checkpoint 2](rq1/RUNBOOK.md) for the GET-only Astra API access check; enter the API key privately in the terminal. Return the access receipt before any paid calibration. These preparations send no inference requests and do not start the VM. Preserve the accepted CPU receipts; do not repeat `local_acceptance.sh` or regenerate the frozen tokenizer audit.
+Keep Nebius stopped while preparing the API calibration. Check the actual API organization credit balance and expiry, including any claimed eligible Pro subscription credits, before the one declared twenty-request attempt. Its recorded planning estimate is $27.70, not an enforceable billing cap. Return the balance/expiry for the paid-checkpoint handoff; never return an API key. The Q archive is ready for the separate VM transfer/technical-inspection checkpoint once the current console IP/status are established. Preserve accepted CPU receipts and the prepared bank; no repeated CPU checkpoint or new Q package is needed.
 
 ## Subsequent checkpoints
 
