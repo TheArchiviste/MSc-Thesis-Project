@@ -55,7 +55,7 @@ def environment_difference(before, during, approved=None):
     snapshots = [before, during] + ([approved] if approved is not None else [])
     for snapshot in snapshots:
         if not isinstance(snapshot, dict) or not isinstance(snapshot.get('packages'), dict):
-            raise ValueError('Malformed environment inventory.')
+            raise TypeError('Malformed environment inventory.')
         if set(snapshot) - {'python', 'implementation', 'machine', 'packages'}:
             raise ValueError('Unexpected environment fields; no inventory displayed.')
         for name, version in snapshot['packages'].items():
@@ -233,14 +233,14 @@ def diagnose(path, expected, reference=None):
                 matches = re.findall(
                     r'^(ImportError|ModuleNotFoundError|ValueError|TypeError|RuntimeError|'
                     r'AttributeError|NameError|KeyError|OSError|FileNotFoundError|'
-                    r'PermissionError|AssertionError|MemoryError|TimeoutError):', tail[position:], re.M)
+                    r'PermissionError|AssertionError|MemoryError|TimeoutError):', tail[position:], re.MULTILINE)
                 entry['exception_category'] = matches[-1] if matches else 'unclassified'
                 entry['known_failure_checks'] = [code for message, code in KNOWN_FAILURES.items()
-                    if re.search(r'^ValueError: ' + re.escape(message) + r'\s*$', tail[position:], re.M)]
+                    if re.search(r'^ValueError: ' + re.escape(message) + r'\s*$', tail[position:], re.MULTILINE)]
                 frames = []
                 for filename, number, function in re.findall(
                         r'^  File "([^"\n]+)", line ([0-9]+), in ([A-Za-z_][A-Za-z_0-9]*|<module>)\s*$',
-                        tail[position:], re.M):
+                        tail[position:], re.MULTILINE):
                     for known in TRACEBACK_FILES:
                         if filename == known or filename.endswith('/' + known):
                             frames.append({'file': known, 'line': int(number), 'function': function})

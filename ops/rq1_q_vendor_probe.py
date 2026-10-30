@@ -4,11 +4,11 @@ from __future__ import annotations
 import argparse
 import fcntl
 import hashlib
-import importlib.metadata as metadata
 import json
 import re
 import sys
 from datetime import UTC, datetime
+from importlib import metadata
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -154,7 +154,7 @@ def main():
     except ProbeBlocked as exc:
         result = {'protocol': 'rq1-v7-setuptools-vendor-probe-v1', 'probe_passed': False,
                   'blocked_check': str(exc), 'model_loaded': False, 'generation_repeated': False}
-    except Exception as exc:
+    except Exception as exc:  # noqa: BLE001 - record only the failure class; private data stays hidden
         result = {'protocol': 'rq1-v7-setuptools-vendor-probe-v1', 'probe_passed': False,
                   'blocked_check': 'probe_infrastructure_failure', 'exception_category': type(exc).__name__,
                   'model_loaded': False, 'generation_repeated': False}
