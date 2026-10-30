@@ -2,7 +2,9 @@
 
 Run only the current checkpoint, return its specified output and pause. The assistant performs source/proof judgments with detailed reasons. Historical guides do not override this route. Preserve v5/v6 outputs and cached model weights.
 
-## 1. Laptop CPU checkpoint — current action
+## 1. Laptop CPU checkpoint — accepted 30 October 2026
+
+The v7 archive `local-attempt-20261030T202535Z-4iVZhD.zip` passed the separate receipt audit. See [the acceptance record](../docs/RQ1_V7_CPU_CHECKPOINT_2026-10-30.md). Continue at checkpoint 2 on that same laptop environment; preserve the frozen receipts. The commands below document the completed checkpoint, not an instruction to repeat it.
 
 Keep Nebius stopped. In D-backed Ubuntu-24.04:
 
@@ -19,11 +21,36 @@ Expected: 34 U/F source witnesses (30 experiment plus 4 assessor-only), 30 fitti
 
 V7 uses new stage-scoped receipts. Do not use `--recover-v4`, relabel v6 files, or repeat this checkpoint after Q acquisition begins. The collector refuses that situation to avoid exposing sealed data. The project is in the verified D-backed WSL distribution; HF caches and exports explicitly use D:.
 
-## 2. Two independent preparations — after CPU acceptance
+## 2. Two independent preparations — current action
 
 **Assessor:** prepare the OpenAI API account/access and separate budget. The assistant supplies a private-terminal-key command for `ops.rq1_api_calibration access`, a GET-only model check. Return its receipt; pause before paid inference. The offline inspection reports the conservative twenty-request estimate. API funding is separate from Nebius.
 
+Run this in the existing Ubuntu terminal. The key is read privately, passed only to the child process, and is not written into the command or receipt. This is a model lookup, not inference or proof of available funding:
+
+```bash
+cd ~/projects/MSc-Thesis-Project
+.venv/bin/python - <<'PY'
+import getpass
+import os
+import subprocess
+import sys
+env = os.environ.copy()
+env['OPENAI_API_KEY'] = getpass.getpass('OpenAI API key (hidden): ')
+raise SystemExit(subprocess.call(
+    [sys.executable, '-m', 'ops.rq1_api_calibration', 'access'], env=env))
+PY
+```
+
+Return its printed JSON (also saved in `work/rq1-v7/calibration/api-access.json`). Do not paste the API key into the conversation.
+
 **Q host:** on the accepted laptop run `ops.rq1_q_handoff prepare` and return its summary. It packages only configuration, acquisition freeze, witness records, tokenizer and complete Joern capability proofs. No assessor key, private answer key or weights are transferred. After that summary is checked, the assistant supplies exact checksum/SCP/extraction commands using the current console IP and confirmed filename. Restart the existing H100 only for its accepted checkpoint. Use `~/rq1-project`, the existing `.venv-q` and `HF_HOME=$HOME/rq1-storage/huggingface`; retain the established packages. Run `ops.rq1_q_handoff inspect`, return its technical receipt and pause before Q weights load.
+
+```bash
+cd ~/projects/MSc-Thesis-Project
+.venv/bin/python -m ops.rq1_q_handoff prepare
+```
+
+Return only the printed summary. Keep the transfer archive on D: for the later mechanical VM handoff. Do not rerun the completed CPU checkpoint or change the accepted Python/packages.
 
 ## 3. Assessor calibration — one bounded paid checkpoint
 

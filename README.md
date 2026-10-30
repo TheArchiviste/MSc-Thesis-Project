@@ -4,11 +4,13 @@ Original pretrained **LLMxCPG-Q** generates CPGQL, **Joern** retrieves excerpts,
 
 The active implementation is **rq1-v7**, with public assessor task **rq1-excerpt-v3** and new outputs in `work/rq1-v7`. Preserve all v5/v6 evidence. Three development blocks and twelve main blocks remain enrolled, each with U/F sources: six development and twenty-four main primary Q/slice runs. Two unused blocks, R15 and R17, now supply assessor-only source anchors; they do not enter the main denominator or Q census.
 
-## Current action: fresh laptop CPU checkpoint
+## Current action: API access check and Q-input packaging
 
 V1 and v2 assessor calibration failed. [The v3 amendment](docs/RQ1_V3_AMENDMENT_2026-10-30.md) repairs the interface and anchor design, declares one GPT-6 Astra API candidate, and separates sealed acquisition from grading. The original Q checkpoint/settings and all thirty experiment C inputs are unchanged. Source dependency references were improved before any Q output. New stage-scoped receipts must be collected; do not relabel v6 receipts.
 
-Keep Nebius stopped. Run only this checkpoint in your existing D-backed Ubuntu-24.04 terminal:
+The fresh v7 laptop CPU checkpoint is accepted. The returned archive verifies 34 U/F source witnesses, 30 fitting Q prompts, both real selector fixtures, all 30 source graphs and the acquisition freeze. See [the checkpoint record](docs/RQ1_V7_CPU_CHECKPOINT_2026-10-30.md) and [checks](docs/audits/2026-10-30-v7-cpu-accepted/checks.json). Assessor access/calibration and Q acquisition remain pending; no experiment outcome is inferred from technical readiness.
+
+Keep Nebius stopped. In your existing D-backed Ubuntu-24.04 terminal, update the documentation and prepare the transfer summary:
 
 ```bash
 set -euo pipefail
@@ -16,10 +18,10 @@ cd ~/projects/MSc-Thesis-Project
 git fetch origin
 git switch main
 git pull --ff-only origin main
-bash rq1/local_acceptance.sh
+.venv/bin/python -m ops.rq1_q_handoff prepare
 ```
 
-Return the new `local-attempt-*.zip` from **D:\Dissertation-RQ1\exports**, then pause. This checks 34 source witnesses, thirty Q prompt lengths, both real selector fixtures and thirty experiment source graphs; it prepares twenty ungraded assessor requests and freezes acquisition. It needs no API key, paid inference or running VM. Large caches and exports use D:. The existing D-backed WSL environment holds the project and compiler outputs.
+Return only the transfer summary. Independently, follow [runbook checkpoint 2](rq1/RUNBOOK.md) for the GET-only Astra API access check; enter the API key privately in the terminal. Return the access receipt before any paid calibration. These preparations send no inference requests and do not start the VM. Preserve the accepted CPU receipts; do not repeat `local_acceptance.sh` or regenerate the frozen tokenizer audit.
 
 ## Subsequent checkpoints
 
