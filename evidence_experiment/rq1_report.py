@@ -1,107 +1,89 @@
-"""Readable evidence-only results. Coverage never substitutes for assessment."""
+"""Readable RQ1 evidence, separating sufficiency, retrieval and descriptive visibility."""
 from __future__ import annotations
 
 import csv
-from collections import Counter
-from pathlib import Path
 
-from .schema import index_jsonl, read_jsonl
+from .schema import index_jsonl
 
 
-def write_report(cases, work: Path, report: dict, assessments: Path,
-                 adjudications: Path) -> None:
-    by_case = {case.case_id: case for case in cases}
-    slices = index_jsonl(work / "slices.jsonl", "run_id")
-    ratings = {}
-    for row in read_jsonl(assessments):
-        ratings.setdefault(row["review_id"], []).append(row)
-    matches = {(r["case_id"], r["review_id"]): r for r in read_jsonl(adjudications)}
-    records = []
-    role_records = []
-    for outcome in report["run_evidence"]:
-        case = by_case[outcome["case_id"]]
-        slc = slices[outcome["run_id"]]
-        rendered = set(slc.get("rendered_lines", []))
-        selected = set(slc.get("slice_lines", []))
+def write_report(cases, work, report, initial, matches, corrections):
+    by_case = {c.case_id: c for c in cases}
+    slices = index_jsonl(work / 'slices.jsonl', 'run_id')
+    records, visibility, relations, transitions = [], [], [], []
+    for out in report['run_evidence']:
+        case, slc = by_case[out['case_id']], slices[out['run_id']]
+        selected, rendered = set(slc.get('slice_lines', [])), set(slc.get('rendered_lines', []))
+        rid = out['review_id']
+        grade = initial.get(rid, {})
+        match = matches.get(case.case_id, {}) if out['arm'] == 'U' else {}
         missing = []
-        if outcome["arm"] == "U":
-            for element in case.referent["elements"]:
-                hit = bool(rendered.intersection(element["lines"]))
-                if not hit:
-                    missing.append(element["id"])
-                role_records.append({"case_id": case.case_id, "run_id": outcome["run_id"],
-                                     "element_id": element["id"], "role": element["role"],
-                                     "source_lines": ";".join(map(str, element["lines"])),
-                                     "any_line_selected": bool(selected.intersection(element["lines"])),
-                                     "any_line_rendered": hit})
-        rid = outcome.get("review_id")
-        reasons = " | ".join(r["explanation"] for r in ratings.get(rid, []))
-        match = matches.get((case.case_id, rid), {})
-        records.append({"case_id": case.case_id, "block": case.cluster_id,
-                        "upstream_cwe": case.cwe, "arm": outcome["arm"],
-                        "overflowing_object": case.referent.get("observed_storage_kind", "unspecified"),
-                        "repeat": outcome["repeat"], "status": outcome["status"],
-                        "adequacy": outcome["adequacy"],
-                        "selected_lines": len(selected), "rendered_lines": len(rendered),
-                        "source_lines": len(case.source_for(outcome["arm"]).splitlines()),
-                        "rendered_element_line_overlap": outcome["rendered_element_recall"],
-                        "elements_with_no_rendered_line": ";".join(missing),
-                        "assessment_reason": reasons,
-                        "mechanism_match": match.get("match", "not_applicable" if outcome["arm"] == "F" else "pending"),
-                        "match_reason": match.get("reason", ""),
-                        "review_id": rid or "", "run_id": outcome["run_id"]})
-    _csv(work / "rq1_cases.csv", records)
-    _csv(work / "rq1_element_visibility.csv", role_records)
-    n = len(cases)
-    counts = report["rq1"]["adequacy"]
-    adequate, uncertain = counts.get("adequate", 0), counts.get("uncertain", 0)
-    primary = [r for r in records if r["arm"] == "U" and r["repeat"] == 0]
-    successes = sum(r["status"] == "ok" for r in primary)
-    fixed = [r for r in records if r["arm"] == "F"]
-    shown_fixed = [r for r in fixed if r["status"] == "ok"]
-    false_adequate = sum(r["adequacy"] == "adequate" for r in shown_fixed)
-    bounds = (f"{adequate}/{n} to {adequate + uncertain}/{n} "
-              f"({adequate/n:.1%}–{(adequate+uncertain)/n:.1%})" if n else "not estimable")
-    lines = ["# RQ1 evidence adequacy", "", f"Status: **{report['completion']}**. Delayed consistency: {report['consistency']['status']}.",
-             f"Assessment: **{report['assessment_mode']}**.",
-             report["assessment_limit"], "", "Primary outcome uses repeat 0, one U per case.",
-             f"Enrolled U: **{n}**, from **{len({c.cluster_id for c in cases})}** blocks.",
-             f"Adequate: **{adequate}**; inadequate: **{counts.get('inadequate', 0)}**; uncertain: **{uncertain}**.",
-             f"Uncertainty bounds (unresolved assessments assigned both ways): **{bounds}**.",
-             "These are identification bounds, not confidence intervals.", "",
-             f"Retrieved nonempty excerpts: **{successes}/{n}**; acquisition failures stay in the enrolled denominator.",
-             f"Adequate among retrieved primary U excerpts: **{adequate}/{successes}**." if successes else
-             "Adequacy conditional on retrieval: not estimable (no U excerpts).", "",
-             (f"Fixed controls: **{len(fixed)}** planned, **{len(shown_fixed)}** shown; "
-              + (f"final false adequacy: **{false_adequate}/{len(shown_fixed)}** shown controls."
-                 if shown_fixed else "false adequacy not estimable: no controls shown.")),
-             "F controls test assessment discriminability; they are excluded from the primary RQ1 denominator.",
-             "", "| Case | Acquisition | Adequacy | Rendered/source lines | Elements with no rendered line |",
-             "|---|---|---|---|---|"]
-    for r in primary:
-        lines.append(f"| {r['case_id']} | {r['status']} | {r['adequacy']} | "
-                     f"{r['rendered_lines']}/{r['source_lines']} | {r['elements_with_no_rendered_line'] or 'none'} |")
-    lines += ["", "Line overlap is descriptive. A visible line does not establish its value, flow or causal relationship.",
-              "Assessment explanations and mechanism correspondence are in `rq1_cases.csv`.",
-              "Each reference role and line-overlap observation is in `rq1_element_visibility.csv`.", "",
-              "Failure stages: " + ", ".join(f"{key}: {value}" for key, value in sorted(Counter(r['status'] for r in primary).items())),
-              "", "This report concerns evidence adequacy only.",
-              "The small, source-curated Juliet sample and AI-assisted reference/assessment limit generalisation.",
-              "No inter-rater reliability or independent human validation is claimed."]
-    initial = report.get("initial_fixed_control_check")
-    if initial:
-        lines += ["", (f"Initial F false adequacy before matching/corrections: "
-                       f"**{initial['initial_false_adequate']}/{initial['shown_F']}** shown case controls "
-                       f"({initial['unique_shown_F_packets']} unique packets).")
-                  if initial["shown_F"] else "Initial F false adequacy: not estimable (no F excerpts shown)."]
-    (work / "rq1_report.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
+        if out['arm'] == 'U':
+            for e in case.referent['elements']:
+                location = ('selected' if selected.intersection(e['lines']) else
+                            'context_only' if rendered.intersection(e['lines']) else 'absent') if rid else 'no_usable_excerpt'
+                if location in {'absent', 'no_usable_excerpt'}:
+                    missing.append(e['id'])
+                visibility.append({'case_id': case.case_id, 'block': case.cluster_id, 'element_id': e['id'],
+                    'role': e['role'], 'essential': e['essential'], 'source_lines': ';'.join(map(str, e['lines'])),
+                    'visibility': location, 'meaning': e['meaning']})
+            checks = {r['relation_id']: r for r in match.get('relation_checks', [])}
+            for r in case.referent['relations']:
+                audit = checks.get(r['id'], {})
+                relations.append({'case_id': case.case_id, 'relation_id': r['id'],
+                    'required_relationship': r['explanation'], 'support': audit.get('support', 'no_usable_excerpt'),
+                    'cited_lines': ';'.join(map(str, audit.get('cited_lines', []))),
+                    'reason': audit.get('explanation', '')})
+        records.append({**out, 'block': case.cluster_id, 'upstream_cwe': case.cwe,
+            'overflowing_object': case.referent['observed_storage_kind'],
+            'selected_lines': len(selected), 'rendered_lines': len(rendered),
+            'source_lines': len(case.source_for(out['arm']).splitlines()),
+            'facts_with_no_rendered_line': ';'.join(missing),
+            'initial_assessment_reason': grade.get('explanation', ''), 'match_reason': match.get('reason', '')})
+    for rid, row in initial.items():
+        corrected = corrections.get(rid)
+        transitions.append({'review_id': rid, 'initial': row['adequacy'],
+            'secondary_corrected': corrected['adequacy'] if corrected else 'not_supplied',
+            'revision_reason': corrected.get('revision_reason', '') if corrected else '',
+            'affects_primary': False})
+    _csv(work / 'rq1_cases.csv', records)
+    _csv(work / 'rq1_element_visibility.csv', visibility)
+    _csv(work / 'rq1_relationship_support.csv', relations)
+    _csv(work / 'rq1_grade_changes.csv', transitions)
+    q, f = report['rq1'], report['initial_fixed_control_check']
+    n, r, a = q['n'], q['retrieved_U'], q['adequacy']['adequate']
+    lower, upper = q['identification_bounds']
+    lines = ['# RQ1 evidence adequacy', '', f"Status: **{report['completion']}**; {report['consistency']['status']}.",
+        f"Assessment: {report['assessment_mode']}.", report['assessment_limit'], '',
+        'The primary outcome uses one U run per case and its first excerpt-only grade, confirmed against source correspondence and visible relationship support. Later reference-informed corrections never promote this outcome.', '',
+        f'Enrolled cases/blocks: **{n}/{q["blocks"]}**. Usable U excerpts: **{r}/{n}**.',
+        f'Adequate retrieval yield: **{a}/{n} ({a/n:.1%})**.',
+        f'Adequacy conditional on retrieval: **{a}/{r} ({a/r:.1%})**.' if r else 'Adequacy conditional on retrieval: **not estimable**.',
+        f'Unresolved acquisition/mapping: **{q["uncertain_acquisition"]}**; unresolved assessment: **{q["uncertain_assessment"]}**.',
+        f'Overall identification bounds: **{lower:.1%}–{upper:.1%}**. These are unresolved-case bounds, not confidence intervals.',
+        f'One/two changed main case judgments move the yield by {q["one_case_percentage_points"]:.2f}/{q["two_case_percentage_points"]:.2f} percentage points.', '',
+        'A missing excerpt is an acquisition outcome, not a rejected grader packet. See the two separate columns below.', '',
+        '| Case | Acquisition | First excerpt grade | Confirmed primary | Correspondence |', '|---|---|---|---|---|']
+    for row in records:
+        if row['arm'] == 'U':
+            lines.append(f"| {row['case_id']} | {row['status']} | {row['initial_excerpt_assessment']} | {row['adequacy']} | {row['mechanism_match']} |")
+    lines += ['', f"Fixed controls: {f['planned_F']} planned; {f['shown_F']} shown ({f['unique_shown_F_packets']} unique packets).",
+        (f"Initial false adequacy: **{f['initial_false_adequate']}/{f['shown_F']}**." if f['shown_F'] else
+         'Initial false adequacy: **not estimable; no F excerpts shown**.'),
+        'F controls are excluded from the primary U denominator. Complete F calibration anchors are a separate development instrument check.', '',
+        '- `rq1_cases.csv`: all U/F acquisition outcomes, first grades, source correspondence and explanations.',
+        '- `rq1_element_visibility.csv`: selected, added as context, absent, or no usable excerpt for each source fact.',
+        '- `rq1_relationship_support.csv`: source-audited support for each required relationship.',
+        '- `rq1_grade_changes.csv`: initial-to-secondary corrections and reasons; no primary promotion.', '',
+        'Line hits describe visibility. They are not semantic recall or proof that a relationship is established.',
+        'Results apply to this small, curated Juliet sample and the frozen Q/Joern configuration. Delayed checks measure within-assessor consistency only.']
+    (work / 'rq1_report.md').write_text('\n'.join(lines) + '\n')
 
 
 def _csv(path, rows):
     if not rows:
-        path.write_text("", encoding="utf-8")
+        path.write_text('')
         return
-    with path.open("w", newline="", encoding="utf-8") as stream:
+    with path.open('w', newline='') as stream:
         writer = csv.DictWriter(stream, fieldnames=list(rows[0]))
         writer.writeheader()
         writer.writerows(rows)

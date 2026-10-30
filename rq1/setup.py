@@ -39,7 +39,7 @@ from .prepare import reference, render, sha, verify_selection
 
 ROOT = CORPUS.parent
 SPLITS = ("development", "main")
-DEFAULT_CONFIG = Path("work/rq1-v2/config.json")
+DEFAULT_CONFIG = Path("work/rq1-v3/config.json")
 
 
 def corpus_contract():
@@ -110,14 +110,14 @@ def load_config(path):
     cfg = json.loads(Path(path).read_text())
     example = json.loads((CORPUS / "config.example.json").read_text())
     if set(cfg) != set(example):
-        raise ValueError("RQ1-v2 config fields differ; initialize a fresh config, preserving old runs")
+        raise ValueError("RQ1-v3 config fields differ; initialize a fresh config, preserving old runs")
     fixed = {"implementation_id": IMPLEMENTATION_ID, "query_model": "QCRI/LLMxCPG-Q",
              "query_revision": "1f48ab60420d90277207394f1254d27d3375b07e",
              "query_engine": "vllm", "query_temperature": 0.0, "query_batch_size": 1,
              "query_max_context": 8192, "query_tensor_parallel_size": 1,
              "infrastructure_attempts": 3}
     if any(cfg[k] != v for k, v in fixed.items()):
-        raise ValueError("Config changes the frozen RQ1-v2 Q/selector design")
+        raise ValueError("Config changes the frozen RQ1-v3 Q/selector design")
     if (not re.fullmatch(r"sha256:[0-9a-f]{64}", cfg["joern_digest"]) or
             not 0 < cfg["query_gpu_memory_utilization"] < 1 or
             not 0 < cfg["joern_rpc_timeout"] <= cfg["joern_case_timeout"]):
@@ -152,14 +152,8 @@ def capability_valid(cfg):
     if (result.get("ready") is not True or result.get("synthetic") is not False or
             result.get("corpus_contract") != corpus_contract() or result.get("policy") != policy(cfg)):
         raise ValueError("Fresh full-selector CPU conformance is required")
-    from .conformance import QUERIES, SOURCE
-    outcome = result.get("outcome", {})
-    stages = {r.get("stage") for r in outcome.get("trace", []) if r.get("success")}
-    if (result.get("source") != SOURCE or result.get("queries") != QUERIES or
-            outcome.get("status") != "ok" or 4 not in outcome.get("slice_lines", []) or
-            not {1, 3, 4, 5, 6} <= set(outcome.get("rendered_lines", [])) or
-            not {"graph_import", "query_execution", "context_expansion", "slice_construction"} <= stages):
-        raise ValueError("Capability receipt lacks a complete successful fixed selector trace")
+    from .conformance import validate_receipt
+    validate_receipt(result)
     return result
 
 
@@ -171,13 +165,19 @@ def check_acquisition_ready(manifest, config, phase=None):
         raise ValueError("Use a canonical RQ1 development or main manifest")
     cfg = load_config(config)
     token_audit_valid(cfg)
-    capability_valid(cfg)
+    capability = capability_valid(cfg)
+    if phase == "slice" and capability.get("environment") != environment():
+        raise ValueError("Restore the CPU environment used for the accepted selector conformance")
+    from .calibration import require_calibration
+    calibrated = require_calibration(cfg)
     provenance = git_provenance()
     if not provenance["commit"] or provenance["modified_tracked_files"]:
         raise ValueError("Acquire only from a clean, committed implementation")
     if manifest == CORPUS / "main.jsonl":
         frozen = json.loads((ROOT / cfg["rq1_freeze_file"]).read_text())
-        if frozen["corpus_contract"] != corpus_contract() or frozen["policy"] != policy(cfg):
+        if (frozen["corpus_contract"] != corpus_contract() or frozen["policy"] != policy(cfg) or
+                frozen.get("calibration_sha256") != file_digest(ROOT / cfg["rq1_calibration_file"]) or
+                frozen.get("assessor_signature") != calibrated["assessor_signature"]):
             raise ValueError("Code, corpus or policy changed after the development freeze")
         if phase in {"query", "slice"} and environment() != frozen["stage_environments"].get(phase):
             raise ValueError(f"Restore the accepted development {phase} Python/package environment")
@@ -234,18 +234,29 @@ def doctor(profile, config, work):
         existing = next(p for p in (cache, *cache.parents) if p.exists())
         free = shutil.disk_usage(existing).free / 2**30
         add("model_cache_space", free >= 100, f"{free:.1f} GiB free; require >=100 GiB")
-    result = {"profile": profile, "ready": all(r["ok"] for r in checks), "checks": checks,
+    from .calibration import require_calibration
+    try:
+        if cfg is None:
+            raise ValueError("Config/technical checks pending")
+        require_calibration(cfg)
+        assessment_status = "accepted"
+    except (ValueError, OSError) as exc:
+        assessment_status = f"pending: {exc}"
+    technical_ready = all(r["ok"] for r in checks)
+    result = {"profile": profile, "ready": technical_ready and assessment_status == "accepted",
+              "technical_ready": technical_ready, "assessor_calibration": assessment_status, "checks": checks,
               "utc": now(), "environment": environment(), "provenance": git_provenance(),
               "meaning": "Readiness only; no Q model load or experiment result."}
     write_json(work / "readiness.json", result)
-    lines = [f"# RQ1 {profile} readiness", "", f"Ready: **{result['ready']}**", "",
+    lines = [f"# RQ1 {profile} readiness", "", f"Technical ready: **{result['technical_ready']}**. Full experiment ready: **{result['ready']}**.",
+             f"Assessor calibration: {assessment_status}", "",
              "| Check | Result | Detail |", "|---|---|---|"]
     for row in checks:
         detail = row["detail"].replace("|", "/").replace("\n", " ")
         lines.append(f"| {row['check']} | {'PASS' if row['ok'] else 'BLOCKED'} | {detail} |")
     (work / "readiness.md").write_text("\n".join(lines) + "\n")
     print(json.dumps(result, indent=2))
-    return result["ready"]
+    return result["technical_ready"]
 
 
 def status(split, work):
@@ -297,7 +308,9 @@ def freeze(config, dev_work):
               "development_analysis_sha256": file_digest(dev_work / "analysis.json"),
               "token_audit_sha256": file_digest(ROOT / cfg["rq1_token_audit_file"]),
               "capability_sha256": file_digest(ROOT / cfg["joern_capability_file"]),
-              "assessment_mode": "AI-assisted single assessor", "primary_rule": "repeat_0",
+              "assessment_mode": "Stateless calibrated AI plus source-support audit", "primary_rule": "repeat_0",
+              "calibration_sha256": file_digest(ROOT / cfg["rq1_calibration_file"]),
+              "assessor_signature": report["assessor_calibration_signature"],
               "development_summary": status("development", dev_work), "provenance": git_provenance()}
     write_json(ROOT / cfg["rq1_freeze_file"], frozen, exclusive=True)
     print("RQ1_FREEZE_OK: main acquisition may now use this exact contract and stage environments")
@@ -344,7 +357,7 @@ def main():
     parser.add_argument("--work", type=Path)
     parser.add_argument("--profile", choices=("local", "gpu"), default="local")
     args = parser.parse_args()
-    work = args.work or Path("work/rq1-v2") / args.split
+    work = args.work or Path("work/rq1-v3") / args.split
     if args.action == "verify":
         verify_implementation()
         print(json.dumps(verify_corpus(), indent=2))
@@ -365,9 +378,11 @@ def main():
     elif args.action == "doctor":
         if not doctor(args.profile, args.config, work):
             raise SystemExit(1)
-        print("RQ1_DOCTOR_OK")
+        print("RQ1_TECHNICAL_DOCTOR_OK: inspect assessor_calibration separately; no inference performed")
     elif args.action == "freeze":
-        freeze(args.config, work)
+        from evidence_experiment.locks import work_lock
+        with work_lock(work):
+            freeze(args.config, work)
     elif args.action == "token-audit":
         token_audit(args.config)
     elif args.action == "conformance":

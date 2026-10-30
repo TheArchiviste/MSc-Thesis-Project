@@ -1,10 +1,10 @@
 # RQ1 execution checkpoints
 
-Run from a clean `main` source checkout. This implementation uses `work/rq1-v2`; never mix earlier `work/rq1` outputs into it. Return each requested result and pause before the next checkpoint. The assistant performs the delegated assessments from actual excerpts and gives detailed reasons; empty forms are never auto-labelled.
+Use clean `main` and fresh `work/rq1-v3`. Preserve all earlier work. Execute **only the current checkpoint**, return its output, and pause. The assistant performs the delegated source/proof judgments and explains them. Empty forms and software simulations are never experiment results.
 
-## 1. Laptop CPU acceptance — run now
+## 1. Laptop CPU checkpoint — run now
 
-Keep the Nebius VM stopped. In D-backed Ubuntu-24.04:
+Keep Nebius stopped. In D-backed Ubuntu-24.04:
 
 ```bash
 set -euo pipefail
@@ -15,32 +15,45 @@ git pull --ff-only origin main
 bash rq1/local_acceptance.sh
 ```
 
-Expected: `RQ1_LOCAL_ACCEPTANCE_OK`, 3 development and 12 main witness pairs, 30 audited prompts, full-selector conformance PASS, and a local doctor PASS. The script installs only CPU tools/tokenizer dependencies, checks a separate synthetic Joern fixture, stops the Docker service and creates a ZIP in `D:\Dissertation-RQ1\exports`, including errors if a stage fails. Return that ZIP and **pause**. Do not delete any older work to make a check pass.
+Expected: `RQ1_LOCAL_CPU_CHECKPOINT_OK`, 30 passing source witnesses, 12 **ungraded** calibration tasks, 30 tokenizer records, full selector fixtures and 30 structural Joern graph records. `readiness.json` distinguishes **technical_ready** from **ready**: full experiment readiness remains false while assessor calibration is pending. The script stops Docker and always creates a diagnostic ZIP in `D:\Dissertation-RQ1\exports`, including failures. CPU graph import can take several minutes; it prints progress. Return the ZIP and pause. No Q weights, experiment queries, grader calls or cloud resources are used.
 
-The Linux project and virtual environment are on the verified D-backed Ubuntu virtual disk. Hugging Face downloads and returned ZIPs explicitly use `D:\Dissertation-RQ1`. [Storage details](D_DRIVE_SETUP.md).
+Hugging Face files and exports explicitly use D:. The project/virtual environment are on the previously verified D-backed WSL disk. See [D_DRIVE_SETUP.md](D_DRIVE_SETUP.md).
 
-## 2. Transfer the accepted inputs — wait for checkpoint 1 review
+## 2. Assessor calibration — after checkpoint 1 inspection
 
-After the local ZIP is accepted, package these files, preserving their paths: new `config.json`, `token-audit.json`, `joern-capability/readiness.json` and development/main `witness_validation.jsonl`. Include a SHA256 checksum. The assistant will provide the exact packaging and SCP commands for the confirmed files/IP. Never transfer the private SSH key. Start the H100 only when ready to use it; re-read its public IP after restart. The previously uploaded archive is historical and must not overwrite rq1-v2 data.
+Follow [ASSESSMENT.md](ASSESSMENT.md). Configure an actual stateless assessor endpoint/model, retain its identity/settings and credentials privately, run the 12 dev-only tasks, and return responses. The assistant audits every proof against the source key and gives reasons. Only a successful `rq1.calibration accept` allows Q acquisition. No endpoint has been configured or assumed free. Keep the H100 stopped while preparing and checking these tasks.
 
-On the VM, update `~/rq1-project` to clean `main`, retain the Python 3.11 Q environment and install this source version with its pinned GPU requirements. Verify the archive checksum before extraction. The local selector receipt describes CPU capability; it does not require Docker on the GPU VM. Copying development/main witness files does not create query or slice records.
+This is evidence-assessor calibration, not detector calibration. Neither D nor a target classifier is used.
 
-## 3. GPU doctor and six development Q inputs — wait for checkpoint 2
+## 3. GPU transfer and doctor — after calibration acceptance
 
-The later commands, inside the accepted Q virtual environment and repository root, are (development/main work directories must already exist from the accepted input transfer):
+Package current `work/rq1-v3/config.json`, `token-audit.json`, the full `calibration` directory including response provenance, `joern-capability/readiness.json`, and development/main witness records. Include SHA256. Exact packaging/SCP commands will use the accepted files and current console IP. The previous uploaded archive is historical. Never transfer SSH private keys or API secrets. Archive paths remain relative to the repo; credentials/profile are not required by Q.
+
+Start the H100 only at this checkpoint. Update `~/rq1-project` to current clean `main`, install the pinned GPU environment, verify the input archive checksum, extract it preserving paths, and run:
 
 ```bash
 set -euo pipefail
-python -m rq1.setup doctor --profile gpu --work work/rq1-v2/gpu-doctor
-python -m evidence_experiment query --split development 2>&1 | tee work/rq1-v2/development/query-command.log
-python -m rq1.setup status --split development
+.venv-q/bin/python -m rq1.setup verify
+.venv-q/bin/python -m rq1.setup doctor --profile gpu --work work/rq1-v3/gpu-doctor
 ```
 
-First return the doctor result before executing Q generation. Q uses BF16 pretrained weights, not training. Model loading is the expensive acceptance check. A load/device error leaves inputs pending and logs the error; it is not an inadequate excerpt. Success requires six terminal query records, linked real model sessions and a query receipt. Retain the entire development directory, both session/runtime logs, and config/audits. Download a checksummed copy to D:, verify it, then stop the VM. [Nebius handoff](../docs/NEBIUS_RQ1_GUIDE.md).
+Return the doctor output and pause **before Q weights are downloaded/loaded**. The CPU Joern receipt is transferred; Docker is not needed on the Q host. See [Nebius handoff](../docs/NEBIUS_RQ1_GUIDE.md).
 
-## 4. Development Joern on the laptop — after accepted Q transfer
+## 4. Six development Q inputs — after GPU doctor acceptance
 
-Use the same accepted CPU environment as checkpoint 1 and the exact development directory downloaded from the GPU. Do not regenerate its lock. The Q and slice environments are stored separately.
+Inside tmux on the VM:
+
+```bash
+set -euo pipefail
+.venv-q/bin/python -m evidence_experiment query --split development 2>&1 | tee work/rq1-v3/development/query-command.log
+.venv-q/bin/python -m rq1.setup status --split development
+```
+
+Expected: six terminal records, real Q model-session metadata and query receipt. A device/load error leaves pending inputs. Return logs on failure. Download/checksum-verify the whole development directory, runtime files and current config/CPU/calibration receipts, then stop the VM. Pause for inspection before slicing.
+
+## 5. Development Joern, stateless grades and source audit — on CPU
+
+Use the accepted local environment and downloaded development directory; preserve its lock.
 
 ```bash
 set -euo pipefail
@@ -49,13 +62,13 @@ set -euo pipefail
 .venv/bin/python -m rq1.assess prepare --split development
 ```
 
-A fresh Docker/Scala process is used for each input. Infrastructure errors save an attempt and stop; return the worker logs before resuming the **same** command. Three attempts total are allowed. Terminal semantic query failures and empty slices are retained without retries for a better outcome. Mapping errors pause and remain uncertain.
+Each input/retry starts a fresh Docker/Scala process. An infrastructure failure saves an attempt and pauses; return logs before resuming the same command. Three attempts total are allowed. Semantic misses are retained without result-seeking retries.
 
-Return actual packets, query/slice traces and forms. The assistant assesses each excerpt first, saving `assessments.initial.jsonl`, then compares U explanations with source references in `adjudications.jsonl`. Corrections go in `assessments.final.jsonl` with actual timestamps. F controls retain their initial decisions. No minimum adequacy rate is required for development acceptance.
+Grade the issued requests with the calibrated profile, import immutable initial responses, and return the actual artifacts for the assistant's source-support audit, following [ASSESSMENT.md](ASSESSMENT.md). No minimum adequate count is required. Optional later corrections are secondary.
 
-## 5. Development report and pre-main freeze
+## 6. Development report and pre-main freeze
 
-After the assistant returns completed assessment files:
+After initial grades and U source audits are complete:
 
 ```bash
 set -euo pipefail
@@ -63,19 +76,19 @@ set -euo pipefail
 .venv/bin/python -m rq1.setup freeze --split development
 ```
 
-Freeze revalidates the exact six observations, real model metadata, full CPU/GPU environments, source contract, all shown assessments and full-selector receipt. Unresolved development infrastructure/mapping failures must be repaired consistently before freeze; honest semantic misses are valid observations. Retain any earlier attempts. The freeze is exclusive and cannot be overwritten. Development may remain provisional for delayed consistency; this does not put a 48-hour wait on main acquisition.
+Freeze recomputes judgments/provenance and locks source/code, policy, calibrated assessor, CPU/GPU stage environments and receipts. Repair unresolved apparatus/mapping failures consistently, retaining old attempts. Genuine retrieval misses remain valid. Development may remain provisional for its delayed check; main need not wait 48 hours for development consistency. Return the freeze and report before main.
 
-## 6. Main Q on the H100, then main slices on CPU
+## 7. Main Q on H100, then laptop slices
 
-Transfer the accepted freeze and exact current source version to the VM. In the same Q environment used for development:
+Transfer the accepted freeze and current inputs, preserve the development Q environment and use clean `main`. On the VM, after the restart checkpoint:
 
 ```bash
 set -euo pipefail
-python -m evidence_experiment query --split main 2>&1 | tee work/rq1-v2/main/query-command.log
-python -m rq1.setup status --split main
+.venv-q/bin/python -m evidence_experiment query --split main 2>&1 | tee work/rq1-v3/main/query-command.log
+.venv-q/bin/python -m rq1.setup status --split main
 ```
 
-Exactly 24 primary inputs are expected. Return/download/verify the complete main directory and stop the VM. On the laptop, in the accepted CPU environment:
+Expected: 24 primary U/F query records. Download and verify the whole main directory, then stop the VM. Return output and pause. On the accepted laptop environment, after inspection:
 
 ```bash
 set -euo pipefail
@@ -84,11 +97,9 @@ set -euo pipefail
 .venv/bin/python -m rq1.assess prepare --split main
 ```
 
-Return the actual evidence for the assistant's reasoned initial/matching/final passes, as in development. Do not replace cases, change flow type, shorten inputs or tune the selector because a slice is large or insufficient.
+Grade via the frozen stateless assessor; return responses and source audit forms. The assistant provides source correspondence/support judgments with detailed reasoning. No case replacement, flow change, source truncation or selector tuning based on main outputs is allowed.
 
-## 7. Provisional report and delayed consistency
-
-After initial and final assessments and U mechanism correspondence are complete:
+## 8. Provisional report and real delayed consistency
 
 ```bash
 set -euo pipefail
@@ -96,11 +107,11 @@ set -euo pipefail
 .venv/bin/python -m rq1.assess reassessment-plan --split main
 ```
 
-The plan freezes a seeded 25% of unique shown U/F packets, rounded up. Return the selected packets **at or after each `not_before_utc`**, at least 48 hours after its actual initial assessment. The assistant performs a second excerpt-only pass using the same honest identity, detailed reasons and actual timestamps. Preserve `assessments.initial.jsonl` and write `assessments.second.jsonl`; never backdate a rating. With no shown packets the delayed check is explicitly not applicable.
+Return the report and frozen subset. At or after each deadline, at least 48 hours after the original response, run/import the second stateless requests using the same profile. Preserve the first grades and raw provenance. Do not backdate anything. No shown packets makes this check explicitly not applicable.
 
-## 8. Final report and reproducibility archive
+## 9. Final report and archive
 
-Once the delayed pass is returned:
+After the delayed responses are imported:
 
 ```bash
 set -euo pipefail
@@ -108,6 +119,6 @@ set -euo pipefail
 .venv/bin/python -m evidence_experiment finalize --split main
 ```
 
-`finalize` refuses incomplete/short-delay checks. Read `rq1_report.md`; use `rq1_cases.csv` for case explanations and `rq1_element_visibility.csv` for descriptive role visibility. `analysis.json` holds denominators, bounds, provenance and consistency. Archive Git commit, corpus/references, config, freeze, tokenizer/capability receipts, full query/session/slice/attempt/worker logs, stage runtime requirements, packet order, all rating passes and reports to D:. Preserve failed attempts as well as successful ones.
+Read `rq1_report.md`, the four `rq1_*.csv` tables and `analysis.json`. They separate enrolled/retrieved denominators, initial grades, source confirmation, acquisition/assessment uncertainty, F checks, visibility, relationships and later corrections. Identification bounds are not confidence intervals.
 
-The result answers only the bounded RQ1 adequacy question for these 12 source-selected blocks. A visible role line is not an adequacy judgment. Identification bounds are not confidence intervals. AI-assisted single-assessor judgments do not establish independent validation or general prevalence.
+Archive exact Git commit, sources/maps/references, config/freeze, calibration (public/private/proofs), CPU receipts, every query/session/slice/attempt/worker log, stage package requirements, issued requests/raw responses, source audits, delayed plan/grades and reports to D:. Preserve unsuccessful attempts. Exclude credentials/private SSH keys. The dissertation must state the bounded synthetic-case scope and AI-assisted validation limits.

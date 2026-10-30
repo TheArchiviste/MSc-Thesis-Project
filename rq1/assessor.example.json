@@ -1,0 +1,10 @@
+{
+  "provider": "SET_ACTUAL_PROVIDER",
+  "model": "SET_ACTUAL_MODEL",
+  "revision_note": "Record the exposed version or explicitly state not_exposed",
+  "chat_completions_url": "http://127.0.0.1:8001/v1/chat/completions",
+  "api_key_env": "RQ1_ASSESSOR_API_KEY",
+  "temperature": 0.0,
+  "max_tokens": 3072,
+  "timeout_seconds": 180
+}

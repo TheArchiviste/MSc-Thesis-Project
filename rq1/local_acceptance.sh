@@ -4,8 +4,8 @@ set -euo pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")/.."
 rq1_exports=/mnt/d/Dissertation-RQ1/exports
 [[ -d /mnt/d ]] || { echo 'Use D-backed Ubuntu-24.04 WSL.' >&2; exit 1; }
-mkdir -p "$rq1_exports" work/rq1-v2
-rq1_attempt=$(mktemp -d "work/rq1-v2/local-attempt-$(date -u +%Y%m%dT%H%M%SZ)-XXXXXX")
+mkdir -p "$rq1_exports" work/rq1-v3
+rq1_attempt=$(mktemp -d "work/rq1-v3/local-attempt-$(date -u +%Y%m%dT%H%M%SZ)-XXXXXX")
 exec > >(tee "$rq1_attempt/command.log") 2>&1
 rq1_finish() {
     rq1_exit=$?
@@ -21,20 +21,20 @@ import sys
 from pathlib import Path
 attempt, code, exports = Path(sys.argv[1]), int(sys.argv[2]), Path(sys.argv[3])
 (attempt / 'checkpoint.json').write_text(json.dumps({'exit_code': code, 'passed': code == 0,
-    'meaning': 'CPU readiness only; no generated queries or evidence-adequacy results.'}, indent=2)+'\n')
+    'meaning': 'CPU technical readiness only; assessor calibration remains pending. No generated queries or evidence-adequacy results.'}, indent=2)+'\n')
 # Collect the exact new inputs and diagnostics; historical work/rq1 files are preserved.
-for rel in ('config.json', 'token-audit.json', 'joern-capability', 'local-doctor', 'development', 'main'):
-    source = Path('work/rq1-v2') / rel
+for rel in ('config.json', 'token-audit.json', 'joern-capability', 'local-doctor', 'development', 'main', 'calibration'):
+    source = Path('work/rq1-v3') / rel
     target = attempt / 'inputs' / rel
     target.parent.mkdir(parents=True, exist_ok=True)
     if source.is_dir(): shutil.copytree(source, target)
     elif source.is_file(): shutil.copyfile(source, target)
 archive = shutil.make_archive(str(exports / attempt.name), 'zip', attempt.parent, attempt.name)
-print(f"\nCPU checkpoint: {'PASS' if code == 0 else 'BLOCKED'}\nReturn this ZIP: {archive}")
+print(f"\nCPU technical checkpoint: {'PASS' if code == 0 else 'BLOCKED'}\nReturn this ZIP: {archive}")
 PY
     exit "$rq1_exit"
 }
 trap rq1_finish EXIT
 bash rq1/local_prepare.sh
 bash rq1/local_joern.sh
-printf '%s\n' 'RQ1_LOCAL_ACCEPTANCE_OK: pause here and return the ZIP before any cloud work.'
+printf '%s\n' 'RQ1_LOCAL_CPU_CHECKPOINT_OK: assessor calibration is the next checkpoint; pause here and return the ZIP before any cloud work.'

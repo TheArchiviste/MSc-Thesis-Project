@@ -1,4 +1,4 @@
-# Evaluated implementation: rq1-v2
+# Evaluated implementation: rq1-v3
 
 This is a bounded audit of the configuration described here. It uses the original pretrained Q weights and a released prompt, with an adapted selector and renderer. It is not a bit-for-bit reproduction of every QCRI runtime component. This decision was made before any real Q outputs or experiment excerpts were inspected.
 
@@ -15,8 +15,10 @@ This is a bounded audit of the configuration described here. It uses the origina
 | Coordinate validation | Empty, noninteger, mixed-invalid and out-of-range coordinates fail explicitly. Every packet must reproduce exactly from its recorded source, selected lines and rendered lines. |
 | Runtime evidence | Actual Git commit, core content hashes, source and witness hashes, model load metadata, full Python/package versions separately for Q and CPU slicing, raw traces and output receipts |
 
-The renderer is a lexical implementation for the enrolled Juliet C subset, not a general C/C++ parser. It does not add unseen declarations or values merely because they would help explain a flaw. It deliberately restores enclosing guards, because omitted control headers could misrepresent the visible mechanism. The known-fixture conformance check must exercise the complete fixed selector and retain the guard before experimental inference is permitted.
+The renderer is a lexical implementation for the enrolled Juliet C subset, not a general C/C++ parser. It does not add unseen declarations or values merely because they would help explain a flaw. It deliberately restores enclosing guards, because omitted control headers could misrepresent the visible mechanism. The CPU conformance check must exercise the complete selector on local and interprocedural/macro fixtures, retain the guard, and structurally import/map/reset all 30 corpus sources. It does not require main fact coverage. A separate 12-anchor, source-checked stateless grader calibration is required before experimental inference.
 
-The older repository core at `7023ff49fe7b800e8b26bcae52e2fcdafe95fa9b` is lineage only. Its prompt and function-only renderer are superseded. Its token audit and work locks cannot be reused as rq1-v2 evidence. The unchanged source corpus and finite witnesses remain historical preparation evidence; fresh local acceptance confirms them again without deleting prior files.
+The older repository core at `7023ff49fe7b800e8b26bcae52e2fcdafe95fa9b` is lineage only. Its prompt and function-only renderer are superseded. Its token audit and work locks cannot be reused as rq1-v3 evidence. The unchanged source corpus and finite witnesses remain historical preparation evidence; fresh local acceptance confirms them again without deleting prior files.
 
 `pipeline_contract.json` records the implementation's file hashes, including acquisition, renderer, assessment and reporting code. `verify` rejects drift. The broader run fingerprint also covers the corpus, source references, scripts, requirements and protocol files. Changes after main acquisition require a versioned protocol deviation and consistently rerun affected inputs, retaining earlier records. No output-driven case replacement or selector tuning is allowed.
+
+The v3 assessment contract binds the public rubric and assumptions into every packet ID. Only first excerpt-only grades, conservatively confirmed by source support, enter the primary result. Reference-informed corrections are secondary. Calibration acceptance, exact messages/raw responses and actual assessor model/settings are receipted; no service identity or stateless isolation is fabricated. See [ASSESSMENT.md](ASSESSMENT.md).

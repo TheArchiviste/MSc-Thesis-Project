@@ -1,246 +1,396 @@
 # Source-grounded mechanism references
 
-Prepared before Q/Joern inference. These are AI-assisted source judgements, supported by the retained Juliet source, exact maps and executable witnesses; they are not independent annotations or excerpt-adequacy results.
+Prepared before Q/Joern inference. AI-assisted source reasoning is supported by pinned Juliet sources, exact maps and finite witnesses; it is not independent human annotation or an excerpt-adequacy result.
 
-Machine-readable references: `referents.jsonl`, mirrored in `development.jsonl` and `main.jsonl`. Map files connect each prepared line to its upstream line. The validation driver and headers are outside model inputs. Common assumptions and the adequacy rubric are in `PROTOCOL.md`.
+Each fact is separate from the relationships that must be justified. A visible fact line is descriptive evidence, not proof of sufficiency. Source-only mechanism and repair explanations must never enter the stateless grader request.
 
 ## D01 — development, juliet-buffer-CWE131-copy
 
-Allocation reserves 10 bytes, while ten int values require 10*sizeof(int), 40 bytes on the validated ABI. F reserves 10*sizeof(int).
+The selected destination has 10 bytes. The operation requests ten int elements, a 40-byte access range on LP64.
 
-Upstream family: `CWE121-CWE131-copy`. Actual overflowing object: **stack**.
+Repair: The repaired allocation reserves 10*sizeof(int), or 40 bytes.
+
+Actual overflowing object: **stack**. Upstream family: `CWE121-CWE131-copy`.
 [Prepared U](generated/D01_U.c) · [Fixed F](generated/D01_F.c) · [Pinned upstream](https://github.com/arichardson/juliet-test-suite-c/blob/f88433e3443648a17671398797a04ea1f8e1a274/testcases/CWE121_Stack_Based_Buffer_Overflow/s01/CWE121_Stack_Based_Buffer_Overflow__CWE131_memcpy_41.c)
 
-| Role | Prepared U lines | Upstream lines |
+| Fact / role | U lines | Meaning |
 |---|---|---|
-| capacity (capacity) | 14 | 36 |
-| extent (extent) | 6 | 26 |
-| access (sink) | 6 | 26 |
-| flow (context) | 15 | 37 |
+| capacity / capacity | 14 | The receiving allocation reserves ten bytes, not ten int elements. |
+| extent / extent | 6 | Ten int elements require 40 bytes; a first-invalid-store account is also acceptable. |
+| access / sink | 6 | The operation writes through the selected destination pointer. |
+| read_object / context | 5 | The read operand has ten int elements; its contents do not determine the copy count. |
+| caller_argument / context | 15 | The selected entry supplies this actual argument. |
+| callee_parameter / context | 2 | The argument binds this formal parameter; equal spelling alone is not proof of identity. |
 
-Necessary relationships: Allocation reserves 10 bytes, while ten int values require 10*sizeof(int), 40 bytes on the validated ABI. F reserves 10*sizeof(int). Allocation reserves 10 bytes, while ten int values require 10*sizeof(int), 40 bytes on the validated ABI. F reserves 10*sizeof(int). The selected caller argument reaches the sink parameter; do not assume this from hidden source.
+| Required relationship | Explanation |
+|---|---|
+| bounds_violation | The selected destination has 10 bytes. The operation requests ten int elements, a 40-byte access range on LP64. |
+| extent_support | Establish the relevant count, source length or possible index using visible facts and permitted assumptions. |
+| argument_binding | The caller supplies the destination object whose capacity is compared with the access. |
 
 ## D02 — development, juliet-buffer-CWE129
 
-Stdin 11 passes the nonnegative-only guard; index 11 exceeds a ten-int heap object's valid indices 0 through 9. The F counterpart adds the upper-bound guard.
+A ten-int heap object has valid indices 0 through 9. The input can be 11; the nonnegative-only guard admits it and buffer[data] writes outside the object.
 
-Upstream family: `CWE122-c-CWE129`. Actual overflowing object: **heap**.
+Repair: The repaired guard additionally requires data < 10.
+
+Actual overflowing object: **heap**. Upstream family: `CWE122-c-CWE129`.
 [Prepared U](generated/D02_U.c) · [Fixed F](generated/D02_F.c) · [Pinned upstream](https://github.com/arichardson/juliet-test-suite-c/blob/f88433e3443648a17671398797a04ea1f8e1a274/testcases/CWE122_Heap_Based_Buffer_Overflow/s06/CWE122_Heap_Based_Buffer_Overflow__c_CWE129_fgets_41.c)
 
-| Role | Prepared U lines | Upstream lines |
+| Fact / role | U lines | Meaning |
 |---|---|---|
-| input (extent) | 36 | 65 |
-| capacity (capacity) | 7 | 28 |
-| guard (guard) | 13 | 37 |
-| access (sink) | 15 | 39 |
-| flow (context) | 43 | 72 |
+| capacity / capacity | 7 | Ten int elements: 40 bytes on LP64. |
+| input_acquisition / context | 34, 40 | Input is obtained from stdin; a decimal value such as 11 is possible. |
+| extent / extent | 36 | The converted input supplies the index; it is not a constant derived from the witness label. |
+| guard / guard | 13 | This guard has no upper-bound restriction. |
+| access / sink | 15 | The converted scalar is used as the index. |
+| caller_argument / context | 43 | The selected entry supplies this actual argument. |
+| callee_parameter / context | 3 | The argument binds this formal parameter; equal spelling alone is not proof of identity. |
 
-Necessary relationships: Stdin 11 passes the nonnegative-only guard; index 11 exceeds a ten-int heap object's valid indices 0 through 9. The F counterpart adds the upper-bound guard. Stdin 11 passes the nonnegative-only guard; index 11 exceeds a ten-int heap object's valid indices 0 through 9. The F counterpart adds the upper-bound guard. The selected caller argument reaches the sink parameter; do not assume this from hidden source.
+| Required relationship | Explanation |
+|---|---|
+| bounds_violation | A ten-int heap object has valid indices 0 through 9. The input can be 11; the nonnegative-only guard admits it and buffer[data] writes outside the object. |
+| extent_support | Establish the relevant count, source length or possible index using visible facts and permitted assumptions. |
+| argument_binding | The caller supplies the index scalar; the receiving buffer is allocated locally. |
+| guard_context | The selected input can exceed the object bound while satisfying the visible guard. |
 
 ## D03 — development, juliet-buffer-CWE193-copy
 
-The ten-character source includes its NUL: eleven bytes are written into the selected ten-byte stack buffer. F selects eleven bytes.
+The source contains ten characters and a terminating NUL. The copy includes eleven bytes, while the selected destination has ten bytes.
 
-Upstream family: `CWE121-CWE193-copy`. Actual overflowing object: **stack**.
+Repair: The repaired caller selects the eleven-byte object.
+
+Actual overflowing object: **stack**. Upstream family: `CWE121-CWE193-copy`.
 [Prepared U](generated/D03_U.c) · [Fixed F](generated/D03_F.c) · [Pinned upstream](https://github.com/arichardson/juliet-test-suite-c/blob/f88433e3443648a17671398797a04ea1f8e1a274/testcases/CWE121_Stack_Based_Buffer_Overflow/s01/CWE121_Stack_Based_Buffer_Overflow__CWE193_char_alloca_cpy_41.c)
 
-| Role | Prepared U lines | Upstream lines |
+| Fact / role | U lines | Meaning |
 |---|---|---|
-| capacity (capacity) | 17 | 41 |
-| extent (extent) | 5, 9 | 24, 31 |
-| access (sink) | 10 | 33 |
-| flow (context) | 19, 21 | 45, 47 |
+| capacity / capacity | 17 | The selected receiving object has ten bytes. |
+| string_definition / context | 5 | The macro supplies ten non-NUL characters; it cannot be inferred when omitted. |
+| source_initialization / extent | 9 | The source array is initialized with SRC_STRING. |
+| extent / extent | 10 | strcpy includes the NUL; the loop variant explicitly includes sourceLen + 1. |
+| access / sink | 10 | The copy writes through the caller-selected pointer. |
+| caller_argument / context | 21 | The selected entry supplies this actual argument. |
+| callee_parameter / context | 6 | The argument binds this formal parameter; equal spelling alone is not proof of identity. |
+| alias_selection / context | 19 | The assignment identifies which allocated object is actually passed. |
 
-Necessary relationships: The ten-character source includes its NUL: eleven bytes are written into the selected ten-byte stack buffer. F selects eleven bytes. The ten-character source includes its NUL: eleven bytes are written into the selected ten-byte stack buffer. F selects eleven bytes. The selected caller argument reaches the sink parameter; do not assume this from hidden source.
+| Required relationship | Explanation |
+|---|---|
+| bounds_violation | The source contains ten characters and a terminating NUL. The copy includes eleven bytes, while the selected destination has ten bytes. |
+| extent_support | Establish the relevant count, source length or possible index using visible facts and permitted assumptions. |
+| argument_binding | The caller supplies the destination object whose capacity is compared with the access. |
 
 ## R02 — main, juliet-buffer-CWE805-ncat
 
-The receiving object has 50 bytes; the documented initialization and operation write 100 bytes, exceeding its capacity. F selects a 100-byte receiving object.
+The receiving object has 50 bytes; the documented count and source facts imply a requested 100-byte access range, exceeding its capacity.
 
-Upstream family: `CWE121-CWE805-ncat`. Actual overflowing object: **stack**.
+Repair: The repaired caller selects or allocates a 100-byte destination.
+
+Actual overflowing object: **stack**. Upstream family: `CWE121-CWE805-ncat`.
 [Prepared U](generated/R02_U.c) · [Fixed F](generated/R02_F.c) · [Pinned upstream](https://github.com/arichardson/juliet-test-suite-c/blob/f88433e3443648a17671398797a04ea1f8e1a274/testcases/CWE121_Stack_Based_Buffer_Overflow/s03/CWE121_Stack_Based_Buffer_Overflow__CWE805_char_alloca_ncat_41.c)
 
-| Role | Prepared U lines | Upstream lines |
+| Fact / role | U lines | Meaning |
 |---|---|---|
-| capacity (capacity) | 16 | 38 |
-| extent (extent) | 6, 7, 8 | 26, 27, 28 |
-| access (sink) | 9 | 30 |
-| flow (context) | 18, 20 | 42, 44 |
+| capacity / capacity | 16 | The receiving object has fifty bytes. |
+| access / sink | 9 | The intended write operation, not a later consequence or unrelated access. |
+| source_initialization / extent | 7 | The documented non-NUL initialization establishes the source content relevant to length. |
+| source_termination / context | 8 | The explicit termination establishes the documented source length. |
+| extent / extent | 9 | The count bound and/or string operation determines the access range together with the source facts. |
+| destination_initialization / context | 19 | The destination initially denotes the empty string. |
+| caller_argument / context | 20 | The selected entry supplies this actual argument. |
+| callee_parameter / context | 3 | The argument binds this formal parameter; equal spelling alone is not proof of identity. |
+| alias_selection / context | 18 | The assignment identifies which allocated object is actually passed. |
 
-Necessary relationships: The receiving object has 50 bytes; the documented initialization and operation write 100 bytes, exceeding its capacity. F selects a 100-byte receiving object. The receiving object has 50 bytes; the documented initialization and operation write 100 bytes, exceeding its capacity. F selects a 100-byte receiving object. The selected caller argument reaches the sink parameter; do not assume this from hidden source.
+| Required relationship | Explanation |
+|---|---|
+| bounds_violation | The receiving object has 50 bytes; the documented count and source facts imply a requested 100-byte access range, exceeding its capacity. |
+| extent_support | Establish the relevant count, source length or possible index using visible facts and permitted assumptions. |
+| argument_binding | The caller supplies the destination object whose capacity is compared with the access. |
 
 ## R03 — main, juliet-buffer-CWE806-loop
 
-The receiving object has 50 bytes; the documented initialization and operation write 99 bytes, exceeding its capacity. F uses a shorter source.
+The receiving object has 50 bytes; the documented count and source facts imply a requested 99-byte access range, exceeding its capacity.
 
-Upstream family: `CWE122-c-CWE806-loop`. Actual overflowing object: **stack**.
+Repair: The repaired caller uses a shorter source.
+
+Actual overflowing object: **stack**. Upstream family: `CWE122-c-CWE806-loop`.
 [Prepared U](generated/R03_U.c) · [Fixed F](generated/R03_F.c) · [Pinned upstream](https://github.com/arichardson/juliet-test-suite-c/blob/f88433e3443648a17671398797a04ea1f8e1a274/testcases/CWE122_Heap_Based_Buffer_Overflow/s09/CWE122_Heap_Based_Buffer_Overflow__c_CWE806_char_loop_41.c)
 
-| Role | Prepared U lines | Upstream lines |
+| Fact / role | U lines | Meaning |
 |---|---|---|
-| capacity (capacity) | 6 | 26 |
-| extent (extent) | 7, 8, 9, 23, 24 | 27, 28, 30, 46, 47 |
-| access (sink) | 11 | 32 |
-| flow (context) | 25 | 48 |
+| capacity / capacity | 6 | The receiving object has fifty bytes. |
+| access / sink | 11 | The intended write operation, not a later consequence or unrelated access. |
+| source_initialization / extent | 23 | The documented non-NUL initialization establishes the source content relevant to length. |
+| source_termination / context | 24 | The explicit termination establishes the documented source length. |
+| extent / extent | 8, 9 | The access extent depends on the caller-supplied source length and operation semantics. |
+| source_allocation / context | 21 | This allocation supplies the read operand, not the local overflowing destination. |
+| caller_argument / context | 25 | The selected entry supplies this actual argument. |
+| callee_parameter / context | 3 | The argument binds this formal parameter; equal spelling alone is not proof of identity. |
 
-Necessary relationships: The receiving object has 50 bytes; the documented initialization and operation write 99 bytes, exceeding its capacity. F uses a shorter source. The receiving object has 50 bytes; the documented initialization and operation write 99 bytes, exceeding its capacity. F uses a shorter source. The selected caller argument reaches the sink parameter; do not assume this from hidden source.
+| Required relationship | Explanation |
+|---|---|
+| bounds_violation | The receiving object has 50 bytes; the documented count and source facts imply a requested 99-byte access range, exceeding its capacity. |
+| extent_support | Establish the relevant count, source length or possible index using visible facts and permitted assumptions. |
+| argument_binding | The caller supplies the source object whose length drives the local destination write. |
 
 ## R04 — main, juliet-buffer-src-copy
 
-The receiving object has 50 bytes; the documented initialization and operation write 100 bytes, exceeding its capacity. F uses a shorter source.
+The receiving object has 50 bytes; the documented count and source facts imply a requested 100-byte access range, exceeding its capacity.
 
-Upstream family: `CWE121-src-copy`. Actual overflowing object: **stack**.
+Repair: The repaired caller uses a shorter source.
+
+Actual overflowing object: **stack**. Upstream family: `CWE121-src-copy`.
 [Prepared U](generated/R04_U.c) · [Fixed F](generated/R04_F.c) · [Pinned upstream](https://github.com/arichardson/juliet-test-suite-c/blob/f88433e3443648a17671398797a04ea1f8e1a274/testcases/CWE121_Stack_Based_Buffer_Overflow/s08/CWE121_Stack_Based_Buffer_Overflow__src_char_alloca_cpy_41.c)
 
-| Role | Prepared U lines | Upstream lines |
+| Fact / role | U lines | Meaning |
 |---|---|---|
-| capacity (capacity) | 6 | 26 |
-| extent (extent) | 16, 17 | 39, 40 |
-| access (sink) | 7 | 28 |
-| flow (context) | 18 | 41 |
+| capacity / capacity | 6 | The receiving object has fifty bytes. |
+| access / sink | 7 | The intended write operation, not a later consequence or unrelated access. |
+| source_initialization / extent | 16 | The documented non-NUL initialization establishes the source content relevant to length. |
+| source_termination / context | 17 | The explicit termination establishes the documented source length. |
+| extent / extent | 7 | The access extent depends on the caller-supplied source length and operation semantics. |
+| source_allocation / context | 14 | This allocation supplies the read operand, not the local overflowing destination. |
+| caller_argument / context | 18 | The selected entry supplies this actual argument. |
+| callee_parameter / context | 3 | The argument binds this formal parameter; equal spelling alone is not proof of identity. |
+| alias_selection / context | 15 | The assignment identifies which allocated object is actually passed. |
 
-Necessary relationships: The receiving object has 50 bytes; the documented initialization and operation write 100 bytes, exceeding its capacity. F uses a shorter source. The receiving object has 50 bytes; the documented initialization and operation write 100 bytes, exceeding its capacity. F uses a shorter source. The selected caller argument reaches the sink parameter; do not assume this from hidden source.
+| Required relationship | Explanation |
+|---|---|
+| bounds_violation | The receiving object has 50 bytes; the documented count and source facts imply a requested 100-byte access range, exceeding its capacity. |
+| extent_support | Establish the relevant count, source length or possible index using visible facts and permitted assumptions. |
+| argument_binding | The caller supplies the source object whose length drives the local destination write. |
 
 ## R05 — main, juliet-buffer-CWE806-copy
 
-The receiving object has 50 bytes; the documented initialization and operation write 99 bytes, exceeding its capacity. F uses a shorter source.
+The receiving object has 50 bytes; the documented count and source facts imply a requested 99-byte access range, exceeding its capacity.
 
-Upstream family: `CWE122-c-CWE806-copy`. Actual overflowing object: **stack**.
+Repair: The repaired caller uses a shorter source.
+
+Actual overflowing object: **stack**. Upstream family: `CWE122-c-CWE806-copy`.
 [Prepared U](generated/R05_U.c) · [Fixed F](generated/R05_F.c) · [Pinned upstream](https://github.com/arichardson/juliet-test-suite-c/blob/f88433e3443648a17671398797a04ea1f8e1a274/testcases/CWE122_Heap_Based_Buffer_Overflow/s09/CWE122_Heap_Based_Buffer_Overflow__c_CWE806_char_memcpy_41.c)
 
-| Role | Prepared U lines | Upstream lines |
+| Fact / role | U lines | Meaning |
 |---|---|---|
-| capacity (capacity) | 6 | 26 |
-| extent (extent) | 7, 18, 19 | 28, 41, 42 |
-| access (sink) | 7 | 28 |
-| flow (context) | 20 | 43 |
+| capacity / capacity | 6 | The receiving object has fifty bytes. |
+| access / sink | 7 | The intended write operation, not a later consequence or unrelated access. |
+| source_initialization / extent | 18 | The documented non-NUL initialization establishes the source content relevant to length. |
+| source_termination / context | 19 | The explicit termination establishes the documented source length. |
+| extent / extent | 7 | The access extent depends on the caller-supplied source length and operation semantics. |
+| source_allocation / context | 16 | This allocation supplies the read operand, not the local overflowing destination. |
+| caller_argument / context | 20 | The selected entry supplies this actual argument. |
+| callee_parameter / context | 3 | The argument binds this formal parameter; equal spelling alone is not proof of identity. |
 
-Necessary relationships: The receiving object has 50 bytes; the documented initialization and operation write 99 bytes, exceeding its capacity. F uses a shorter source. The receiving object has 50 bytes; the documented initialization and operation write 99 bytes, exceeding its capacity. F uses a shorter source. The selected caller argument reaches the sink parameter; do not assume this from hidden source.
+| Required relationship | Explanation |
+|---|---|
+| bounds_violation | The receiving object has 50 bytes; the documented count and source facts imply a requested 99-byte access range, exceeding its capacity. |
+| extent_support | Establish the relevant count, source length or possible index using visible facts and permitted assumptions. |
+| argument_binding | The caller supplies the source object whose length drives the local destination write. |
 
 ## R06 — main, juliet-buffer-dest-cat
 
-The receiving object has 50 bytes; the documented initialization and operation write 100 bytes, exceeding its capacity. F selects a 100-byte receiving object.
+The receiving object has 50 bytes; the documented count and source facts imply a requested 100-byte access range, exceeding its capacity.
 
-Upstream family: `CWE121-dest-cat`. Actual overflowing object: **stack**.
+Repair: The repaired caller selects or allocates a 100-byte destination.
+
+Actual overflowing object: **stack**. Upstream family: `CWE121-dest-cat`.
 [Prepared U](generated/R06_U.c) · [Fixed F](generated/R06_F.c) · [Pinned upstream](https://github.com/arichardson/juliet-test-suite-c/blob/f88433e3443648a17671398797a04ea1f8e1a274/testcases/CWE121_Stack_Based_Buffer_Overflow/s08/CWE121_Stack_Based_Buffer_Overflow__dest_char_alloca_cat_41.c)
 
-| Role | Prepared U lines | Upstream lines |
+| Fact / role | U lines | Meaning |
 |---|---|---|
-| capacity (capacity) | 16 | 38 |
-| extent (extent) | 6, 7, 8 | 26, 27, 28 |
-| access (sink) | 9 | 30 |
-| flow (context) | 18, 20 | 42, 44 |
+| capacity / capacity | 16 | The receiving object has fifty bytes. |
+| access / sink | 9 | The intended write operation, not a later consequence or unrelated access. |
+| source_initialization / extent | 7 | The documented non-NUL initialization establishes the source content relevant to length. |
+| source_termination / context | 8 | The explicit termination establishes the documented source length. |
+| extent / extent | 9 | The count bound and/or string operation determines the access range together with the source facts. |
+| destination_initialization / context | 19 | The destination initially denotes the empty string. |
+| caller_argument / context | 20 | The selected entry supplies this actual argument. |
+| callee_parameter / context | 3 | The argument binds this formal parameter; equal spelling alone is not proof of identity. |
+| alias_selection / context | 18 | The assignment identifies which allocated object is actually passed. |
 
-Necessary relationships: The receiving object has 50 bytes; the documented initialization and operation write 100 bytes, exceeding its capacity. F selects a 100-byte receiving object. The receiving object has 50 bytes; the documented initialization and operation write 100 bytes, exceeding its capacity. F selects a 100-byte receiving object. The selected caller argument reaches the sink parameter; do not assume this from hidden source.
+| Required relationship | Explanation |
+|---|---|
+| bounds_violation | The receiving object has 50 bytes; the documented count and source facts imply a requested 100-byte access range, exceeding its capacity. |
+| extent_support | Establish the relevant count, source length or possible index using visible facts and permitted assumptions. |
+| argument_binding | The caller supplies the destination object whose capacity is compared with the access. |
 
 ## R07 — main, juliet-buffer-CWE131-loop
 
-Allocation reserves 10 bytes, while ten int values require 10*sizeof(int), 40 bytes on the validated ABI. F reserves 10*sizeof(int).
+The selected destination has 10 bytes. The operation requests ten int elements, a 40-byte access range on LP64.
 
-Upstream family: `CWE122-CWE131-loop`. Actual overflowing object: **heap**.
+Repair: The repaired allocation reserves 10*sizeof(int), or 40 bytes.
+
+Actual overflowing object: **heap**. Upstream family: `CWE122-CWE131-loop`.
 [Prepared U](generated/R07_U.c) · [Fixed F](generated/R07_F.c) · [Pinned upstream](https://github.com/arichardson/juliet-test-suite-c/blob/f88433e3443648a17671398797a04ea1f8e1a274/testcases/CWE122_Heap_Based_Buffer_Overflow/s05/CWE122_Heap_Based_Buffer_Overflow__CWE131_loop_41.c)
 
-| Role | Prepared U lines | Upstream lines |
+| Fact / role | U lines | Meaning |
 |---|---|---|
-| capacity (capacity) | 19 | 41 |
-| extent (extent) | 7 | 27 |
-| access (sink) | 9 | 29 |
-| flow (context) | 21 | 43 |
+| capacity / capacity | 19 | The receiving allocation reserves ten bytes, not ten int elements. |
+| extent / extent | 7 | Ten int elements require 40 bytes; a first-invalid-store account is also acceptable. |
+| access / sink | 9 | The operation writes through the selected destination pointer. |
+| read_object / context | 5 | The read operand has ten int elements; its contents do not determine the copy count. |
+| caller_argument / context | 21 | The selected entry supplies this actual argument. |
+| callee_parameter / context | 2 | The argument binds this formal parameter; equal spelling alone is not proof of identity. |
 
-Necessary relationships: Allocation reserves 10 bytes, while ten int values require 10*sizeof(int), 40 bytes on the validated ABI. F reserves 10*sizeof(int). Allocation reserves 10 bytes, while ten int values require 10*sizeof(int), 40 bytes on the validated ABI. F reserves 10*sizeof(int). The selected caller argument reaches the sink parameter; do not assume this from hidden source.
+| Required relationship | Explanation |
+|---|---|
+| bounds_violation | The selected destination has 10 bytes. The operation requests ten int elements, a 40-byte access range on LP64. |
+| extent_support | Establish the relevant count, source length or possible index using visible facts and permitted assumptions. |
+| argument_binding | The caller supplies the destination object whose capacity is compared with the access. |
 
 ## R08 — main, juliet-buffer-CWE806-snprintf
 
-The receiving object has 50 bytes; the documented initialization and operation write 99 bytes, exceeding its capacity. F uses a shorter source.
+The receiving object has 50 bytes; the documented count and source facts imply a requested 99-byte access range, exceeding its capacity.
 
-Upstream family: `CWE121-CWE806-snprintf`. Actual overflowing object: **stack**.
+Repair: The repaired caller uses a shorter source.
+
+Actual overflowing object: **stack**. Upstream family: `CWE121-CWE806-snprintf`.
 [Prepared U](generated/R08_U.c) · [Fixed F](generated/R08_F.c) · [Pinned upstream](https://github.com/arichardson/juliet-test-suite-c/blob/f88433e3443648a17671398797a04ea1f8e1a274/testcases/CWE121_Stack_Based_Buffer_Overflow/s06/CWE121_Stack_Based_Buffer_Overflow__CWE806_char_alloca_snprintf_41.c)
 
-| Role | Prepared U lines | Upstream lines |
+| Fact / role | U lines | Meaning |
 |---|---|---|
-| capacity (capacity) | 11 | 32 |
-| extent (extent) | 12, 21, 22 | 34, 45, 46 |
-| access (sink) | 12 | 34 |
-| flow (context) | 23 | 47 |
+| capacity / capacity | 11 | The receiving object has fifty bytes. |
+| access / sink | 12 | The intended write operation, not a later consequence or unrelated access. |
+| source_initialization / extent | 21 | The documented non-NUL initialization establishes the source content relevant to length. |
+| source_termination / context | 22 | The explicit termination establishes the documented source length. |
+| extent / extent | 12 | The access extent depends on the caller-supplied source length and operation semantics. |
+| source_allocation / context | 19 | This allocation supplies the read operand, not the local overflowing destination. |
+| macro_binding / context | 6 | On the selected Linux branch SNPRINTF denotes standard snprintf; do not invent an omitted binding. |
+| caller_argument / context | 23 | The selected entry supplies this actual argument. |
+| callee_parameter / context | 8 | The argument binds this formal parameter; equal spelling alone is not proof of identity. |
+| alias_selection / context | 20 | The assignment identifies which allocated object is actually passed. |
 
-Necessary relationships: The receiving object has 50 bytes; the documented initialization and operation write 99 bytes, exceeding its capacity. F uses a shorter source. The receiving object has 50 bytes; the documented initialization and operation write 99 bytes, exceeding its capacity. F uses a shorter source. The selected caller argument reaches the sink parameter; do not assume this from hidden source.
+| Required relationship | Explanation |
+|---|---|
+| bounds_violation | The receiving object has 50 bytes; the documented count and source facts imply a requested 99-byte access range, exceeding its capacity. |
+| extent_support | Establish the relevant count, source length or possible index using visible facts and permitted assumptions. |
+| argument_binding | The caller supplies the source object whose length drives the local destination write. |
 
 ## R09 — main, juliet-buffer-src-cat
 
-The receiving object has 50 bytes; the documented initialization and operation write 100 bytes, exceeding its capacity. F uses a shorter source.
+The receiving object has 50 bytes; the documented count and source facts imply a requested 100-byte access range, exceeding its capacity.
 
-Upstream family: `CWE122-c-src-cat`. Actual overflowing object: **stack**.
+Repair: The repaired caller uses a shorter source.
+
+Actual overflowing object: **stack**. Upstream family: `CWE122-c-src-cat`.
 [Prepared U](generated/R09_U.c) · [Fixed F](generated/R09_F.c) · [Pinned upstream](https://github.com/arichardson/juliet-test-suite-c/blob/f88433e3443648a17671398797a04ea1f8e1a274/testcases/CWE122_Heap_Based_Buffer_Overflow/s10/CWE122_Heap_Based_Buffer_Overflow__c_src_char_cat_41.c)
 
-| Role | Prepared U lines | Upstream lines |
+| Fact / role | U lines | Meaning |
 |---|---|---|
-| capacity (capacity) | 6 | 26 |
-| extent (extent) | 17, 18 | 40, 41 |
-| access (sink) | 7 | 28 |
-| flow (context) | 19 | 42 |
+| capacity / capacity | 6 | The receiving object has fifty bytes. |
+| access / sink | 7 | The intended write operation, not a later consequence or unrelated access. |
+| source_initialization / extent | 17 | The documented non-NUL initialization establishes the source content relevant to length. |
+| source_termination / context | 18 | The explicit termination establishes the documented source length. |
+| extent / extent | 7 | The access extent depends on the caller-supplied source length and operation semantics. |
+| source_allocation / context | 15 | This allocation supplies the read operand, not the local overflowing destination. |
+| caller_argument / context | 19 | The selected entry supplies this actual argument. |
+| callee_parameter / context | 3 | The argument binds this formal parameter; equal spelling alone is not proof of identity. |
 
-Necessary relationships: The receiving object has 50 bytes; the documented initialization and operation write 100 bytes, exceeding its capacity. F uses a shorter source. The receiving object has 50 bytes; the documented initialization and operation write 100 bytes, exceeding its capacity. F uses a shorter source. The selected caller argument reaches the sink parameter; do not assume this from hidden source.
+| Required relationship | Explanation |
+|---|---|
+| bounds_violation | The receiving object has 50 bytes; the documented count and source facts imply a requested 100-byte access range, exceeding its capacity. |
+| extent_support | Establish the relevant count, source length or possible index using visible facts and permitted assumptions. |
+| argument_binding | The caller supplies the source object whose length drives the local destination write. |
 
 ## R10 — main, juliet-buffer-CWE805-snprintf
 
-The receiving object has 50 bytes; the documented initialization and operation write 100 bytes, exceeding its capacity. F selects a 100-byte receiving object.
+The receiving object has 50 bytes; the documented count and source facts imply a requested 100-byte access range, exceeding its capacity.
 
-Upstream family: `CWE121-CWE805-snprintf`. Actual overflowing object: **stack**.
+Repair: The repaired caller selects or allocates a 100-byte destination.
+
+Actual overflowing object: **stack**. Upstream family: `CWE121-CWE805-snprintf`.
 [Prepared U](generated/R10_U.c) · [Fixed F](generated/R10_F.c) · [Pinned upstream](https://github.com/arichardson/juliet-test-suite-c/blob/f88433e3443648a17671398797a04ea1f8e1a274/testcases/CWE121_Stack_Based_Buffer_Overflow/s03/CWE121_Stack_Based_Buffer_Overflow__CWE805_char_alloca_snprintf_41.c)
 
-| Role | Prepared U lines | Upstream lines |
+| Fact / role | U lines | Meaning |
 |---|---|---|
-| capacity (capacity) | 21 | 44 |
-| extent (extent) | 11, 12, 13 | 32, 33, 34 |
-| access (sink) | 14 | 36 |
-| flow (context) | 23, 25 | 48, 50 |
+| capacity / capacity | 21 | The receiving object has fifty bytes. |
+| access / sink | 14 | The intended write operation, not a later consequence or unrelated access. |
+| source_initialization / extent | 12 | The documented non-NUL initialization establishes the source content relevant to length. |
+| source_termination / context | 13 | The explicit termination establishes the documented source length. |
+| extent / extent | 14 | The count bound and/or string operation determines the access range together with the source facts. |
+| macro_binding / context | 6 | On the selected Linux branch SNPRINTF denotes standard snprintf; do not invent an omitted binding. |
+| caller_argument / context | 25 | The selected entry supplies this actual argument. |
+| callee_parameter / context | 8 | The argument binds this formal parameter; equal spelling alone is not proof of identity. |
+| alias_selection / context | 23 | The assignment identifies which allocated object is actually passed. |
 
-Necessary relationships: The receiving object has 50 bytes; the documented initialization and operation write 100 bytes, exceeding its capacity. F selects a 100-byte receiving object. The receiving object has 50 bytes; the documented initialization and operation write 100 bytes, exceeding its capacity. F selects a 100-byte receiving object. The selected caller argument reaches the sink parameter; do not assume this from hidden source.
+| Required relationship | Explanation |
+|---|---|
+| bounds_violation | The receiving object has 50 bytes; the documented count and source facts imply a requested 100-byte access range, exceeding its capacity. |
+| extent_support | Establish the relevant count, source length or possible index using visible facts and permitted assumptions. |
+| argument_binding | The caller supplies the destination object whose capacity is compared with the access. |
 
 ## R12 — main, juliet-buffer-CWE806-ncat
 
-The receiving object has 50 bytes; the documented initialization and operation write 100 bytes, exceeding its capacity. F uses a shorter source.
+The receiving object has 50 bytes; the documented count and source facts imply a requested 100-byte access range, exceeding its capacity.
 
-Upstream family: `CWE121-CWE806-ncat`. Actual overflowing object: **stack**.
+Repair: The repaired caller uses a shorter source.
+
+Actual overflowing object: **stack**. Upstream family: `CWE121-CWE806-ncat`.
 [Prepared U](generated/R12_U.c) · [Fixed F](generated/R12_F.c) · [Pinned upstream](https://github.com/arichardson/juliet-test-suite-c/blob/f88433e3443648a17671398797a04ea1f8e1a274/testcases/CWE121_Stack_Based_Buffer_Overflow/s06/CWE121_Stack_Based_Buffer_Overflow__CWE806_char_alloca_ncat_41.c)
 
-| Role | Prepared U lines | Upstream lines |
+| Fact / role | U lines | Meaning |
 |---|---|---|
-| capacity (capacity) | 6 | 26 |
-| extent (extent) | 7, 17, 18 | 28, 40, 41 |
-| access (sink) | 7 | 28 |
-| flow (context) | 19 | 42 |
+| capacity / capacity | 6 | The receiving object has fifty bytes. |
+| access / sink | 7 | The intended write operation, not a later consequence or unrelated access. |
+| source_initialization / extent | 17 | The documented non-NUL initialization establishes the source content relevant to length. |
+| source_termination / context | 18 | The explicit termination establishes the documented source length. |
+| extent / extent | 7 | The access extent depends on the caller-supplied source length and operation semantics. |
+| source_allocation / context | 15 | This allocation supplies the read operand, not the local overflowing destination. |
+| caller_argument / context | 19 | The selected entry supplies this actual argument. |
+| callee_parameter / context | 3 | The argument binds this formal parameter; equal spelling alone is not proof of identity. |
+| alias_selection / context | 16 | The assignment identifies which allocated object is actually passed. |
 
-Necessary relationships: The receiving object has 50 bytes; the documented initialization and operation write 100 bytes, exceeding its capacity. F uses a shorter source. The receiving object has 50 bytes; the documented initialization and operation write 100 bytes, exceeding its capacity. F uses a shorter source. The selected caller argument reaches the sink parameter; do not assume this from hidden source.
+| Required relationship | Explanation |
+|---|---|
+| bounds_violation | The receiving object has 50 bytes; the documented count and source facts imply a requested 100-byte access range, exceeding its capacity. |
+| extent_support | Establish the relevant count, source length or possible index using visible facts and permitted assumptions. |
+| argument_binding | The caller supplies the source object whose length drives the local destination write. |
 
 ## R13 — main, juliet-buffer-CWE805-copy
 
-The receiving object has 50 bytes; the documented initialization and operation write 100 bytes, exceeding its capacity. F selects a 100-byte receiving object.
+The receiving object has 50 bytes; the documented count and source facts imply a requested 100-byte access range, exceeding its capacity.
 
-Upstream family: `CWE122-c-CWE805-copy`. Actual overflowing object: **heap**.
+Repair: The repaired caller selects or allocates a 100-byte destination.
+
+Actual overflowing object: **heap**. Upstream family: `CWE122-c-CWE805-copy`.
 [Prepared U](generated/R13_U.c) · [Fixed F](generated/R13_F.c) · [Pinned upstream](https://github.com/arichardson/juliet-test-suite-c/blob/f88433e3443648a17671398797a04ea1f8e1a274/testcases/CWE122_Heap_Based_Buffer_Overflow/s07/CWE122_Heap_Based_Buffer_Overflow__c_CWE805_char_memcpy_41.c)
 
-| Role | Prepared U lines | Upstream lines |
+| Fact / role | U lines | Meaning |
 |---|---|---|
-| capacity (capacity) | 19 | 42 |
-| extent (extent) | 6, 7, 8 | 26, 27, 28 |
-| access (sink) | 9 | 30 |
-| flow (context) | 22 | 45 |
+| capacity / capacity | 19 | The receiving object has fifty bytes. |
+| access / sink | 9 | The intended write operation, not a later consequence or unrelated access. |
+| extent / extent | 9 | The count argument requests 100 bytes; source initialization does not set this count. |
+| read_object / context | 6 | The read operand has a hundred bytes; this is source-object context, not the write count. |
+| caller_argument / context | 22 | The selected entry supplies this actual argument. |
+| callee_parameter / context | 3 | The argument binds this formal parameter; equal spelling alone is not proof of identity. |
 
-Necessary relationships: The receiving object has 50 bytes; the documented initialization and operation write 100 bytes, exceeding its capacity. F selects a 100-byte receiving object. The receiving object has 50 bytes; the documented initialization and operation write 100 bytes, exceeding its capacity. F selects a 100-byte receiving object. The selected caller argument reaches the sink parameter; do not assume this from hidden source.
+| Required relationship | Explanation |
+|---|---|
+| bounds_violation | The receiving object has 50 bytes; the documented count and source facts imply a requested 100-byte access range, exceeding its capacity. |
+| extent_support | Establish the relevant count, source length or possible index using visible facts and permitted assumptions. |
+| argument_binding | The caller supplies the destination object whose capacity is compared with the access. |
 
 ## R14 — main, juliet-buffer-CWE193-loop
 
-The ten-character source includes its NUL: eleven bytes are written into the selected ten-byte stack buffer. F selects eleven bytes.
+The source contains ten characters and a terminating NUL. The copy includes eleven bytes, while the selected destination has ten bytes.
 
-Upstream family: `CWE121-CWE193-loop`. Actual overflowing object: **stack**.
+Repair: The repaired caller selects the eleven-byte object.
+
+Actual overflowing object: **stack**. Upstream family: `CWE121-CWE193-loop`.
 [Prepared U](generated/R14_U.c) · [Fixed F](generated/R14_F.c) · [Pinned upstream](https://github.com/arichardson/juliet-test-suite-c/blob/f88433e3443648a17671398797a04ea1f8e1a274/testcases/CWE121_Stack_Based_Buffer_Overflow/s02/CWE121_Stack_Based_Buffer_Overflow__CWE193_char_alloca_loop_41.c)
 
-| Role | Prepared U lines | Upstream lines |
+| Fact / role | U lines | Meaning |
 |---|---|---|
-| capacity (capacity) | 22 | 47 |
-| extent (extent) | 5, 9, 10, 11, 12 | 24, 31, 32, 33, 36 |
-| access (sink) | 14 | 38 |
-| flow (context) | 24, 26 | 51, 53 |
+| capacity / capacity | 22 | The selected receiving object has ten bytes. |
+| string_definition / context | 5 | The macro supplies ten non-NUL characters; it cannot be inferred when omitted. |
+| source_initialization / extent | 9 | The source array is initialized with SRC_STRING. |
+| extent / extent | 11, 12 | strcpy includes the NUL; the loop variant explicitly includes sourceLen + 1. |
+| access / sink | 14 | The copy writes through the caller-selected pointer. |
+| caller_argument / context | 26 | The selected entry supplies this actual argument. |
+| callee_parameter / context | 6 | The argument binds this formal parameter; equal spelling alone is not proof of identity. |
+| alias_selection / context | 24 | The assignment identifies which allocated object is actually passed. |
 
-Necessary relationships: The ten-character source includes its NUL: eleven bytes are written into the selected ten-byte stack buffer. F selects eleven bytes. The ten-character source includes its NUL: eleven bytes are written into the selected ten-byte stack buffer. F selects eleven bytes. The selected caller argument reaches the sink parameter; do not assume this from hidden source.
+| Required relationship | Explanation |
+|---|---|
+| bounds_violation | The source contains ten characters and a terminating NUL. The copy includes eleven bytes, while the selected destination has ten bytes. |
+| extent_support | Establish the relevant count, source length or possible index using visible facts and permitted assumptions. |
+| argument_binding | The caller supplies the destination object whose capacity is compared with the access. |

@@ -1,23 +1,9 @@
 # RQ1 acquisition and reporting
 
-Only `query`, `slice`, `packets`, `analyze` and `finalize` are supported. Both
-`python -m evidence_experiment` and `llmxcpg` use this interface. See the
-[runbook](../rq1/RUNBOOK.md) for the ordered checkpoint commands.
+Only `query`, `slice`, `packets`, `analyze` and `finalize` are supported. Both `python -m evidence_experiment` and `llmxcpg` use this interface. See the [runbook](../rq1/RUNBOOK.md) for ordered checkpoints.
 
-Each input has one immutable primary run ID derived from implementation,
-case, U/F arm and source hash. Queries and slices resume pending IDs only.
-Source/witness/policy locks, complete per-stage Python environments, linked
-real Q sessions and file-hash receipts protect downstream analysis. Semantic
-misses are retained; infrastructure retries are capped at three and pause.
+One primary U/F run per input is protected by source/witness/policy locks, complete separate stage environments, real Q session metadata, current CPU apparatus receipts and accepted evidence-assessor calibration. Semantic misses are retained; infrastructure retries are capped and pause.
 
-Packet construction rejects inconsistent source coordinates. Initial and
-final assessments require an honest AI identity, actual timestamp, visible
-citations, reasons and explicit context/limitations fields. Each shown U
-also needs a supported yes/no/uncertain mechanism correspondence decision.
+Packets bind exact reconstruction, claim, rubric and assumptions. A stateless grader receives one public packet per request; imported first grades require actual model/settings, real timestamps, visible-premise reasoning and raw-response provenance. Each shown U also receives a separate source-informed mechanism/relationship audit. Later corrections are secondary and never promote the primary outcome.
 
-Reports retain all enrolled U cases in the denominator. Failed mapping and
-unresolved infrastructure remain uncertain; terminal semantic retrieval
-failures are inadequate. F controls, initial false adequacy, source-line
-visibility and uncertainty bounds remain separate. `analyze` can write a
-provisional report. `finalize` additionally requires the frozen 25% delayed
-assessment after at least 48 hours. Neither command invents judgments.
+Reports distinguish A/N adequate retrieval yield from A/R adequacy among usable U excerpts, descriptive fact visibility and semantic relationship support, acquisition and assessment uncertainty, and shown F controls. Zero retrieved/F denominators are not estimable. `finalize` additionally requires the seeded 25% delayed stateless assessment after at least 48 hours. No command invents judgments or claims independent human validation.

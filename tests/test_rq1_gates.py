@@ -21,8 +21,11 @@ def isolate_gate(monkeypatch, tmp_path, cfg):
     monkeypatch.setattr(setup, 'verify_corpus', lambda: {'development': 3, 'main': 12})
     monkeypatch.setattr(setup, 'verify_implementation', dict)
     monkeypatch.setattr(setup, 'token_audit_valid', lambda cfg: {})
-    monkeypatch.setattr(setup, 'capability_valid', lambda cfg: {})
+    monkeypatch.setattr(setup, 'capability_valid', lambda cfg: {'environment': setup.environment()})
     monkeypatch.setattr(setup, 'git_provenance', lambda: {'commit': 'unit-test', 'modified_tracked_files': ''})
+    from rq1 import calibration
+    monkeypatch.setattr(calibration, 'require_calibration', lambda cfg: {'assessor_signature': 'test'})
+    write_json(tmp_path / 'calibration/acceptance.json', {'gate_fixture_only': True})
     cfg['rq1_freeze_file'] = str(tmp_path / 'freeze.json')
     path = tmp_path / 'config.json'
     write_json(path, cfg)
@@ -38,7 +41,8 @@ def test_main_is_blocked_without_freeze(tmp_path, cfg, monkeypatch):
 def test_main_locks_contract_policy_and_stage_environment(tmp_path, cfg, monkeypatch):
     config = isolate_gate(monkeypatch, tmp_path, cfg)
     frozen = {'corpus_contract': setup.corpus_contract(), 'policy': setup.policy(cfg),
-              'stage_environments': {'query': setup.environment()}}
+              'stage_environments': {'query': setup.environment()},
+              'calibration_sha256': file_digest(tmp_path / 'calibration/acceptance.json'), 'assessor_signature': 'test'}
     write_json(tmp_path / 'freeze.json', frozen)
     setup.check_acquisition_ready(setup.CORPUS / 'main.jsonl', config, phase='query')
     with pytest.raises(ValueError, match='environment'):
@@ -67,7 +71,7 @@ def test_implementation_drift_rejected(tmp_path, monkeypatch):
     (tmp_path / 'rq1').mkdir()
     source = tmp_path / 'module.py'
     source.write_text('before')
-    write_json(tmp_path / 'rq1/pipeline_contract.json', {'implementation_id': 'rq1-v2',
+    write_json(tmp_path / 'rq1/pipeline_contract.json', {'implementation_id': 'rq1-v3',
                                                        'files': {'module.py': file_digest(source)}})
     monkeypatch.setattr(setup, 'ROOT', tmp_path)
     monkeypatch.setattr(setup, 'CORPUS', tmp_path / 'rq1')
@@ -100,3 +104,10 @@ def test_partial_acquisition_is_pending_not_inadequate(tmp_path):
     assert status['queries_recorded'] == 0 and status['slices_recorded'] == 0
     assert not status['real_inference_complete']
     assert 'inadequate' not in status
+
+
+def test_changed_cpu_environment_requires_fresh_selector_conformance(tmp_path, cfg, monkeypatch):
+    config = isolate_gate(monkeypatch, tmp_path, cfg)
+    monkeypatch.setattr(setup, 'capability_valid', lambda cfg: {'environment': {'python': 'different'}})
+    with pytest.raises(ValueError, match='CPU environment'):
+        setup.check_acquisition_ready(setup.CORPUS / 'development.jsonl', config, phase='slice')

@@ -1,3 +1,5 @@
+> Historical v2 change record. Current measurement and execution rules are in [the v3 change record](RQ1_IMPLEMENTATION_V3_2026-10-30.md) and [runbook](../rq1/RUNBOOK.md).
+
 # RQ1-only implementation change record
 
 The active application is narrowed to RQ1. This supersedes the execution instructions in the 29 October readiness audit; that audit and its raw probes are preserved as historical evidence. No real Q or dissertation Joern excerpt has been inspected while making these changes.

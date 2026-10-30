@@ -9,6 +9,7 @@ import random
 import re
 from pathlib import Path
 
+from .references import reference
 from .source_tools import _function, _strip_comment, template_cluster
 
 ROOT = Path(__file__).resolve().parent
@@ -86,65 +87,30 @@ def render(source, arm, control):
     return "\n".join(output) + "\n", mapping, renames
 
 
-def reference(row, code):
-    """Reviewed block-specific mechanism assertions; never derived from Q output."""
-    block = row["block"]
-    lines = code.splitlines()
-    def at(pattern):
-        found = [i + 1 for i, line in enumerate(lines) if re.search(pattern, line)]
-        if not found:
-            raise ValueError(f"{row['case_id']}: missing reference pattern {pattern}")
-        return found
-    if block == "CWE129":
-        groups = [("input", "extent", r"atoi\("), ("capacity", "capacity", r"malloc\(10"),
-                  ("guard", "guard", r"if \(data >= 0\)"),
-                  ("access", "sink", r"buffer\[data\] = 1")]
-        mechanism = "Stdin 11 passes the nonnegative-only guard; index 11 exceeds a ten-int heap object's valid indices 0 through 9. The F counterpart adds the upper-bound guard."
-        operation, kind = "array index write", "heap"
-    elif block.startswith("CWE131"):
-        groups = [("capacity", "capacity", r"(?:ALLOCA|malloc)\(10\)"),
-                  ("extent", "extent", r"10\*sizeof\(int\)|i < 10"),
-                  ("access", "sink", r"memcpy\(|data\[i\] = source\[i\]")]
-        mechanism = "Allocation reserves 10 bytes, while ten int values require 10*sizeof(int), 40 bytes on the validated ABI. F reserves 10*sizeof(int)."
-        operation = "memcpy call" if "copy" in block else "array write loop"
-        kind = "heap" if row["cwe"] == "CWE122" else "stack"
-    elif block.startswith("CWE193"):
-        groups = [("capacity", "capacity", r"ALLOCA\(\(10\)"),
-                  ("extent", "extent", r"source\[10\+1\]|sourceLen|SRC_STRING"),
-                  ("access", "sink", r"strcpy\(|data\[i\] = source\[i\]")]
-        mechanism = "The ten-character source includes its NUL: eleven bytes are written into the selected ten-byte stack buffer. F selects eleven bytes."
-        operation = "strcpy call" if "copy" in block else "array write loop"
-        kind = "stack"
-    else:
-        target_source = block.startswith(("CWE806", "src-"))
-        capacity = r"char dest\[50\]" if target_source else r"(?:ALLOCA|malloc)\(50\*sizeof"
-        extent = r"memset\(data,|data\[100-1\]|dataLen|strlen\(data\)" if target_source else r"source\[100\]|memset\(source|source\[100-1\]"
-        function = next((f for f in ("strncat", "strcat", "strcpy", "memcpy", "SNPRINTF")
-                         if re.search(r"\b" + f + r"\(", code)), None)
-        access = re.escape(function) + r"\(" if function else r"dest\[i\] = data\[i\]|data\[i\] = source\[i\]"
-        groups = [("capacity", "capacity", capacity), ("extent", "extent", extent),
-                  ("access", "sink", access)]
-        if function == "SNPRINTF" or function == "memcpy" and target_source or function is None:
-            write_count = 99 if target_source else 100
-        else:
-            write_count = 100
-        mechanism = (f"The receiving object has 50 bytes; the documented initialization and operation write {write_count} bytes, exceeding its capacity. "
-                     + ("F uses a shorter source." if target_source else "F selects a 100-byte receiving object."))
-        operation = function.lower() + " call" if function else "array write loop"
-        kind = "stack" if target_source or row["cwe"] == "CWE121" else "heap"
-    groups.append(("flow", "context", r"case_sink\(data\);|data = buffer_\d+;"))
-    elements = [{"id": key, "role": role, "lines": at(pattern)} for key, role, pattern in groups]
-    return {"review_claim": {"flaw_class": kind + " buffer overflow", "operation": operation},
-            "mechanism": mechanism, "elements": elements,
-            "relations": [{"from": "capacity", "to": "access", "kind": "access_exceeds_object_bound",
-                           "explanation": mechanism},
-                          {"from": "input" if block == "CWE129" else "extent", "to": "access",
-                           "kind": "value_or_length_determines_access_range", "explanation": mechanism},
-                          {"from": "flow", "to": "access", "kind": "caller_argument_identifies_sink_object",
-                           "explanation": "The selected caller argument reaches the sink parameter; do not assume this from hidden source."}],
-            "reference_basis": "AI-assisted source inspection, original Juliet documentation, ABI and executable witnesses; not independent annotation",
-            "assumptions": ["Validated LP64 ABI: char=1, int=4, pointer=8 bytes", "Successful allocation and entry reachability", "Standard C library semantics; Juliet ALLOCA denotes stack allocation on Linux; no hidden capacities or value-flow facts may be supplied"],
-            "observed_storage_kind": kind}
+
+
+def reference_guide(manifests):
+    """Render the same granular source reference used by machine-readable manifests."""
+    text = ['# Source-grounded mechanism references', '',
+            'Prepared before Q/Joern inference. AI-assisted source reasoning is supported by pinned Juliet sources, exact maps and finite witnesses; it is not independent human annotation or an excerpt-adequacy result.', '',
+            'Each fact is separate from the relationships that must be justified. A visible fact line is descriptive evidence, not proof of sufficiency. Source-only mechanism and repair explanations must never enter the stateless grader request.', '']
+    for split, cases in manifests.items():
+        for case in cases:
+            ref, cid = case['referent'], case['case_id']
+            provenance = case['provenance']
+            url = f"https://github.com/{provenance['repository']}/blob/{provenance['commit']}/{provenance['path']}"
+            text += [f"## {cid} — {split}, {case['cluster_id']}", '', ref['mechanism'], '',
+                     'Repair: ' + ref['repair'], '',
+                     f"Actual overflowing object: **{ref['observed_storage_kind']}**. Upstream family: `{provenance['family_id']}`.",
+                     f"[Prepared U]({case['sources']['U']}) · [Fixed F]({case['sources']['F']}) · [Pinned upstream]({url})", '',
+                     '| Fact / role | U lines | Meaning |', '|---|---|---|']
+            for fact in ref['elements']:
+                text.append(f"| {fact['id']} / {fact['role']} | {', '.join(map(str, fact['lines']))} | {fact['meaning']} |")
+            text += ['', '| Required relationship | Explanation |', '|---|---|']
+            for relation in ref['relations']:
+                text.append(f"| {relation['id']} | {relation['explanation']} |")
+            text.append('')
+    (ROOT / 'SOURCE_REFERENTS.md').write_text('\n'.join(text).rstrip() + '\n')
 
 
 def prepare():
@@ -225,6 +191,7 @@ def prepare():
                                 lineterminator="\n")
         writer.writeheader()
         writer.writerows({k: r.get(k, "") for k in writer.fieldnames} for r in ledger)
+    reference_guide(manifests)
     return manifests
 
 

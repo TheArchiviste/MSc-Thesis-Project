@@ -3,11 +3,10 @@
 from __future__ import annotations
 
 import re
-from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-from .schema import append_jsonl, digest, index_jsonl, run_specs
+from .schema import append_jsonl, index_jsonl, run_specs
 
 _LINE_LABEL = re.compile(r"(?m)^L(\d+):")
 
@@ -60,7 +59,7 @@ def claim_problem(referent: dict[str, Any]) -> str | None:
     return None
 
 def render_claim(referent: dict[str, Any]) -> str:
-    """Render the reviewer question. Legacy free-text claims are kept verbatim."""
+    """Render a candidate claim, never its causal explanation."""
     claim = referent.get("review_claim")
     if isinstance(claim, dict):
         problem = claim_problem(referent)
@@ -103,8 +102,10 @@ def packet_index(cases, work: Path, repeats=1):
                 reconstruct_code_from_lines(source, slc["slice_lines"]) != slc["slice_code"]):
             raise ValueError("Stored excerpt does not match its source/line mapping")
         view, claim = numbered_view(source, slc["rendered_lines"]), render_claim(case.referent)
-        rid = digest(claim + "\n" + view)
-        packets[rid] = {"review_id": rid, "claim": claim, "code": view}
+        from rq1.assessment_protocol import public_packet
+        packet = public_packet(claim, view)
+        rid = packet["review_id"]
+        packets[rid] = packet
         joins[spec["run_id"]] = rid
     return packets, joins
 
@@ -124,23 +125,54 @@ def build_queue(cases, work, repeats=1):
             append_jsonl(work / "review_key.jsonl", {**spec, "review_id": joins[spec["run_id"]]})
 
 
-def validate_assessment(row, packet):
-    if row.get("assessor_id") != "codex_ai_assessor" or row.get("assessment_origin") != "AI-assisted; no independent human validation":
+def validate_assessment(row, packet, *, expected_context="excerpt_only_stateless"):
+    from rq1.assessment_protocol import (
+        ASSUMPTIONS,
+        ORIGIN,
+        PROOF_CATEGORIES,
+        contract,
+        utc_stamp,
+        validate_identity,
+    )
+    if row.get("assessor_id") != "calibrated_ai_assessor" or row.get("assessment_origin") != ORIGIN:
         raise ValueError("Use the explicitly labelled AI-assisted assessor identity")
+    if row.get("assessment_context") != expected_context:
+        raise ValueError("The primary assessment must use a fresh excerpt-only context")
+    if row.get("assessment_contract_sha256") != contract()["contract_sha256"]:
+        raise ValueError("Assessment uses a different rubric or assumption contract")
+    validate_identity(row.get("assessor_identity"))
+    stamp = utc_stamp(row.get("assessed_utc"))
     if row.get("adequacy") not in {"adequate", "inadequate", "uncertain"}:
         raise ValueError("Assessment is missing or not terminal")
-    stamp = datetime.fromisoformat(row.get("assessed_utc") or "")
-    if stamp.tzinfo is None or stamp > datetime.now(UTC):
-        raise ValueError("Assessment timestamp must be timezone-aware and cannot be in the future")
     if not isinstance(row.get("explanation"), str) or not row["explanation"].strip():
         raise ValueError("Explain each assessment from the visible excerpt")
-    for key in ("cited_lines", "relationships", "assumptions_used", "missing_context", "limitations"):
+    for key in ("cited_lines", "premises", "relationships", "assumptions_used", "missing_context", "limitations"):
         if not isinstance(row.get(key), list):
             raise ValueError(f"Assessment field {key} is missing or malformed")  # noqa: TRY004
-    if any(type(n) is not int for n in row["cited_lines"]) or not set(row["cited_lines"]) <= packet_lines(packet["code"]):
-        raise ValueError("Assessment cites a hidden or invalid line")
-    if row["adequacy"] == "adequate" and (not row["cited_lines"] or not row["relationships"]):
-        raise ValueError("Adequacy requires visible line citations and a causal relationship explanation")
+    visible = packet_lines(packet["code"])
+    def citations(values):
+        if not isinstance(values, list) or any(type(n) is not int for n in values) or not set(values) <= visible:
+            raise ValueError("Assessment cites a hidden or invalid line")
+    citations(row["cited_lines"])
+    if not set(row["assumptions_used"]) <= ASSUMPTIONS.keys():
+        raise ValueError("An unpermitted assumption supplies hidden context")
+    for premise in row["premises"]:
+        if (premise.get("category") not in PROOF_CATEGORIES or not premise.get("statement", "").strip() or
+                not isinstance(premise.get("assumption_ids"), list) or
+                not set(premise["assumption_ids"]) <= ASSUMPTIONS.keys()):
+            raise ValueError("A premise needs its category, visible support and permitted assumption IDs")
+        citations(premise.get("cited_lines"))
+        if not premise["cited_lines"]:
+            raise ValueError("Case-specific premises require visible source citations")
+    if any(not isinstance(value, str) or not value.strip() for key in
+           ("relationships", "missing_context", "limitations") for value in row[key]):
+        raise ValueError("Relationships, missing context and limitations need nonempty text")
+    if row["adequacy"] == "adequate":
+        categories = {p["category"] for p in row["premises"]}
+        if not {"capacity", "extent", "binding", "violation"} <= categories or not row["relationships"] or not row["cited_lines"]:
+            raise ValueError("Adequacy needs cited capacity, extent, binding and violation premises")
+    if row["adequacy"] == "uncertain" and not (row["limitations"] or row["missing_context"]):
+        raise ValueError("Identify the unresolved issue in an uncertain assessment")
     return stamp
 
 

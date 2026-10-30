@@ -1,0 +1,42 @@
+{
+  "utc": "2026-10-30T12:31:06.173632+00:00",
+  "implementation_id": "rq1-v3",
+  "unit_tests": {
+    "passed": 121,
+    "failed": 0,
+    "scope": "Schema and protocol simulations in pytest temporary directories; not empirical model results"
+  },
+  "source_and_maps_unchanged": true,
+  "real_CPU_source_inputs": 30,
+  "witness_case_pairs": 15,
+  "witness_files": {
+    "development-witnesses.jsonl": "3b8a6b56020d55985f7ad49de3cc937a72467f24ebd7a12f2847a9ce5c2486b0",
+    "main-witnesses.jsonl": "506eb0a4d1d8927ecd5b7bfd181216d106ec927ed7c1abb44303ada862507219"
+  },
+  "tokenizer": {
+    "prompts": 30,
+    "fit": 30,
+    "min_prompt_tokens": 413,
+    "max_prompt_tokens": 577,
+    "generation_allowance": 2048,
+    "context_budget": 8192,
+    "receipt_sha256": "ee0b744c9e7090ea6f31d9807283a42773cc6d4fbc442a6af18fb3a9a6052ae4"
+  },
+  "calibration": {
+    "prepared_packets": 12,
+    "adequate_key": 6,
+    "inadequate_key": 6,
+    "actual_responses": 0,
+    "accepted": false
+  },
+  "joern_workspace": "Docker not available; real laptop conformance pending",
+  "Q_weights_loaded": false,
+  "real_Q_runs": 0,
+  "real_experiment_slices": 0,
+  "actual_excerpt_grades": 0,
+  "cloud_actions": 0,
+  "ruff": "passed",
+  "compileall": "passed",
+  "shell_syntax": "passed",
+  "pipeline_contract_sha256": "6f5ea7c5f0ba59aa96d21d672e27db8f5d4fb71e52f597601022204bb9ef1758"
+}

@@ -27,7 +27,7 @@ def main():
     args = p.parse_args()
     manifest = CORPUS / f"{args.split}.jsonl"
     cases = load_cases(manifest)
-    work = args.work or Path("work/rq1-v2") / args.split
+    work = args.work or Path("work/rq1-v3") / args.split
     with work_lock(work):
         cfg = check_acquisition_ready(manifest, args.config, phase=args.phase)
         lock_inputs(work, manifest, args.config, cases, phase=args.phase)

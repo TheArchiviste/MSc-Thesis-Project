@@ -14,8 +14,8 @@ from .schema import file_digest, index_jsonl, run_specs, write_json
 
 ROOT = Path(__file__).resolve().parents[1]
 DEPLOYMENT_SETTINGS = {"joern_host", "joern_port", "joern_input_dir", "server_input_dir",
-                       "rq1_freeze_file", "rq1_token_audit_file", "joern_capability_file"}
-LOCK_VERSION = 4
+                       "rq1_freeze_file", "rq1_token_audit_file", "joern_capability_file", "rq1_calibration_file"}
+LOCK_VERSION = 5
 
 
 def now():
@@ -71,9 +71,11 @@ def acquisition_fingerprint(manifest, config, cases, repeats, work):
     from rq1.setup import corpus_contract
 
     from .schema import digest
+    calibration_path = ROOT / config["rq1_calibration_file"]
     return digest(json.dumps({"code_and_corpus": corpus_contract(), "policy": policy(config),
           "manifest": file_digest(manifest), "runs": run_specs(cases, repeats),
-          "witnesses": file_digest(work / "witness_validation.jsonl")}, sort_keys=True))
+          "witnesses": file_digest(work / "witness_validation.jsonl"),
+          "calibration": file_digest(calibration_path) if calibration_path.is_file() else None}, sort_keys=True))
 
 
 def require_witnesses(work, cases):
@@ -104,7 +106,8 @@ def lock_inputs(work, manifest, config, cases, repeats=1, *, phase="query"):
             raise ValueError("Orphan outputs: restore their original lock or use a fresh work directory")
         lock = {"lock_version": LOCK_VERSION, "fingerprint": fingerprint,
                 "created_utc": now(), "provenance": git_provenance(),
-                "policy": policy(cfg), "stage_environments": {}}
+                "policy": policy(cfg), "stage_environments": {},
+                "calibration_file": cfg["rq1_calibration_file"]}
     else:
         lock = json.loads(path.read_text())
         if lock.get("lock_version") != LOCK_VERSION or lock.get("fingerprint") != fingerprint:

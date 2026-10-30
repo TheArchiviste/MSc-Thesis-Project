@@ -1,19 +1,19 @@
 # RQ1 readiness — 30 October 2026
 
-**The repository is narrowed to RQ1. No real Q generation, experiment slicing or excerpt-adequacy assessment has been completed. Main remains blocked.**
+**No real Q generation, experiment slices or excerpt-adequacy grades have been collected. Main remains blocked.** Implementation rq1-v3 corrects measurement before acquisition; source C, maps, selection and witnesses are unchanged.
 
-| Item | Evidence and next gate |
+| Item | Current evidence / required next action |
 |---|---|
-| Corpus | 3 development + 12 main disjoint generator blocks; one U and one F each. Selected sources, maps, witness plans and source-only references retained. |
-| Existing CPU witnesses | Earlier workspace and laptop checks passed all 30 sources. rq1-v2 local acceptance rechecks their current source hashes and compiler results. |
-| Earlier tokenizer audit | Historical preparation only. rq1-v2 uses the release-aligned prompt, so a fresh 30-input CPU token audit is required. |
-| Earlier laptop Joern smoke | Real import/method lookup passed with CLI 4.0.667. This does not establish full selector compatibility. The new synthetic full-selector conformance gate is pending on the laptop. |
-| Rented VM | User selected regular H100 80 GB, 16 vCPU, 200 GiB RAM, Ubuntu 24.04 CUDA image and 250 GiB disk in Finland. Hardware was observed; Python 3.11/Torch/vLLM/BF16 imports passed. Current power state is unverified: keep it stopped during CPU work. |
-| Uploaded files | Historical input archive reached `/home/rq1/`. It belongs to the older implementation; do not extract it over rq1-v2 work. A fresh, checksummed transfer will be prepared after laptop acceptance. |
-| Q load | Not attempted. GPU doctor, real model load and six development queries remain separate checkpoints. |
-| Development selector/assessment | Six real primary slice outcomes and all shown excerpt judgments required before freeze. No adequacy-rate or slice-size acceptance cutoff. |
-| Main | No freeze; no main query. After development acceptance, acquire exactly 24 U/F runs, assess shown packets, then perform the frozen delayed check. |
+| Corpus | 3 development + 12 main disjoint blocks; U/F each. Granular source facts and correct caller relations rebuilt and reproducible. |
+| CPU witnesses | All 30 sources passed earlier laptop/workspace checks. Recheck current source hashes on the laptop through the new CPU checkpoint. |
+| Prompt lengths | Fresh v3 30-input tokenizer receipt required; no source truncation. Tokenizer uses CPU without Q weights. |
+| Joern | Prior import smoke is historical. Current gate adds full local/interprocedural fixtures and structural import/caller mapping/reset for all 30 source inputs. Laptop execution pending. |
+| Grading instrument | 12 development anchors implemented, 6 sufficient/6 insufficient; no real responses, source-proof audits or acceptance yet. Actual endpoint/model/access must be configured after CPU inspection. |
+| First grades | Stateless request and raw-response provenance required. Source audit can reject unsupported sufficiency but cannot promote a failed first grade. |
+| Cloud | Existing H100 hardware/BF16/package imports passed earlier. Power state is unverified; keep it stopped during CPU work. No new paid action or Q load has been taken. |
+| Development | Six real primary Q/slice outcomes and shown grades/source audits required, with no adequacy-rate cutoff. Current CPU and assessor receipts precede Q acquisition. |
+| Main | No freeze, no main Q runs. Later: 24 U/F inputs, source-audited first grades, frozen 25% delayed check at least 48 hours later. |
 
-The audit of 29 October is historical evidence of the previous implementation. The [change record](../docs/RQ1_IMPLEMENTATION_2026-10-30.md) explains its fixes and the remaining hardware checks. Unit tests include simulations and are never experiment results.
+`doctor` separates technical readiness from complete experiment readiness. A CPU-only PASS does not imply a calibrated assessor or completed science. Unit simulations test safeguards and are not experimental observations.
 
-Next: follow **checkpoint 1** in [RUNBOOK.md](RUNBOOK.md), return the D: diagnostic ZIP, and pause. No university cluster is necessary for this CPU checkpoint.
+Next: [runbook checkpoint 1](RUNBOOK.md), return the D: diagnostic ZIP, then pause. See [v3 change record](../docs/RQ1_IMPLEMENTATION_V3_2026-10-30.md). Older audits and v2 records remain historical.
