@@ -7,6 +7,7 @@ import json
 import re
 import sys
 import tarfile
+import zipfile
 from pathlib import Path, PurePosixPath
 
 PREFIX = 'work/rq1-v7/development/'
@@ -14,7 +15,7 @@ MAX_RECORD_BYTES = 16 * 1024 * 1024
 MAX_TRACEBACK_BYTES = 64 * 1024
 COUNTS = ('queries.jsonl', 'query_sessions.jsonl',
           'query_load_errors.jsonl', 'query_runtime_errors.jsonl')
-VERSION = 2
+VERSION = 3
 KNOWN_FAILURES = {
     'Real Q session provenance is missing or synthetic': 'query_session_provenance',
     'Unknown or nonterminal observation status': 'query_terminal_status',
@@ -31,6 +32,60 @@ TRACEBACK_FILES = ('evidence_experiment/__main__.py', 'evidence_experiment/locks
 def digest(path):
     with path.open('rb') as stream:
         return hashlib.file_digest(stream, 'sha256').hexdigest()
+
+
+def inspection_reference(path, expected):
+    if not re.fullmatch(r'[a-f0-9]{64}', expected) or digest(path) != expected:
+        raise ValueError('Private inspection checksum differs.')
+    with zipfile.ZipFile(path) as zipped:
+        members = [m for m in zipped.infolist() if m.filename.endswith('/q-vm-inspection.json')]
+        if len(members) != 1 or members[0].file_size > 2_000_000:
+            raise ValueError('Expected one private inspection receipt.')
+        raw = zipped.read(members[0])
+    receipt = json.loads(raw)
+    if (receipt.get('technical_ready') is not True or not isinstance(receipt.get('environment'), dict)
+            or not isinstance(receipt.get('core_contract'), dict)):
+        raise ValueError('Private inspection was not technically ready.')
+    return {'receipt': receipt, 'receipt_sha256': hashlib.sha256(raw).hexdigest(),
+            'archive_sha256': expected}
+
+
+def environment_difference(before, during, approved=None):
+    """Return changed package versions only; omit the complete inventories and host values."""
+    snapshots = [before, during] + ([approved] if approved is not None else [])
+    for snapshot in snapshots:
+        if not isinstance(snapshot, dict) or not isinstance(snapshot.get('packages'), dict):
+            raise ValueError('Malformed environment inventory.')
+        if set(snapshot) - {'python', 'implementation', 'machine', 'packages'}:
+            raise ValueError('Unexpected environment fields; no inventory displayed.')
+        for name, version in snapshot['packages'].items():
+            if (not isinstance(name, str) or not re.fullmatch(r'[-A-Za-z0-9_.]{1,200}', name) or
+                    (version is not None and (not isinstance(version, str) or
+                     not re.fullmatch(r'[-A-Za-z0-9_.+!]{1,100}', version)))):
+                raise ValueError('Unexpected package metadata; no inventory displayed.')
+    labels = ('stage_lock', 'q_session', 'accepted_inspection')
+    keys = set().union(*(s['packages'] for s in snapshots))
+    changes = []
+    for key in sorted(keys):
+        values = [(key in s['packages'], s['packages'].get(key)) for s in snapshots]
+        if all(value == values[0] for value in values):
+            continue
+        row = {'package': key}
+        for label, (present, version) in zip(labels, values):
+            row[label] = {'present': present, 'version': version}
+        changes.append(row)
+    result = {
+        'stage_and_session_equal': before == during,
+        'non_package_fields_changed': sorted(k for k in set(before) | set(during)
+                                             if k != 'packages' and before.get(k) != during.get(k)),
+        'changed_package_count': len(changes), 'changed_packages': changes[:50],
+        'changes_truncated': len(changes) > 50,
+        'complete_inventories_exported': False,
+    }
+    if approved is not None:
+        result['stage_matches_accepted_inspection'] = before == approved
+        result['session_matches_accepted_inspection'] = during == approved
+    return result
 
 
 def provenance_checks(records, lock):
@@ -87,7 +142,7 @@ def provenance_checks(records, lock):
             'session_settings': metadata}
 
 
-def diagnose(path, expected):
+def diagnose(path, expected, reference=None):
     if not re.fullmatch(r'[a-f0-9]{64}', expected) or digest(path) != expected:
         raise ValueError('Archive differs from the independently returned checksum; preserve it.')
     with tarfile.open(path, 'r:gz') as tar:
@@ -136,6 +191,24 @@ def diagnose(path, expected):
             with tar.extractfile(member) as stream:
                 lock = json.load(stream)
             result['provenance_validation'] = provenance_checks(records, lock)
+            approved = reference['receipt']['environment'] if reference else None
+            result['environment_comparisons'] = [
+                environment_difference(lock.get('stage_environments', {}).get('query'),
+                                       session.get('runtime'), approved)
+                for session in records['query_sessions.jsonl']]
+            if reference:
+                result['inspection_reference'] = {
+                    'archive_sha256': reference['archive_sha256'], 'checksum_verified': True,
+                    'acquisition_contract_matches': lock.get('acquisition_contract') == reference['receipt'].get('core_contract'),
+                }
+                marker = files.get('q-wrapper-started.json')
+                if marker is not None:
+                    if marker.size > MAX_RECORD_BYTES:
+                        raise ValueError('Attempt marker exceeds diagnostic limit.')
+                    with tar.extractfile(marker) as stream:
+                        started = json.load(stream)
+                    result['inspection_reference']['receipt_matches_attempt_marker'] = (
+                        started.get('Q_host_receipt_sha256') == reference['receipt_sha256'])
         logs = ['query.sealed.log'] + sorted(
             name for name in files if re.fullmatch(r'collection-query-[0-9TZ]+\.log', name))
         diagnostics = []
@@ -185,10 +258,15 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('archive', type=Path)
     parser.add_argument('expected_sha256')
+    parser.add_argument('--inspection-zip', type=Path)
+    parser.add_argument('--inspection-sha256')
     args = parser.parse_args()
+    if bool(args.inspection_zip) != bool(args.inspection_sha256):
+        parser.error('Supply both private inspection options together.')
     try:
-        result = diagnose(args.archive, args.expected_sha256)
-    except (OSError, ValueError, TypeError, AttributeError, KeyError, tarfile.TarError):
+        reference = inspection_reference(args.inspection_zip, args.inspection_sha256) if args.inspection_zip else None
+        result = diagnose(args.archive, args.expected_sha256, reference)
+    except (OSError, ValueError, TypeError, AttributeError, KeyError, tarfile.TarError, zipfile.BadZipFile):
         raise SystemExit('Diagnostic stopped: invalid, changed or unsupported archive. Preserve all files; no contents displayed.') from None
     output = args.archive.with_suffix(f'.diagnostic-v{VERSION}.json')
     encoded = json.dumps(result, indent=2) + '\n'
