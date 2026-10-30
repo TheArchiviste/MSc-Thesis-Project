@@ -8,9 +8,11 @@ The returned v4 run passed both real selector fixtures. Its 30 graph results wer
 
 Read [the execution runbook](rq1/RUNBOOK.md), [protocol](rq1/PROTOCOL.md), [assessment procedure](rq1/ASSESSMENT.md), [implementation contract](rq1/REFERENCE_CONTRACT.md), and [current readiness](rq1/READINESS.md). The [source references](rq1/SOURCE_REFERENTS.md) explain each case's mechanism and required relationships.
 
-## Next checkpoint: laptop CPU
+## Next checkpoint: prepare the existing VM handoff
 
-Keep the rented GPU VM stopped. In your D-backed **Ubuntu-24.04** terminal:
+The laptop CPU checkpoint is accepted. Continue with the [VM-only checkpoint guide](docs/RQ1_VM_ONLY_CHECKPOINTS.md): the existing H100 will host Q and a separately calibrated assessor sequentially, while Joern stays on laptop CPU. Token Factory is optional.
+
+Keep the VM stopped and run in D-backed Ubuntu-24.04:
 
 ```bash
 set -euo pipefail
@@ -18,10 +20,10 @@ cd ~/projects/MSc-Thesis-Project
 git fetch origin
 git switch main
 git pull --ff-only origin main
-bash rq1/local_acceptance.sh --recover-v4
+.venv/bin/python -m ops.rq1_vm_checkpoint prepare
 ```
 
-Return the diagnostic ZIP created under `D:\Dissertation-RQ1\exports` and pause. This recovery verifies the existing 30 source witnesses, both real selector fixtures and all 30 Docker-side graph results, runs one fresh CPU diagnostic probe, and regenerates the tokenizer receipt and 12 ungraded calibration tasks. A fresh installation can use the script without `--recover-v4` for the full scan. Errors are also collected in the ZIP. No Q weights, experiment queries, grader API calls or cloud jobs are run. The next checkpoint is **assessor calibration**, before any paid Q acquisition.
+Return the JSON summary or `.summary.json` file from `D:\Dissertation-RQ1\exports`, then pause. This checks the assessor tokenizer and creates a small checksummed transfer bundle. It starts no VM, downloads no model weights and generates no grades. The accepted CPU source contract is unchanged; no scan rerun is needed.
 
 ## Developer checks
 

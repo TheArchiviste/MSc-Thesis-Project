@@ -1,0 +1,49 @@
+{
+  "plan": {
+    "model": "Qwen/Qwen2.5-32B-Instruct",
+    "revision": "5ede1c97bbab6ce5cda5812749b4c0bdf79b18dd",
+    "dtype": "bfloat16",
+    "max_model_len": 8192,
+    "max_num_seqs": 1,
+    "seed": 0,
+    "gpu_memory_utilization": 0.85,
+    "enforce_eager": true,
+    "host": "127.0.0.1",
+    "port": 8001,
+    "vllm": "0.6.6.post1",
+    "maximum_response_tokens": 3072,
+    "quantization": null,
+    "limit": "Candidate assessor; real load and 12-anchor source-checked calibration are still required."
+  },
+  "profile": {
+    "provider": "Self-hosted vLLM on Nebius H100 VM",
+    "model": "Qwen/Qwen2.5-32B-Instruct",
+    "revision_note": "HF 5ede1c97bbab6ce5cda5812749b4c0bdf79b18dd; BF16; vLLM 0.6.6.post1; seed=0; context=8192; one sequence; eager mode; no quantization.",
+    "chat_completions_url": "http://127.0.0.1:8001/v1/chat/completions",
+    "api_key_env": "",
+    "temperature": 0.0,
+    "max_tokens": 3072,
+    "timeout_seconds": 180
+  },
+  "software_tests_passed": 167,
+  "real_CPU_calibration_token_audit": {
+    "prompts": 12,
+    "maximum_input_tokens": 1540,
+    "response_allowance": 3072,
+    "context": 8192,
+    "all_fit": true
+  },
+  "HF_metadata_checked": {
+    "revision": "5ede1c97bbab6ce5cda5812749b4c0bdf79b18dd",
+    "gated": false,
+    "private": false,
+    "architecture": "Qwen2ForCausalLM",
+    "BF16_parameters": 32763876352
+  },
+  "weights_downloaded": false,
+  "actual_grades": 0,
+  "actual_Q_runs": 0,
+  "VM_started": false,
+  "real_GPU_load": "pending",
+  "CPU_contract": "unchanged; accepted evidence remains valid"
+}

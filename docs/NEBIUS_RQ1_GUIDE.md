@@ -1,3 +1,5 @@
+> Current VM-only route: [RQ1_VM_ONLY_CHECKPOINTS.md](RQ1_VM_ONLY_CHECKPOINTS.md). The CPU checkpoint has passed. Prepare the handoff locally first; assessor calibration will run on the existing VM before Q acquisition. The older sequence below describes the later Q handoff.
+
 # Nebius handoff for the RQ1-only experiment
 
 Updated 30 October 2026. **Current action: finish laptop CPU acceptance and return its ZIP, then complete assessor calibration before any Q load. Keep the VM stopped.** This guide records later checkpoints; it does not authorize bypassing the pauses in [RUNBOOK.md](../rq1/RUNBOOK.md).

@@ -1,3 +1,5 @@
+> Optional Token Factory route. The current continuation uses the [existing VM](RQ1_VM_ONLY_CHECKPOINTS.md), without a Token Factory account or API key.
+
 # CPU accepted; next checkpoint is assessor access
 
 The returned `local-attempt-20261030T134928Z-PIK59P.zip` passes the complete CPU technical gate: clean e2b1c3f source, exact v5 contract, 30 source witnesses, 30 verified graph results, both real selector fixtures, the fresh diagnostic-return probe, tokenizer audit and 12 correct ungraded calibration tasks. Evidence summaries are in [the acceptance record](audits/2026-10-30-cpu-accepted/checks.json). `ready: false` correctly means assessor calibration is pending. No Q outputs or evidence grades have been collected.
