@@ -18,7 +18,7 @@ def test_old_non_rq1_commands_are_not_available(command):
 
 
 def isolate_gate(monkeypatch, tmp_path, cfg):
-    monkeypatch.setattr(setup, 'verify_corpus', lambda: {'development': 3, 'main': 12})
+    monkeypatch.setattr(setup, 'verify_corpus', lambda: {'development': 3, 'main': 12, 'assessor_holdout': 2})
     monkeypatch.setattr(setup, 'verify_implementation', dict)
     monkeypatch.setattr(setup, 'token_audit_valid', lambda cfg: {})
     monkeypatch.setattr(setup, 'capability_valid', lambda cfg: {'environment': setup.environment()})
@@ -40,7 +40,7 @@ def test_main_is_blocked_without_freeze(tmp_path, cfg, monkeypatch):
 
 def test_main_locks_contract_policy_and_stage_environment(tmp_path, cfg, monkeypatch):
     config = isolate_gate(monkeypatch, tmp_path, cfg)
-    frozen = {'corpus_contract': setup.corpus_contract(), 'policy': setup.policy(cfg),
+    frozen = {'corpus_contract': setup.corpus_contract(), 'assessment_code_contract': setup.assessment_code_contract(), 'policy': setup.policy(cfg),
               'stage_environments': {'query': setup.environment()},
               'calibration_sha256': file_digest(tmp_path / 'calibration/acceptance.json'), 'assessor_signature': 'test'}
     write_json(tmp_path / 'freeze.json', frozen)
@@ -71,7 +71,7 @@ def test_implementation_drift_rejected(tmp_path, monkeypatch):
     (tmp_path / 'rq1').mkdir()
     source = tmp_path / 'module.py'
     source.write_text('before')
-    write_json(tmp_path / 'rq1/pipeline_contract.json', {'implementation_id': 'rq1-v6',
+    write_json(tmp_path / 'rq1/pipeline_contract.json', {'implementation_id': 'rq1-v7',
                                                        'files': {'module.py': file_digest(source)}})
     monkeypatch.setattr(setup, 'ROOT', tmp_path)
     monkeypatch.setattr(setup, 'CORPUS', tmp_path / 'rq1')
@@ -95,6 +95,8 @@ def test_freeze_recomputes_all_assessments_and_is_exclusive(completed, cfg, monk
     assert frozen['primary_rule'] == 'repeat_0'
     assert {'query', 'slice'} == frozen['stage_environments'].keys()
     assert frozen['development_summary']['real_inference_complete']
+    from rq1.sealing import verify_development_snapshot
+    verify_development_snapshot(frozen, completed.parent)
     with pytest.raises(FileExistsError):
         setup.freeze(path, completed)
 

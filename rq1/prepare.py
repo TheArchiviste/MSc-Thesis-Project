@@ -128,7 +128,7 @@ def prepare():
         if hashlib.sha256(original.read_bytes()).hexdigest() != selection["support_sha256"][name]:
             raise ValueError(f"Pinned support source changed: {name}")
     (generated / "driver.c").write_text("void case_entry(void);\nint main(void) { case_entry(); return 0; }\n")
-    manifests = {"development": [], "main": []}
+    manifests = {"development": [], "main": [], "assessor_holdout": []}
     plans, ledger = [], []
     for row in selection["cases"]:
         source = (ROOT / "upstream" / (row["case_id"] + ".c")).read_text()
@@ -140,8 +140,11 @@ def prepare():
             continue
         split = "development" if row["split"] == "development" else "main"
         if split == "main" and len(manifests[split]) == 12:
-            ledger.append({**item, "status": "reserve_not_enrolled"})
-            continue
+            if row['case_id'] in {'R15', 'R17'}:
+                split = 'assessor_holdout'
+            else:
+                ledger.append({**item, "status": "reserve_not_enrolled"})
+                continue
         control = "goodB2G" if row["block"] == "CWE129" else "goodG2B"
         paths, maps = {}, {}
         for arm in ("U", "F"):

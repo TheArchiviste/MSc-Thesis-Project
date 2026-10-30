@@ -1,10 +1,11 @@
 {
-  "provider": "SET_ACTUAL_PROVIDER",
-  "model": "SET_ACTUAL_MODEL",
-  "revision_note": "Record the exposed version or explicitly state not_exposed",
-  "chat_completions_url": "http://127.0.0.1:8001/v1/chat/completions",
-  "api_key_env": "RQ1_ASSESSOR_API_KEY",
-  "temperature": 0.0,
-  "max_tokens": 3072,
-  "timeout_seconds": 180
+  "api": "openai_responses",
+  "provider": "OpenAI",
+  "model": "gpt-6-astra",
+  "revision_note": "API model ID documented 2026-10-30. No independently verified immutable dated snapshot; record the returned model and execution date. Hosted-service changes remain a reproducibility limitation.",
+  "responses_url": "https://api.openai.com/v1/responses",
+  "api_key_env": "OPENAI_API_KEY",
+  "reasoning_effort": "high",
+  "max_output_tokens": 25000,
+  "timeout_seconds": 600
 }

@@ -75,6 +75,8 @@ def test_relationship_missing_defeats_line_hits_and_source_match(completed, case
 
 def reissue_after_slice_change(work, cases):
     write_stage_receipt(work, 'slice', cases)
+    for name in ('query.seal.json', 'slice.seal.json', 'assessment_lock.json'):
+        (work / name).unlink(missing_ok=True)
     for pattern in ('blind_review_packets.jsonl', 'review_key.jsonl', 'assessment*', 'adjudications*', 'responses.initial.jsonl'):
         for path in work.glob(pattern):
             if path.is_file():

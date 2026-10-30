@@ -1,3 +1,5 @@
+> Historical procedure, superseded by [the v3 amendment](RQ1_V3_AMENDMENT_2026-10-30.md) and [active runbook](../rq1/RUNBOOK.md). Do not execute these older assessor/VM commands.
+
 # RQ1 execution using the existing Nebius VM
 
 **Current status: the v6 CPU handoff and VM inspection passed, but the one predeclared v2 calibration failed. Keep the VM stopped. Do not execute the commands below again.** [The v2 result](RQ1_ASSESSOR_V2_RESULT_2026-10-30.md) records the twelve responses, strict import failure, source audit and required assessor/design decision. A new revision has not been declared or implemented. Q acquisition remains blocked.

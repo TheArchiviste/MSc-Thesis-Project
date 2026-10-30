@@ -35,8 +35,10 @@ def cfg(tmp_path):
 @pytest.fixture
 def witnessed(tmp_path, cases):
     tmp_path = tmp_path / 'development'
-    for c in cases:
-        append_jsonl(tmp_path / 'witness_validation.jsonl', {
+    groups = [(tmp_path, cases), (tmp_path.parent / 'assessor_holdout', load_cases(CORPUS / 'assessor_holdout.jsonl'))]
+    for folder, group in groups:
+      for c in group:
+        append_jsonl(folder / 'witness_validation.jsonl', {
             'case_id': c.case_id, 'checks': {'compile': 'pass', 'trigger': 'pass', 'fixed': 'pass',
                                           'benign_behavior': 'pass'},
             'witness_plan_sha256': c.referent['witness_plan_sha256'],
@@ -44,9 +46,9 @@ def witnessed(tmp_path, cases):
     return tmp_path
 
 
-IDENTITY = {'provider': 'unit-test-fixture', 'requested_model': 'synthetic-test-model',
-            'reported_model': 'synthetic-test-model', 'revision_note': 'test-only',
-            'route': 'stateless_chat_completions', 'sampling': {'temperature': 0., 'max_tokens': 3072}}
+from rq1.providers import identity as provider_identity
+
+IDENTITY = provider_identity(json.loads((CORPUS / 'assessor.example.json').read_text()), {'model': 'gpt-6-astra'})
 
 
 def rating(packet, decision='adequate', *, hours_ago=72):
@@ -67,13 +69,17 @@ def rating(packet, decision='adequate', *, hours_ago=72):
 
 
 def responses(request_path, response_path, output, decisions=None, *, hours_ago=72, identity=None):
+    from rq1.assessment_protocol import response_schema
     from rq1.judge import import_responses, validate_request
+    profile = json.loads((CORPUS / 'assessor.example.json').read_text())
+    profile_hash = digest(json.dumps({k:v for k,v in profile.items() if k != 'api_key_env'}, sort_keys=True))
     for req in read_jsonl(request_path):
         packet = validate_request(req)
         grade = rating(packet, (decisions or {}).get(packet['review_id'], 'adequate'), hours_ago=hours_ago)
         append_jsonl(response_path, {**{k: req[k] for k in ('request_id', 'review_id', 'request_sha256', 'pass_id')},
             'assessed_utc': grade['assessed_utc'], 'assessor_identity': identity or IDENTITY,
-            'content': json.dumps(grade), 'finish_reason': 'stop', 'synthetic': False,
+            'content': json.dumps({k: grade[k] for k in response_schema(packet['review_id'])['required']}),
+            'profile_sha256': profile_hash, 'finish_reason': 'stop', 'synthetic': False,
             'test_fixture_only': True})
     response_path.touch(exist_ok=True)
     import_responses(request_path, response_path, output)
@@ -101,7 +107,12 @@ def calibration_fixture(work, cfg):
 def issue_test_grades(work, cases):
     from evidence_experiment.review import build_queue, packet_index
     from rq1.assess import prepare
+    from rq1.sealing import release, seal
     from rq1.source_audit import template
+    for phase in ('query', 'slice'):
+        seal(work, phase, cases)
+    config = json.loads((work.parent / 'config.json').read_text())
+    release(work, config)
     build_queue(cases, work)
     prepare('development', work)
     responses(work / 'assessment_requests.initial.jsonl', work / 'responses.initial.jsonl',

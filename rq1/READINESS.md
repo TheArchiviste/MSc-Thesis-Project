@@ -1,19 +1,21 @@
-# RQ1 readiness — 30 October 2026
+# RQ1 readiness — v3 instrument revision
 
-**The first real assessor calibration failed. No real Q generation or experiment slices have been acquired. Main remains blocked.** Implementation rq1-v6 revises the public grading task to rq1-excerpt-v2; Q, selector, source C, maps, selection and witnesses are unchanged. Preserve all v5 raw responses.
+Implementation **rq1-v7**, assessor task **rq1-excerpt-v3**, declared 30 October 2026 before new assessment or Q output. V1 and v2 failed and remain preserved. No calibration acceptance, Q generation or experiment slices are claimed.
 
-| Item | Current evidence / required next action |
+| Component | Current state / required evidence |
 |---|---|
-| Corpus | 3 development + 12 main disjoint blocks; U/F each. Granular source facts and correct caller relations rebuilt and reproducible. |
-| CPU witnesses | All 30 sources passed earlier laptop/workspace checks. Recheck current source hashes on the laptop through the new CPU checkpoint. |
-| Prompt lengths | Fresh v6 30-input tokenizer receipt required; no source truncation. Tokenizer uses CPU without Q weights. |
-| Joern | V5 CPU conformance/recovery was accepted. V6 needs fresh full fixtures and all thirty actual source checks because the sealed content contract includes the changed assessor task. Preserve old receipts as historical evidence. |
-| Grading instrument | V1 returned twelve nontruncated responses; ten valid JSON objects and zero strict valid grades. Seven informally read labels disagree with the key. V2 repairs the public interface and clarifies general reasoning; one retest is planned after fresh CPU acceptance, transfer and VM inspection. |
-| First grades | Stateless request and raw-response provenance required. Source audit can reject unsupported sufficiency but cannot promote a failed first grade. |
-| Cloud | H100 loaded the pinned BF16 assessor and returned all twelve responses. Shutdown confirmation failed; operational cleanup/error reporting is repaired. Keep the VM stopped during current CPU work. Q has not run. |
-| Development | Six real primary Q/slice outcomes and shown grades/source audits required, with no adequacy-rate cutoff. Current CPU and assessor receipts precede Q acquisition. |
-| Main | No freeze, no main Q runs. Later: 24 U/F inputs, source-audited first grades, frozen 25% delayed check at least 48 hours later. |
+| Main corpus | Same 3 development and 12 main blocks; all 30 experiment C inputs unchanged |
+| Assessor-only sources | R15/R17 reserved for eight fresh response checks, outside main; four U/F witness sources |
+| References | Input acquisition excludes a print message; value-supplying input bounds/types and loop counters are explicit |
+| Harness | Plain numbered source; one rubric; provider schema; evidence before verdict; strict local validation |
+| Candidate | GPT-6 Astra API, fixed high reasoning/25,000 output allowance; access and suitability unverified |
+| CPU apparatus | Fresh v7 witnesses, Q tokenizer receipt, actual selector fixtures and 30 graphs required on the laptop |
+| Grading | 20 ungraded anchors; reused development 12 and fresh held-out 8 reported separately; all labels/proofs must pass |
+| Acquisition | Separate pre-output freeze and immutable stage seals; calibration no longer a dependency of sealed Q/Joern collection |
+| Release | Accepted calibration before development release; audited development and assessment freeze before main release |
+| Main completion | 24 U/F primary inputs, source-confirmed first judgments, delayed 25% check at least 48 hours later |
+| Validation limitation | AI-assisted references/grader/auditor; no independent human validation or population-accuracy claim |
 
-`doctor` separates technical readiness from complete experiment readiness. A CPU-only PASS does not imply a calibrated assessor or completed science. Unit simulations test safeguards and are not experimental observations.
+**Current checkpoint:** keep Nebius stopped; run `bash rq1/local_acceptance.sh` in the existing D-backed Ubuntu terminal, return the D: ZIP and pause. No API key or paid call is needed. Old v4 recovery/v6 VM-assessor commands are historical.
 
-Next: [the assessor repair record's CPU command](../docs/RQ1_ASSESSOR_REPAIR_2026-10-30.md), return the D: diagnostic ZIP and pause. The broad source lock requires new v6 receipts, not relabelling v5 receipts. Cached tools/tokenizers remain usable. No paid retry is the current action. Earlier audits remain historical.
+See [the declared amendment](../docs/RQ1_V3_AMENDMENT_2026-10-30.md), [runbook](RUNBOOK.md) and [assessment procedure](ASSESSMENT.md). Unit tests are apparatus simulations, never empirical calibration evidence. A successful technical doctor still does not mean a calibrated assessor or a completed experiment.

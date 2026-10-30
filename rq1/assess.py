@@ -28,6 +28,8 @@ SEED = 20261027
 
 
 def prepare(split, work):
+    from .sealing import require_release
+    require_release(work)
     cases = load_cases(CORPUS / f'{split}.jsonl')
     packets, joins = packet_index(cases, work)
     issued = read_jsonl(work / 'blind_review_packets.jsonl')
@@ -134,7 +136,7 @@ def main():
     p.add_argument('--first', type=Path)
     p.add_argument('--second', type=Path)
     a = p.parse_args()
-    work = a.work or ROOT / 'work/rq1-v6' / a.split
+    work = a.work or ROOT / 'work/rq1-v7' / a.split
     with work_lock(work):
         if a.action == 'prepare':
             prepare(a.split, work)

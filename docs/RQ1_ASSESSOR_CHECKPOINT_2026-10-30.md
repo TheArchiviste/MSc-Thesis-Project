@@ -1,3 +1,5 @@
+> Historical procedure, superseded by [the v3 amendment](RQ1_V3_AMENDMENT_2026-10-30.md) and [active runbook](../rq1/RUNBOOK.md). Do not execute these older assessor/VM commands.
+
 > Optional Token Factory route. The current continuation uses the [existing VM](RQ1_VM_ONLY_CHECKPOINTS.md), without a Token Factory account or API key.
 
 # CPU accepted; next checkpoint is assessor access

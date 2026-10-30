@@ -111,6 +111,8 @@ def packet_index(cases, work: Path, repeats=1):
 
 
 def build_queue(cases, work, repeats=1):
+    from rq1.sealing import require_release
+    require_release(work)
     packets, joins = packet_index(cases, work, repeats)
     path = work / "blind_review_packets.jsonl"
     if path.exists():
@@ -151,14 +153,21 @@ def validate_assessment(row, packet, *, expected_context="excerpt_only_stateless
             raise ValueError(f"Assessment field {key} is missing or malformed")  # noqa: TRY004
     visible = packet_lines(packet["code"])
     def citations(values):
-        if not isinstance(values, list) or any(type(n) is not int for n in values) or not set(values) <= visible:
+        if (not isinstance(values, list) or any(type(n) is not int for n in values) or
+                len(values) != len(set(values)) or not set(values) <= visible):
             raise ValueError("Assessment cites a hidden or invalid line")
     citations(row["cited_lines"])
-    if not set(row["assumptions_used"]) <= ASSUMPTIONS.keys():
+    if (any(not isinstance(v, str) for v in row['assumptions_used']) or
+            len(row['assumptions_used']) != len(set(row['assumptions_used'])) or
+            not set(row["assumptions_used"]) <= ASSUMPTIONS.keys()):
         raise ValueError("An unpermitted assumption supplies hidden context")
     for premise in row["premises"]:
-        if (premise.get("category") not in PROOF_CATEGORIES or not premise.get("statement", "").strip() or
+        if (not isinstance(premise, dict) or set(premise) != {'category', 'statement', 'cited_lines', 'assumption_ids'} or
+                premise.get("category") not in PROOF_CATEGORIES or
+                not isinstance(premise.get('statement'), str) or not premise['statement'].strip() or
                 not isinstance(premise.get("assumption_ids"), list) or
+                any(not isinstance(v, str) for v in premise['assumption_ids']) or
+                len(premise['assumption_ids']) != len(set(premise['assumption_ids'])) or
                 not set(premise["assumption_ids"]) <= ASSUMPTIONS.keys()):
             raise ValueError("A premise needs its category, visible support and permitted assumption IDs")
         citations(premise.get("cited_lines"))

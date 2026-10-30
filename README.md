@@ -1,24 +1,37 @@
 # RQ1 evidence adequacy audit
 
-This repository implements the dissertation's **RQ1 baseline evidence audit**. Original pretrained **LLMxCPG-Q** generates queries, **Joern** retrieves excerpts, a calibrated AI grades each excerpt in a stateless request, and a separate source-informed AI audit checks the visible justification. No independent human validation is claimed. Detector training/classification and transformation experiments are outside this experiment.
+Original pretrained **LLMxCPG-Q** generates CPGQL, **Joern** retrieves excerpts, and a separate stateless AI assessor evaluates visible justification. A later source-informed AI audit checks support. This is an **RQ1-only**, claim-conditioned case study. No independent human annotation, detector D, training, transformation experiment or population accuracy is claimed.
 
-There are **3 development blocks and 12 main blocks**, each with vulnerable U and repaired F source. One primary run per input gives 6 development and 24 main Q/slice runs. F is reported separately. The evaluated configuration is **rq1-v6**, with fresh outputs in `work/rq1-v6`; preserve earlier runs.
+The active implementation is **rq1-v7**, with public assessor task **rq1-excerpt-v3** and new outputs in `work/rq1-v7`. Preserve all v5/v6 evidence. Three development blocks and twelve main blocks remain enrolled, each with U/F sources: six development and twenty-four main primary Q/slice runs. Two unused blocks, R15 and R17, now supply assessor-only source anchors; they do not enter the main denominator or Q census.
 
-The returned v4 run passed both real selector fixtures. Its 30 graph results were written to Docker logs instead of the RPC response. V5 verifies and reuses those results, then checks one fresh diagnostic return. See the [recovery record](docs/RQ1_CPU_RECOVERY_2026-10-30.md).
+## Current action: fresh laptop CPU checkpoint
 
-Read [the execution runbook](rq1/RUNBOOK.md), [protocol](rq1/PROTOCOL.md), [assessment procedure](rq1/ASSESSMENT.md), [implementation contract](rq1/REFERENCE_CONTRACT.md), and [current readiness](rq1/READINESS.md). The [source references](rq1/SOURCE_REFERENTS.md) explain each case's mechanism and required relationships.
+V1 and v2 assessor calibration failed. [The v3 amendment](docs/RQ1_V3_AMENDMENT_2026-10-30.md) repairs the interface and anchor design, declares one GPT-6 Astra API candidate, and separates sealed acquisition from grading. The original Q checkpoint/settings and all thirty experiment C inputs are unchanged. Source dependency references were improved before any Q output. New stage-scoped receipts must be collected; do not relabel v6 receipts.
 
-## Current checkpoint: v2 assessor calibration failed; pause inference
+Keep Nebius stopped. Run only this checkpoint in your existing D-backed Ubuntu-24.04 terminal:
 
-The fresh v6 laptop CPU checkpoint and VM inspection passed. The one predeclared v2 assessor attempt then returned twelve nontruncated JSON responses. Four omit required fields; three declared labels disagree with the development key. Even some matching labels have unsupported explanations. The complete strict import failed, and calibration is **not accepted**. [The result and next decision](docs/RQ1_ASSESSOR_V2_RESULT_2026-10-30.md) include a twelve-row source audit and verified archive/provenance hashes. Earlier v1 evidence and its [repair record](docs/RQ1_ASSESSOR_REPAIR_2026-10-30.md) remain unchanged.
+```bash
+set -euo pipefail
+cd ~/projects/MSc-Thesis-Project
+git fetch origin
+git switch main
+git pull --ff-only origin main
+bash rq1/local_acceptance.sh
+```
 
-Keep the Nebius VM stopped and preserve both calibration archives. No new command is required. The protocol explicitly pauses after a failed v2 attempt for an assessor/design decision; do not rerun responses, repair grades, lower the acceptance rule or start Q acquisition. The recommendation is to replace the assessor in a separately declared revision, keeping the existing source bank, proof requirements and failed-attempt history. Such a revision has **not** been implemented or run.
+Return the new `local-attempt-*.zip` from **D:\Dissertation-RQ1\exports**, then pause. This checks 34 source witnesses, thirty Q prompt lengths, both real selector fixtures and thirty experiment source graphs; it prepares twenty ungraded assessor requests and freezes acquisition. It needs no API key, paid inference or running VM. Large caches and exports use D:. The existing D-backed WSL environment holds the project and compiler outputs.
 
-The accepted CPU evidence still covers thirty witnesses, thirty fitting Q prompts, both real selector fixtures and all thirty corpus graphs. [CPU acceptance](docs/audits/2026-10-30-v6-cpu-accepted/checks.json) binds those inputs. Documentation of the result does not change the sealed scientific core or require another CPU scan. Real Q outputs and experiment slices have not been collected. The [VM guide](docs/RQ1_VM_ONLY_CHECKPOINTS.md) records the completed handoff and session procedure for reference.
+## Subsequent checkpoints
 
-## Developer checks
+After CPU acceptance, API access preparation and sealed Q acquisition can proceed independently. API billing is separate from Nebius. One fixed assessor attempt contains twelve reused-development anchors and eight fresh held-out response checks; all twenty labels and later proof audits must pass, with cohorts reported separately. The candidate has not been shown to pass. No automatic candidate search, answer repair or preferred-response retry is allowed.
 
-On Linux with Python 3.11 or 3.12:
+Q/Joern outputs remain unopened until release. Seals are hash inventories, not access control. Public progress summaries show counts and archive hashes; raw queries, slices and worker logs stay inside unopened archives. Full main assessment additionally requires the completed development audit and assessment freeze.
+
+Read [RUNBOOK.md](rq1/RUNBOOK.md), [PROTOCOL.md](rq1/PROTOCOL.md), [ASSESSMENT.md](rq1/ASSESSMENT.md), [READINESS.md](rq1/READINESS.md), and [source references](rq1/SOURCE_REFERENTS.md). Historical v1/v2 records remain in `docs/`; their old commands are superseded.
+
+## Developer verification
+
+Python 3.11 or 3.12, Linux LP64:
 
 ```bash
 python -m venv .venv
@@ -28,6 +41,6 @@ python -m venv .venv
 .venv/bin/python -m rq1.setup verify
 ```
 
-Tests use isolated simulations, never empirical experiment results. Actual failed v1 and v2 calibration responses are reported separately. No Q/slice development or main results have been collected. Main is blocked until source-checked calibration, real development inference/assessments and an immutable freeze pass.
+Tests use explicitly labelled synthetic records in temporary directories. They are not calibration or experiment observations. Reports distinguish selected/context/absent reference lines, semantic relationship support, initial judgments, confirmed adequacy, repaired controls and uncertainty. Structural line visibility does not establish semantic sufficiency.
 
-The prompt follows the [QCRI release](https://github.com/qcri/llmxcpg). Selector and reconstruction adaptations are explicit; this is a bounded audit of the documented configuration. GPL-3.0; see [LICENSE](LICENSE) and [NOTICE](NOTICE).
+Original pipeline reference: [QCRI LLMxCPG](https://github.com/qcri/llmxcpg). Selector/reconstruction adaptations are documented. GPL-3.0; see LICENSE and NOTICE.

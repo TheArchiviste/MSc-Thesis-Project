@@ -40,7 +40,10 @@ Actual overflowing object: **heap**. Upstream family: `CWE122-c-CWE129`.
 | Fact / role | U lines | Meaning |
 |---|---|---|
 | capacity / capacity | 7 | Ten int elements: 40 bytes on LP64. |
-| input_acquisition / context | 34, 40 | Input is obtained from stdin; a decimal value such as 11 is possible. |
+| input_acquisition / context | 34 | Input is obtained from stdin; a decimal value such as 11 is possible. |
+| input_bound_definition / context | 2 | The input bound is 3*sizeof(the entry data variable)+2; its definition cannot be invented when omitted. |
+| entry_index_type / context | 30 | The entry variable has int type; with the visible size macro the input buffer admits a two-digit value such as 11. |
+| input_buffer / context | 33 | The input object is declared with the visible CHAR_ARRAY_SIZE bound. |
 | extent / extent | 36 | The converted input supplies the index; it is not a constant derived from the witness label. |
 | guard / guard | 13 | This guard has no upper-bound restriction. |
 | access / sink | 15 | The converted scalar is used as the index. |
@@ -124,6 +127,7 @@ Actual overflowing object: **stack**. Upstream family: `CWE122-c-CWE806-loop`.
 | source_termination / context | 24 | The explicit termination establishes the documented source length. |
 | extent / extent | 8, 9 | The access extent depends on the caller-supplied source length and operation semantics. |
 | source_allocation / context | 21 | This allocation supplies the read operand, not the local overflowing destination. |
+| loop_index_type / context | 7 | The counter declaration supplies the type needed to justify its loop range; do not assume an omitted counter cannot wrap or saturate early. |
 | caller_argument / context | 25 | The selected entry supplies this actual argument. |
 | callee_parameter / context | 3 | The argument binds this formal parameter; equal spelling alone is not proof of identity. |
 
@@ -228,6 +232,7 @@ Actual overflowing object: **heap**. Upstream family: `CWE122-CWE131-loop`.
 | extent / extent | 7 | Ten int elements require 40 bytes; a first-invalid-store account is also acceptable. |
 | access / sink | 9 | The operation writes through the selected destination pointer. |
 | read_object / context | 5 | The read operand has ten int elements; its contents do not determine the copy count. |
+| loop_index_type / context | 6 | The counter declaration supplies the type needed to justify its loop range; do not assume an omitted counter cannot wrap or saturate early. |
 | caller_argument / context | 21 | The selected entry supplies this actual argument. |
 | callee_parameter / context | 2 | The argument binds this formal parameter; equal spelling alone is not proof of identity. |
 
@@ -385,6 +390,7 @@ Actual overflowing object: **stack**. Upstream family: `CWE121-CWE193-loop`.
 | source_initialization / extent | 9 | The source array is initialized with SRC_STRING. |
 | extent / extent | 11, 12 | strcpy includes the NUL; the loop variant explicitly includes sourceLen + 1. |
 | access / sink | 14 | The copy writes through the caller-selected pointer. |
+| loop_index_type / context | 10 | The counter declaration supplies the type needed to justify its loop range; do not assume an omitted counter cannot wrap or saturate early. |
 | caller_argument / context | 26 | The selected entry supplies this actual argument. |
 | callee_parameter / context | 6 | The argument binds this formal parameter; equal spelling alone is not proof of identity. |
 | alias_selection / context | 24 | The assignment identifies which allocated object is actually passed. |
@@ -392,5 +398,55 @@ Actual overflowing object: **stack**. Upstream family: `CWE121-CWE193-loop`.
 | Required relationship | Explanation |
 |---|---|
 | bounds_violation | The source contains ten characters and a terminating NUL. The copy includes eleven bytes, while the selected destination has ten bytes. |
+| extent_support | Establish the relevant count, source length or possible index using visible facts and permitted assumptions. |
+| argument_binding | The caller supplies the destination object whose capacity is compared with the access. |
+
+## R15 — assessor_holdout, juliet-buffer-dest-copy
+
+The receiving object has 50 bytes; the documented count and source facts imply a requested 100-byte access range, exceeding its capacity.
+
+Repair: The repaired caller selects or allocates a 100-byte destination.
+
+Actual overflowing object: **heap**. Upstream family: `CWE122-c-dest-copy`.
+[Prepared U](generated/R15_U.c) · [Fixed F](generated/R15_F.c) · [Pinned upstream](https://github.com/arichardson/juliet-test-suite-c/blob/f88433e3443648a17671398797a04ea1f8e1a274/testcases/CWE122_Heap_Based_Buffer_Overflow/s10/CWE122_Heap_Based_Buffer_Overflow__c_dest_char_cpy_41.c)
+
+| Fact / role | U lines | Meaning |
+|---|---|---|
+| capacity / capacity | 18 | The receiving object has fifty bytes. |
+| access / sink | 9 | The intended write operation, not a later consequence or unrelated access. |
+| source_initialization / extent | 7 | The documented non-NUL initialization establishes the source content relevant to length. |
+| source_termination / context | 8 | The explicit termination establishes the documented source length. |
+| extent / extent | 9 | The count bound and/or string operation determines the access range together with the source facts. |
+| caller_argument / context | 21 | The selected entry supplies this actual argument. |
+| callee_parameter / context | 3 | The argument binds this formal parameter; equal spelling alone is not proof of identity. |
+
+| Required relationship | Explanation |
+|---|---|
+| bounds_violation | The receiving object has 50 bytes; the documented count and source facts imply a requested 100-byte access range, exceeding its capacity. |
+| extent_support | Establish the relevant count, source length or possible index using visible facts and permitted assumptions. |
+| argument_binding | The caller supplies the destination object whose capacity is compared with the access. |
+
+## R17 — assessor_holdout, juliet-buffer-CWE805-loop
+
+The receiving object has 50 bytes; the documented count and source facts imply a requested 100-byte access range, exceeding its capacity.
+
+Repair: The repaired caller selects or allocates a 100-byte destination.
+
+Actual overflowing object: **heap**. Upstream family: `CWE122-c-CWE805-loop`.
+[Prepared U](generated/R17_U.c) · [Fixed F](generated/R17_F.c) · [Pinned upstream](https://github.com/arichardson/juliet-test-suite-c/blob/f88433e3443648a17671398797a04ea1f8e1a274/testcases/CWE122_Heap_Based_Buffer_Overflow/s07/CWE122_Heap_Based_Buffer_Overflow__c_CWE805_char_loop_41.c)
+
+| Fact / role | U lines | Meaning |
+|---|---|---|
+| capacity / capacity | 23 | The receiving object has fifty bytes. |
+| access / sink | 12 | The intended write operation, not a later consequence or unrelated access. |
+| extent / extent | 10 | The loop explicitly ranges over one hundred char elements; contents do not set the count. |
+| read_object / context | 7 | The read operand has a hundred bytes; this is source-object context, not the write count. |
+| loop_index_type / context | 6 | The counter declaration supplies the type needed to justify its loop range; do not assume an omitted counter cannot wrap or saturate early. |
+| caller_argument / context | 26 | The selected entry supplies this actual argument. |
+| callee_parameter / context | 3 | The argument binds this formal parameter; equal spelling alone is not proof of identity. |
+
+| Required relationship | Explanation |
+|---|---|
+| bounds_violation | The receiving object has 50 bytes; the documented count and source facts imply a requested 100-byte access range, exceeding its capacity. |
 | extent_support | Establish the relevant count, source length or possible index using visible facts and permitted assumptions. |
 | argument_binding | The caller supplies the destination object whose capacity is compared with the access. |

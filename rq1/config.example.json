@@ -15,9 +15,10 @@
   "infrastructure_attempts": 3,
   "joern_input_dir": "work/joern-inputs",
   "server_input_dir": "/analysis/inputs",
-  "rq1_freeze_file": "work/rq1-v6/freeze.json",
-  "rq1_token_audit_file": "work/rq1-v6/token-audit.json",
-  "implementation_id": "rq1-v6",
-  "joern_capability_file": "work/rq1-v6/joern-capability/readiness.json",
-  "rq1_calibration_file": "work/rq1-v6/calibration/acceptance.json"
+  "rq1_freeze_file": "work/rq1-v7/freeze.json",
+  "rq1_token_audit_file": "work/rq1-v7/token-audit.json",
+  "implementation_id": "rq1-v7",
+  "joern_capability_file": "work/rq1-v7/joern-capability/readiness.json",
+  "rq1_calibration_file": "work/rq1-v7/calibration/acceptance.json",
+  "rq1_acquisition_freeze_file": "work/rq1-v7/acquisition-freeze.json"
 }

@@ -45,15 +45,15 @@ def test_r05_line_hits_can_be_indistinguishable():
 
 def test_calibration_bank_balanced_dev_only_and_identical_negatives():
     packets, key = calibration.bank()
-    assert len(packets) == len(key) == 12
-    assert Counter(r['expected'] for r in key) == {'adequate': 6, 'inadequate': 6}
-    assert {r['case_id'] for r in key} == {'D01', 'D02', 'D03'}
-    assert Counter(r['kind'] for r in key) == {k: 3 for k in ('complete_U', 'complete_F', 'reduced_sufficient_U', 'indistinguishable_incomplete')}
+    assert len(packets) == len(key) == 20
+    assert Counter(r['expected'] for r in key) == {'adequate': 10, 'inadequate': 10}
+    assert {r['case_id'] for r in key} == {'D01', 'D02', 'D03', 'R15', 'R17'}
+    assert Counter(r['kind'] for r in key) == {k: 5 for k in ('complete_U', 'complete_F', 'reduced_sufficient_U', 'indistinguishable_incomplete')}
     for packet in packets.values():
         req = request_for(packet, pass_id='calibration')
         assert len(req['messages']) == 2 and judge.validate_request(req) == packet
-        task = json.loads(req['messages'][1]['content'])['task']
-        assert set(task) == {'review_id', 'code', 'claim', 'assessment_contract'}
+        task = req['packet']
+        assert set(task) == {'review_id', 'code', 'claim', 'assessment_contract_sha256'}
         assert not {'case_id', 'arm', 'source_reason', 'expected', 'witnesses'} & task.keys()
 
 
@@ -68,14 +68,14 @@ def test_request_rejects_hidden_oracle_even_if_rehashed():
 def test_calibration_is_not_a_ready_flag(cfg, tmp_path):
     path = tmp_path / 'calibration/acceptance.json'
     path.parent.mkdir()
-    path.write_text(json.dumps({'accepted': True, 'n': 12, 'assessment_contract_sha256': contract()['contract_sha256'], 'corpus_contract': setup.corpus_contract()}))
+    path.write_text(json.dumps({'accepted': True, 'n': 20, 'assessment_contract_sha256': contract()['contract_sha256'], 'assessment_code_contract': setup.assessment_code_contract(), 'corpus_contract': setup.corpus_contract()}))
     with pytest.raises(ValueError, match='incomplete'):
         calibration.require_calibration(cfg)
 
 
 def test_complete_calibration_receipt_revalidates_raw_responses(witnessed, cfg):
     receipt = calibration_fixture(witnessed, cfg)
-    assert receipt['accepted'] and calibration.require_calibration(cfg)['n'] == 12
+    assert receipt['accepted'] and calibration.require_calibration(cfg)['n'] == 20
     root = witnessed.parent / 'calibration'
     with (root / 'responses.jsonl').open('a') as stream:
         stream.write('\n')
@@ -96,7 +96,7 @@ def test_all_rejecting_assessor_fails_calibration_screen(witnessed, cfg):
             'cited_lines': rating(packet)['cited_lines'], 'reason': 'Unit schema fixture.'})
     result = calibration.evaluate(root)
     assert not result['accepted']
-    assert sum(r['label_correct'] for r in result['records']) == 6
+    assert sum(r['label_correct'] for r in result['records']) == 10
     with pytest.raises(ValueError, match='Calibration failed'):
         calibration.accept(config)
     assert not (root / 'acceptance.json').exists()
@@ -112,6 +112,7 @@ def test_missing_source_proof_blocks_calibration(witnessed, cfg):
 
 
 def test_cpu_acquisition_cannot_skip_calibration(cfg, monkeypatch, tmp_path):
+    monkeypatch.setattr(setup, 'git_provenance', lambda: {'commit': 'test', 'modified_tracked_files': ''})
     for name in ('verify_corpus', 'verify_implementation'):
         monkeypatch.setattr(setup, name, dict)
     for name in ('token_audit_valid', 'capability_valid'):

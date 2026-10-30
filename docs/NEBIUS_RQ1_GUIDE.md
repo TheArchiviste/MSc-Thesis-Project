@@ -1,3 +1,5 @@
+> Historical procedure, superseded by [the v3 amendment](RQ1_V3_AMENDMENT_2026-10-30.md) and [active runbook](../rq1/RUNBOOK.md). Do not execute these older assessor/VM commands.
+
 > Current VM-only route: [RQ1_VM_ONLY_CHECKPOINTS.md](RQ1_VM_ONLY_CHECKPOINTS.md). The CPU checkpoint has passed. Prepare the handoff locally first; assessor calibration will run on the existing VM before Q acquisition. The older sequence below describes the later Q handoff.
 
 # Nebius handoff for the RQ1-only experiment

@@ -16,6 +16,6 @@ R11,sizeof-double,CWE122,excluded_before_inference,On the evaluated LP64 ABI siz
 R12,CWE806-ncat,CWE121,main_prepared,"The receiving object has 50 bytes; the documented count and source facts imply a requested 100-byte access range, exceeding its capacity."
 R13,CWE805-copy,CWE122,main_prepared,"The receiving object has 50 bytes; the documented count and source facts imply a requested 100-byte access range, exceeding its capacity."
 R14,CWE193-loop,CWE121,main_prepared,"The source contains ten characters and a terminating NUL. The copy includes eleven bytes, while the selected destination has ten bytes."
-R15,dest-copy,CWE122,reserve_not_enrolled,
+R15,dest-copy,CWE122,assessor_holdout_prepared,"The receiving object has 50 bytes; the documented count and source facts imply a requested 100-byte access range, exceeding its capacity."
 R16,CWE135,CWE121,reserve_not_enrolled,
-R17,CWE805-loop,CWE122,reserve_not_enrolled,
+R17,CWE805-loop,CWE122,assessor_holdout_prepared,"The receiving object has 50 bytes; the documented count and source facts imply a requested 100-byte access range, exceeding its capacity."

@@ -39,14 +39,30 @@ from .prepare import reference, render, sha, verify_selection
 
 ROOT = CORPUS.parent
 SPLITS = ("development", "main")
-DEFAULT_CONFIG = Path("work/rq1-v6/config.json")
+CORPUS_SPLITS = (*SPLITS, 'assessor_holdout')
+DEFAULT_CONFIG = Path("work/rq1-v7/config.json")
+
+
+def assessment_code_contract():
+    """A separately frozen judging implementation; never part of Q/slice fingerprints."""
+    names = ('rq1/assessment_protocol.py', 'rq1/providers.py', 'rq1/judge.py',
+             'rq1/calibration.py', 'rq1/assess.py', 'rq1/source_audit.py',
+             'ops/rq1_api_calibration.py',
+             'evidence_experiment/review.py', 'evidence_experiment/analysis.py',
+             'evidence_experiment/rq1_report.py', 'rq1/visibility.py', 'rq1/assessor.example.json')
+    return {name: file_digest(ROOT / name) for name in names}
 
 
 def corpus_contract():
+    """Acquisition dependencies only; grader changes cannot invalidate sealed Q/slices."""
+    assessment = set(assessment_code_contract())
     paths = [p for name in ("rq1", "llmxcpg", "evidence_experiment")
              for p in (ROOT / name).rglob("*") if p.is_file() and
-             "__pycache__" not in p.parts and "validation" not in p.parts]
+             "__pycache__" not in p.parts and "validation" not in p.parts and
+             p.suffix != '.md' and p.name != 'pipeline_contract.json' and
+             p.relative_to(ROOT).as_posix() not in assessment]
     paths.append(ROOT / "pyproject.toml")
+    paths += [ROOT / name for name in ('ops/rq1_q_handoff.py', 'ops/rq1_collect.py')]
     return {p.relative_to(ROOT).as_posix(): file_digest(p) for p in sorted(paths)}
 
 
@@ -75,7 +91,7 @@ def verify_corpus():
             raise ValueError(f"Witness support hash changed: {name}")
     blocks = set()
     counts = {}
-    for split in SPLITS:
+    for split in CORPUS_SPLITS:
         rows = read_jsonl(CORPUS / f"{split}.jsonl")
         cases = load_cases(CORPUS / f"{split}.jsonl")
         counts[split] = len(cases)
@@ -100,7 +116,7 @@ def verify_corpus():
                 raise ValueError(f"Source-only reference changed: {cid}")
             if not row["referent"].get("rq1_witness_required"):
                 raise ValueError(f"Witness gate disabled: {cid}")
-    if counts != {"development": 3, "main": 12}:
+    if counts != {"development": 3, "main": 12, "assessor_holdout": 2}:
         raise ValueError(f"Unexpected enrolled counts: {counts}")
     return counts
 
@@ -110,14 +126,14 @@ def load_config(path):
     cfg = json.loads(Path(path).read_text())
     example = json.loads((CORPUS / "config.example.json").read_text())
     if set(cfg) != set(example):
-        raise ValueError("RQ1-v6 config fields differ; initialize a fresh config, preserving old runs")
+        raise ValueError("RQ1-v7 config fields differ; initialize a fresh config, preserving old runs")
     fixed = {"implementation_id": IMPLEMENTATION_ID, "query_model": "QCRI/LLMxCPG-Q",
              "query_revision": "1f48ab60420d90277207394f1254d27d3375b07e",
              "query_engine": "vllm", "query_temperature": 0.0, "query_batch_size": 1,
              "query_max_context": 8192, "query_tensor_parallel_size": 1,
              "infrastructure_attempts": 3}
     if any(cfg[k] != v for k, v in fixed.items()):
-        raise ValueError("Config changes the frozen RQ1-v6 Q/selector design")
+        raise ValueError("Config changes the frozen RQ1-v7 Q/selector design")
     if (not re.fullmatch(r"sha256:[0-9a-f]{64}", cfg["joern_digest"]) or
             not 0 < cfg["query_gpu_memory_utilization"] < 1 or
             not 0 < cfg["joern_rpc_timeout"] <= cfg["joern_case_timeout"]):
@@ -157,7 +173,53 @@ def capability_valid(cfg):
     return result
 
 
-def check_acquisition_ready(manifest, config, phase=None):
+def acquisition_freeze(config):
+    """Freeze Q/Joern apparatus before collecting outputs, independently of grading."""
+    verify_corpus()
+    verify_implementation()
+    cfg = load_config(config)
+    token_audit_valid(cfg)
+    capability = capability_valid(cfg)
+    if capability['environment'] != environment():
+        raise ValueError('Create the acquisition freeze on the accepted CPU environment')
+    provenance = git_provenance()
+    if not provenance['commit'] or provenance['modified_tracked_files']:
+        raise ValueError('Freeze a clean, committed checkout')
+    root = (ROOT / cfg['rq1_calibration_file']).parent.parent
+    files = {}
+    for split in SPLITS:
+        work = root / split
+        require_witnesses(work, load_cases(CORPUS / f'{split}.jsonl'))
+        if any((work / name).exists() for name in ('queries.jsonl', 'slices.jsonl')):
+            raise ValueError('Declare the acquisition freeze before any Q/slice output')
+        path = work / 'witness_validation.jsonl'
+        files[str(path.relative_to(ROOT))] = file_digest(path)
+    for field in ('rq1_token_audit_file', 'joern_capability_file'):
+        files[cfg[field]] = file_digest(ROOT / cfg[field])
+    receipt = {'utc': now(), 'corpus_contract': corpus_contract(), 'policy': policy(cfg),
+               'files': files, 'cpu_environment': environment(), 'provenance': provenance,
+               'rule': 'One primary Q/slice run per input. Seal outputs before release; no assessor or corpus tuning from acquired outputs.'}
+    write_json(ROOT / cfg['rq1_acquisition_freeze_file'], receipt, exclusive=True)
+    print('RQ1_ACQUISITION_FREEZE_OK: sealed collection permitted; assessment is still gated')
+    return receipt
+
+
+def require_acquisition_freeze(cfg):
+    receipt = json.loads((ROOT / cfg['rq1_acquisition_freeze_file']).read_text())
+    if receipt.get('corpus_contract') != corpus_contract() or receipt.get('policy') != policy(cfg):
+        raise ValueError('Acquisition code, corpus or policy changed after its freeze')
+    required = {cfg['rq1_token_audit_file'], cfg['joern_capability_file']}
+    root = (ROOT / cfg['rq1_calibration_file']).parent.parent
+    required |= {str((root / split / 'witness_validation.jsonl').relative_to(ROOT)) for split in SPLITS}
+    if set(receipt.get('files', {})) != required:
+        raise ValueError('Acquisition freeze is incomplete')
+    for name, sha256 in receipt['files'].items():
+        if file_digest(ROOT / name) != sha256:
+            raise ValueError('Acquisition apparatus evidence changed after freeze')
+    return receipt
+
+
+def check_acquisition_ready(manifest, config, phase=None, *, sealed=False):
     verify_corpus()
     verify_implementation()
     manifest = Path(manifest).resolve()
@@ -168,16 +230,37 @@ def check_acquisition_ready(manifest, config, phase=None):
     capability = capability_valid(cfg)
     if phase == "slice" and capability.get("environment") != environment():
         raise ValueError("Restore the CPU environment used for the accepted selector conformance")
-    from .calibration import require_calibration
-    calibrated = require_calibration(cfg)
     provenance = git_provenance()
     if not provenance["commit"] or provenance["modified_tracked_files"]:
         raise ValueError("Acquire only from a clean, committed implementation")
+    if sealed:
+        if phase not in {'query', 'slice', 'visibility'}:
+            raise ValueError('Only acquisition and structural computation may run sealed')
+        require_acquisition_freeze(cfg)
+        if phase == 'query':
+            receipt = json.loads(((ROOT / cfg['rq1_calibration_file']).parent.parent / 'q-vm-inspection.json').read_text())
+            if (receipt.get('technical_ready') is not True or receipt.get('environment') != environment() or
+                    receipt.get('core_contract') != corpus_contract()):
+                raise ValueError('Restore the inspected Q VM environment before acquisition')
+        if manifest == CORPUS / 'main.jsonl' and phase in {'query', 'slice'}:
+            dev = (ROOT / cfg['rq1_calibration_file']).parent.parent / 'development'
+            records = validate_terminal_records(dev, phase, load_cases(CORPUS / 'development.jsonl'))
+            from evidence_experiment.runner import INFRA_STATUSES
+            if phase == 'slice' and any(r['status'] in INFRA_STATUSES | {'mapping_error'} for r in records.values()):
+                raise ValueError('Resolve development infrastructure/mapping before main slicing')
+            check_stage_receipts(dev)
+            prior = json.loads((dev / 'experiment_lock.json').read_text())
+            if environment() != prior['stage_environments'].get(phase):
+                raise ValueError('Main acquisition must use the development stage environment')
+        return cfg
+    from .calibration import require_calibration
+    calibrated = require_calibration(cfg)
     if manifest == CORPUS / "main.jsonl":
         frozen = json.loads((ROOT / cfg["rq1_freeze_file"]).read_text())
         if (frozen["corpus_contract"] != corpus_contract() or frozen["policy"] != policy(cfg) or
                 frozen.get("calibration_sha256") != file_digest(ROOT / cfg["rq1_calibration_file"]) or
-                frozen.get("assessor_signature") != calibrated["assessor_signature"]):
+                frozen.get("assessor_signature") != calibrated["assessor_signature"] or
+                frozen.get('assessment_code_contract') != assessment_code_contract()):
             raise ValueError("Code, corpus or policy changed after the development freeze")
         if phase in {"query", "slice"} and environment() != frozen["stage_environments"].get(phase):
             raise ValueError(f"Restore the accepted development {phase} Python/package environment")
@@ -197,6 +280,16 @@ def command(*argv):
         return out.returncode == 0, (out.stdout + out.stderr).strip()
     except (OSError, subprocess.TimeoutExpired) as exc:
         return False, str(exc)
+
+
+def q_weights_cached(cache, cfg):
+    snapshot = cache / 'hub' / ('models--' + cfg['query_model'].replace('/', '--')) / 'snapshots' / cfg['query_revision']
+    index = snapshot / 'model.safetensors.index.json'
+    try:
+        shards = set(json.loads(index.read_text())['weight_map'].values())
+        return bool(shards) and all((snapshot / name).is_file() and (snapshot / name).stat().st_size > 0 for name in shards)
+    except (OSError, ValueError, KeyError):
+        return False
 
 
 def doctor(profile, config, work):
@@ -233,7 +326,8 @@ def doctor(profile, config, work):
         cache = Path(os.environ.get("HF_HOME", Path.home() / ".cache/huggingface"))
         existing = next(p for p in (cache, *cache.parents) if p.exists())
         free = shutil.disk_usage(existing).free / 2**30
-        add("model_cache_space", free >= 100, f"{free:.1f} GiB free; require >=100 GiB")
+        required = 15 if cfg and q_weights_cached(cache, cfg) else 100
+        add("model_cache_space", free >= required, f"{free:.1f} GiB free; require >={required} GiB (lower limit only with all pinned Q shards cached)")
     from .calibration import require_calibration
     try:
         if cfg is None:
@@ -279,12 +373,15 @@ def status(split, work):
     except (ValueError, OSError):
         pass
     return {"split": split, "cases": len(cases), "blocks": len({c.cluster_id for c in cases}),
-            "planned_U": len(cases), "planned_F": len(cases), "planned_Q_and_slices": len(expected),
+            "planned_U": len(cases), "planned_F": len(cases),
+            "planned_Q_and_slices": 0 if split == 'assessor_holdout' else len(expected),
             "all_witnesses_pass_current_sources": witness_ok,
             "queries_recorded": len(expected & queries.keys()),
             "slices_recorded": len(expected & slices.keys()), "real_inference_complete": complete,
             "assessment_report": str(work / "rq1_report.md") if (work / "rq1_report.md").exists() else "pending",
-            "interpretation": "Pending inference or assessment is not an inadequate finding."}
+            "interpretation": ('Assessor-only sources: witnesses and calibration anchors; no Q/Joern experiment runs.'
+                               if split == 'assessor_holdout' else
+                               'Pending inference or assessment is not an inadequate finding.')}
 
 
 def freeze(config, dev_work):
@@ -303,7 +400,17 @@ def freeze(config, dev_work):
     from evidence_experiment.runner import INFRA_STATUSES
     if any(r["status"] in INFRA_STATUSES | {"mapping_error"} for r in report["run_evidence"]):
         raise ValueError("Resolve development infrastructure/mapping failures before freezing")
+    proof = json.loads((dev_work / 'assessments.initial.provenance.json').read_text())
+    snapshot_files = [dev_work / name for name in ('assessments.initial.jsonl',
+        'assessments.initial.provenance.json', 'adjudications.jsonl', 'blind_review_packets.jsonl',
+        'assessment_lock.json')]
+    snapshot_files += [dev_work / proof[key] for key in ('requests_path', 'responses_path')]
+    if any(p.is_symlink() or not p.resolve().is_relative_to(dev_work.resolve()) for p in snapshot_files):
+        raise ValueError('Keep the complete development assessment evidence inside its stage directory')
     frozen = {"utc": now(), "corpus_contract": corpus_contract(), "policy": policy(cfg),
+              'assessment_code_contract': assessment_code_contract(),
+              'development_assessment_files': {str(p.resolve().relative_to(dev_work.parent.resolve())): file_digest(p)
+                                               for p in snapshot_files},
               "stage_environments": lock["stage_environments"], "development_receipts": receipts,
               "development_analysis_sha256": file_digest(dev_work / "analysis.json"),
               "token_audit_sha256": file_digest(ROOT / cfg["rq1_token_audit_file"]),
@@ -313,7 +420,7 @@ def freeze(config, dev_work):
               "assessor_signature": report["assessor_calibration_signature"],
               "development_summary": status("development", dev_work), "provenance": git_provenance()}
     write_json(ROOT / cfg["rq1_freeze_file"], frozen, exclusive=True)
-    print("RQ1_FREEZE_OK: main acquisition may now use this exact contract and stage environments")
+    print("RQ1_FREEZE_OK: main assessment may now release its sealed acquisition")
 
 
 def token_audit(config):
@@ -351,13 +458,13 @@ def token_audit(config):
 def main():
     os.chdir(ROOT)
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("action", choices=("verify", "init", "validate", "doctor", "status", "freeze", "token-audit", "conformance"))
+    parser.add_argument("action", choices=("verify", "init", "validate", "doctor", "status", "freeze", "acquisition-freeze", "token-audit", "conformance"))
     parser.add_argument("--config", type=Path, default=DEFAULT_CONFIG)
-    parser.add_argument("--split", choices=SPLITS, default="development")
+    parser.add_argument("--split", choices=CORPUS_SPLITS, default="development")
     parser.add_argument("--work", type=Path)
     parser.add_argument("--profile", choices=("local", "gpu"), default="local")
     args = parser.parse_args()
-    work = args.work or Path("work/rq1-v6") / args.split
+    work = args.work or Path("work/rq1-v7") / args.split
     if args.action == "verify":
         verify_implementation()
         print(json.dumps(verify_corpus(), indent=2))
@@ -379,10 +486,13 @@ def main():
         if not doctor(args.profile, args.config, work):
             raise SystemExit(1)
         print("RQ1_TECHNICAL_DOCTOR_OK: inspect assessor_calibration separately; no inference performed")
-    elif args.action == "freeze":
+    elif args.action in {"freeze", "acquisition-freeze"}:
         from evidence_experiment.locks import work_lock
         with work_lock(work):
-            freeze(args.config, work)
+            if args.action == 'acquisition-freeze':
+                acquisition_freeze(args.config)
+            else:
+                freeze(args.config, work)
     elif args.action == "token-audit":
         token_audit(args.config)
     elif args.action == "conformance":

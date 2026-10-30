@@ -1,48 +1,31 @@
-# RQ1 assessment procedure
+# RQ1 assessment procedure — rq1-excerpt-v3
 
-Current public task: **rq1-excerpt-v2**, implementation **rq1-v6**. The first real v1 calibration failed; raw responses are preserved. See [the audit and predeclared repair](../docs/RQ1_ASSESSOR_REPAIR_2026-10-30.md). V2 supplies the explicit schema matching unchanged importer rules: lowercase terminal labels, integer visible citations, cited premises and nonempty relationship explanations for adequate. Do not repair old responses or reuse v1 packets/acceptance as v2 evidence.
+See [the v3 amendment](../docs/RQ1_V3_AMENDMENT_2026-10-30.md) for the failed-attempt history and fixed decisions. Implementation rq1-v7 uses a separate stateless GPT-6 Astra API request for each excerpt. The assistant performs the later source-informed proof audit and explains its reasoning. No human ratings are claimed.
 
-The assistant performs the delegated source reasoning and proof audits. No human reviewers are required. The first excerpt grade uses a **separate stateless request**, because an assistant that has already read a referent cannot honestly claim to have forgotten it.
+## Public task and response
 
-`assessment_protocol.py` contains the public rubric, assumptions and response schema. `judge.py` sends exactly two messages: a fixed system task and one numbered excerpt/claim. There is no conversation history, private reference, arm label, case ID, witness result or sibling excerpt. The same service can still recognize familiar code; stateless requests cannot remove pretraining knowledge. Do not describe this as independent human validation.
+The grader receives the rubric and permitted assumptions once, one hypothesis claim, the contract hash, and one readable numbered excerpt. Provider-native structured output supplies the schema once. No reference, expected label, case/arm/cohort label, witness result, earlier response or conversation history is sent. Requests persist and hash the evidence-before-verdict key order. Each response must provide the exact required fields and integer visible citations; unsupported conditions/uniqueness are checked locally after decoding. No format/content repair or preferred-response retry is allowed.
 
-## First checkpoint: prepare, without inference
+The API adapter omits temperature and uses high reasoning, 25,000 maximum output tokens including reasoning, Standard tier, `store=false` and no tools. The immutable raw envelope and actual token usage are preserved. These settings are unrelated to the unchanged Q settings. Account access, funding and model suitability are not assumed.
 
-`rq1/local_acceptance.sh` creates 12 packets under `work/rq1-v6/calibration/public` and the source answer key under `private`. The diagnostic ZIP includes private material for the assistant's source audit. **Never send that whole ZIP, the private key, or the repository to the excerpt grader.** The CPU checkpoint does not contact an assessor endpoint.
+## Current checkpoint
 
-## Next checkpoint: configure and calibrate the real assessor
+Run only the laptop CPU checkpoint in RUNBOOK.md and return the ZIP. It creates twenty **ungraded** anchors with a frozen private source key. Keep the full diagnostic ZIP and private key away from the excerpt grader. Never paste an API key into chat or commit it.
 
-After the CPU ZIP is inspected, configure a real OpenAI-compatible chat-completions service in an ignored work file, using `rq1/assessor.example.json` as its schema. Record the actual provider/model and available revision; use `not_exposed` if a service does not expose it. Do not invent identity metadata or use the evaluated query model as the evidence assessor. Keep API credentials in the named environment variable, never a committed file. Endpoint/access and any associated resource cost must be established at that checkpoint; no service or free access is assumed by this repository.
+## Later: read-only access, then one paid acquisition
 
-The later commands, after the profile is configured, are:
+After CPU acceptance, the assistant provides the exact access command. Enter the API key privately through the terminal; the value stays in `OPENAI_API_KEY`, outside files and command history. `ops.rq1_api_calibration access` performs a GET-only selected-model lookup and returns a receipt. It establishes neither paid-generation permission nor grading quality. Return that receipt and pause.
 
-```bash
-.venv/bin/python -m rq1.judge run \
-  --profile work/rq1-v6/assessor.json \
-  --requests work/rq1-v6/calibration/public/requests.jsonl \
-  --responses work/rq1-v6/calibration/responses.jsonl
-.venv/bin/python -m rq1.judge import \
-  --requests work/rq1-v6/calibration/public/requests.jsonl \
-  --responses work/rq1-v6/calibration/responses.jsonl \
-  --output work/rq1-v6/calibration/assessments.initial.jsonl
-```
+Only after that checkpoint and budget review, run `ops.rq1_api_calibration run`. It refuses a prior acquisition, requires clean committed code and matching access/profile receipts, and issues the exact twenty frozen requests once. It exports an explicit allowlist of public/private calibration artifacts, raw responses/errors, profile/provenance and a summary under D:\Dissertation-RQ1\exports. It does not package API credentials. Return that ZIP and pause. All twenty answers are acquired without inspecting/tuning between cohorts. Refusal, truncation or transport failure stops the attempt and preserves records; there is no automatic alternative candidate.
 
-Return raw responses, imported grades and `source_audit.template.jsonl`. The assistant compares each actual response's reasoning against the source answer key, cites visible lines and records a detailed yes/no/uncertain proof audit in `source_audit.jsonl`. An expected label alone cannot pass. Then:
+The assistant audits each actual response after its real timestamp, against the source key but citing visible support. All twenty strict labels and proofs must pass, with 12 reused-development and 8 fresh-held-out checks reported separately. An acceptance file cannot be manufactured from a ready flag. A passed screen is not an accuracy estimate; five source mechanisms and related packets remain a small, curated screen.
 
-```bash
-.venv/bin/python -m rq1.calibration accept
-```
+## Real excerpt assessment and release
 
-All 12 labels and proof audits must pass. No automatic content retries, JSON repairs, best-of-N choices or outcome-based removal are allowed. A failed/truncated response is retained. Transport errors may be diagnosed and resumed without changing completed responses. A failed instrument requires a recorded development-only protocol/assessor revision and fresh versioned calibration, with previous records preserved. Q acquisition remains blocked meanwhile.
+The acquisition seal stays immutable. `evidence_experiment release --split development` requires accepted calibration and creates the separate assessment lock. Then `packets` and `rq1.assess prepare` issue the exact rendered excerpts, deduplicated and spaced where possible. The same API profile/settings grade the initial requests. The assistant fills later source audits for U excerpts; missing evidence cannot be supplied from its reference knowledge to promote a failed first grade. F initial outcomes are reported separately.
 
-## Real development and main excerpts
-
-Once actual slices and packets exist, `rq1.assess prepare --split development` (or `main`) exports `assessment_requests.initial.jsonl`. Use the same configured profile and `rq1.judge run/import` pattern, with responses under that split and output `assessments.initial.jsonl`. Provenance binds request text, raw response, model/settings, timestamp and grade. An edited/orphan grade file is rejected.
-
-Return actual grades, public packets, traces and `adjudications.template.jsonl`. The assistant uses the source referent to fill `adjudications.jsonl`: mechanism match, real audit time, and every required relationship's support, visible citations, allowed assumptions and explanation. The primary label is the first grade, conservatively confirmed by that audit; hidden facts cannot promote it.
-
-Optional `assessments.final.jsonl` corrections have context `reference_informed`, a later timestamp, actual assessor identity, visible citations and `revision_reason`. They are reported separately and never substituted into primary results. They are not needed to manufacture agreement.
+After real development analysis, `rq1.setup freeze` locks the assessment implementation and profile. Main release additionally requires that freeze. Later reference-informed corrections are secondary and retain separate real timestamps/reasons; they never overwrite initial responses.
 
 ## Delayed consistency
 
-`rq1.assess reassessment-plan` freezes the subset and exports `assessment_requests.second.jsonl` with per-packet deadlines. After each deadline, use the same profile to run/import responses into `assessments.second.jsonl`. Run `rq1.assess consistency`, then `evidence_experiment finalize`. Execution and import reject early responses; model/settings must match calibration. Second responses remain separate from the primary grade. A real 48-hour wait cannot be simulated by changing timestamps.
+Freeze the seeded 25% subset of unique main packets, rounded up, at most six. Request a second independent stateless grade no sooner than each packet's actual initial timestamp plus 48 hours. Same identity/settings, raw provenance and unchanged first grades are required. This measures within-assessor consistency only. No repeated Q inference or invented timestamps are used.

@@ -1,9 +1,9 @@
-# RQ1 acquisition and reporting
+# RQ1 acquisition and reporting CLI
 
-Only `query`, `slice`, `packets`, `analyze` and `finalize` are supported. Both `python -m evidence_experiment` and `llmxcpg` use this interface. See the [runbook](../rq1/RUNBOOK.md) for ordered checkpoints.
+Follow the [active runbook](../rq1/RUNBOOK.md) and [v3 amendment](../docs/RQ1_V3_AMENDMENT_2026-10-30.md). The current implementation is rq1-v7, public assessor task rq1-excerpt-v3. Earlier commands and transformed/classifier experiments are outside this route.
 
-One primary U/F run per input is protected by source/witness/policy locks, complete separate stage environments, real Q session metadata, current CPU apparatus receipts and accepted evidence-assessor calibration. Semantic misses are retained; infrastructure retries are capped and pause.
+Q/Joern acquisition requires `--sealed`, an independent acquisition freeze and the correct actual stage environment. The Q host additionally requires its inspection receipt. Use `ops.rq1_collect` for safe progress and unopened archive export. Return summaries/hashes while assessment is pending; do not upload raw sealed output to develop the instrument.
 
-Packets bind exact reconstruction, claim, rubric and assumptions. A stateless grader receives one public packet per request; imported first grades require actual model/settings, real timestamps, visible-premise reasoning and raw-response provenance. Each shown U also receives a separate source-informed mechanism/relationship audit. Later corrections are secondary and never promote the primary outcome.
+`release` binds accepted calibration to sealed acquisition. Main release also requires the completed development assessment freeze. `packets`, `analyze` and `finalize` require that release. `visibility --sealed` computes structural line/prerequisite tables without implying semantic support or opening results for instrument development.
 
-Reports distinguish A/N adequate retrieval yield from A/R adequacy among usable U excerpts, descriptive fact visibility and semantic relationship support, acquisition and assessment uncertainty, and shown F controls. Zero retrieved/F denominators are not estimable. `finalize` additionally requires the seeded 25% delayed stateless assessment after at least 48 hours. No command invents judgments or claims independent human validation.
+All empirical inputs have one U and one F primary run. Main has twelve U cases and twelve separate controls. The stateless first grade, source-support confirmation, uncertainty and later consistency/corrections remain distinct. Unit simulations never populate empirical outputs.

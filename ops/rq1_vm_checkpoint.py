@@ -225,6 +225,10 @@ def serve_assessor():
 
 
 def main():
+    raise SystemExit('Historical v1/v2 assessor route. Current v3 uses ops.rq1_api_calibration for grading and ops.rq1_q_handoff for Q. No model or paid request was started.')
+
+
+def historical_main():
     from rq1.setup import ROOT
     os.chdir(ROOT)
     p = argparse.ArgumentParser(description=__doc__)

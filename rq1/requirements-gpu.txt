@@ -1,5 +1,5 @@
 # Candidate for the pinned pipeline: Python 3.11, CUDA-capable Linux.
-# Not verified on real GPU hardware yet. The development run is the acceptance gate.
+# Existing H100 imports/BF16 stack inspected; original Q loading awaits real development acquisition.
 vllm==0.6.6.post1
 torch==2.5.1
 transformers==4.47.1

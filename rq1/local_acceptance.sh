@@ -4,8 +4,14 @@ set -euo pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")/.."
 rq1_exports=/mnt/d/Dissertation-RQ1/exports
 [[ -d /mnt/d ]] || { echo 'Use D-backed Ubuntu-24.04 WSL.' >&2; exit 1; }
-mkdir -p "$rq1_exports" work/rq1-v6
-rq1_attempt=$(mktemp -d "work/rq1-v6/local-attempt-$(date -u +%Y%m%dT%H%M%SZ)-XXXXXX")
+for rq1_split in development main; do
+    if [[ -f "work/rq1-v7/$rq1_split/queries.jsonl" || -f "work/rq1-v7/$rq1_split/slices.jsonl" ]]; then
+        echo 'Acquisition already exists. Do not repeat the CPU checkpoint or upload its sealed outputs.' >&2
+        exit 2
+    fi
+done
+mkdir -p "$rq1_exports" work/rq1-v7
+rq1_attempt=$(mktemp -d "work/rq1-v7/local-attempt-$(date -u +%Y%m%dT%H%M%SZ)-XXXXXX")
 exec > >(tee "$rq1_attempt/command.log") 2>&1
 rq1_finish() {
     rq1_exit=$?
@@ -23,8 +29,8 @@ attempt, code, exports = Path(sys.argv[1]), int(sys.argv[2]), Path(sys.argv[3])
 (attempt / 'checkpoint.json').write_text(json.dumps({'exit_code': code, 'passed': code == 0,
     'meaning': 'CPU technical readiness only; assessor calibration remains pending. No generated queries or evidence-adequacy results.'}, indent=2)+'\n')
 # Collect the exact new inputs and diagnostics; historical work/rq1 files are preserved.
-for rel in ('config.json', 'token-audit.json', 'joern-capability', 'local-doctor', 'development', 'main', 'calibration'):
-    source = Path('work/rq1-v6') / rel
+for rel in ('config.json', 'token-audit.json', 'acquisition-freeze.json', 'joern-capability', 'local-doctor', 'development', 'main', 'assessor_holdout', 'calibration'):
+    source = Path('work/rq1-v7') / rel
     target = attempt / 'inputs' / rel
     target.parent.mkdir(parents=True, exist_ok=True)
     if source.is_dir(): shutil.copytree(source, target)
@@ -42,4 +48,4 @@ else
     echo 'Usage: bash rq1/local_acceptance.sh (v6 needs fresh CPU receipts; preserve v4/v5 evidence)' >&2
     exit 2
 fi
-printf '%s\n' 'RQ1_LOCAL_CPU_CHECKPOINT_OK: assessor calibration is the next checkpoint; pause here and return the ZIP before any cloud work.'
+printf '%s\n' 'RQ1_LOCAL_CPU_CHECKPOINT_OK: return the ZIP and pause. No API key, paid inference or cloud VM is needed for this checkpoint.'

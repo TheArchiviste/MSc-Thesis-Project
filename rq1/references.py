@@ -24,7 +24,10 @@ def reference(row, code):
         repair = 'The repaired guard additionally requires data < 10.'
         operation = 'array index write'
         add('capacity', 'capacity', r'malloc\(10', 'Ten int elements: 40 bytes on LP64.')
-        add('input_acquisition', 'context', r'fgets\(', 'Input is obtained from stdin; a decimal value such as 11 is possible.')
+        add('input_acquisition', 'context', r'^\s*if \(fgets\(', 'Input is obtained from stdin; a decimal value such as 11 is possible.')
+        add('input_bound_definition', 'context', r'^#define CHAR_ARRAY_SIZE', 'The input bound is 3*sizeof(the entry data variable)+2; its definition cannot be invented when omitted.')
+        add('entry_index_type', 'context', r'^\s*int data;', 'The entry variable has int type; with the visible size macro the input buffer admits a two-digit value such as 11.')
+        add('input_buffer', 'context', r'^\s*char inputBuffer\[CHAR_ARRAY_SIZE\]', 'The input object is declared with the visible CHAR_ARRAY_SIZE bound.')
         add('extent', 'extent', r'atoi\(', 'The converted input supplies the index; it is not a constant derived from the witness label.')
         add('guard', 'guard', r'if \(data >= 0\)', 'This guard has no upper-bound restriction.')
         add('access', 'sink', r'buffer\[data\] = 1', 'The converted scalar is used as the index.')
@@ -58,9 +61,12 @@ def reference(row, code):
         add('capacity', 'capacity', r'char dest\[50\]' if source_argument else r'(?:ALLOCA|malloc)\(50\*sizeof', 'The receiving object has fifty bytes.')
         access = re.escape(fn) + r'\(' if fn else r'dest\[i\] = data\[i\]|data\[i\] = source\[i\]'
         add('access', 'sink', access, 'The intended write operation, not a later consequence or unrelated access.')
-        if block == 'CWE805-copy':
-            # memcpy uses its explicit count, independently of source string contents.
-            add('extent', 'extent', r'memcpy\(data, source, 100\*sizeof\(char\)\)', 'The count argument requests 100 bytes; source initialization does not set this count.')
+        if block in {'CWE805-copy', 'CWE805-loop'}:
+            # These operations use explicit counts, independently of string contents.
+            if block == 'CWE805-copy':
+                add('extent', 'extent', r'memcpy\(data, source, 100\*sizeof\(char\)\)', 'The count argument requests 100 bytes; source initialization does not set this count.')
+            else:
+                add('extent', 'extent', r'for \(i = 0; i < 100;', 'The loop explicitly ranges over one hundred char elements; contents do not set the count.')
             add('read_object', 'context', r'char source\[100\]', 'The read operand has a hundred bytes; this is source-object context, not the write count.', essential=False)
         else:
             add('source_initialization', 'extent', r'memset\(data,' if source_argument else r'memset\(source', 'The documented non-NUL initialization establishes the source content relevant to length.')
@@ -75,6 +81,8 @@ def reference(row, code):
         if fn == 'SNPRINTF':
             add('macro_binding', 'context', r'#define SNPRINTF snprintf', 'On the selected Linux branch SNPRINTF denotes standard snprintf; do not invent an omitted binding.')
 
+    if fn is None and block != 'CWE129':
+        add('loop_index_type', 'context', r'^\s*(?:size_t|int) i(?:,|;)', 'The counter declaration supplies the type needed to justify its loop range; do not assume an omitted counter cannot wrap or saturate early.')
     add('caller_argument', 'context', r'case_sink\(data\);', 'The selected entry supplies this actual argument.')
     add('callee_parameter', 'context', r'^(?:static )?void case_sink\(', 'The argument binds this formal parameter; equal spelling alone is not proof of identity.')
     if re.search(r'data = (?:buffer_\d+|dataBuffer);', code):
@@ -84,7 +92,9 @@ def reference(row, code):
     relation = ('The caller supplies the index scalar; the receiving buffer is allocated locally.' if block == 'CWE129'
                 else 'The caller supplies the source object whose length drives the local destination write.' if source_argument
                 else 'The caller supplies the destination object whose capacity is compared with the access.')
-    determining = [f['id'] for f in facts if f['role'] == 'extent' or f['id'] in {'string_definition', 'source_termination', 'input_acquisition', 'macro_binding'}]
+    determining = [f['id'] for f in facts if f['role'] == 'extent' or f['id'] in {
+        'string_definition', 'source_termination', 'input_acquisition', 'macro_binding',
+        'input_bound_definition', 'entry_index_type', 'input_buffer', 'loop_index_type'}]
     relations = [
         {'id': 'bounds_violation', 'from': 'capacity', 'to': 'access', 'kind': 'access_exceeds_object_bound',
          'premise_ids': ['capacity', 'access', 'extent'], 'explanation': mechanism},

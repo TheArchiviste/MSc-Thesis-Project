@@ -25,15 +25,20 @@ SEED = 20261030
 
 
 def bank():
+    from llmxcpg.slicing.reconstruction import context_lines
+
     from .setup import CORPUS
     packets, key = {}, []
-    for case in load_cases(CORPUS / 'development.jsonl'):
+    cohorts = [(case, cohort) for cohort in ('development', 'assessor_holdout')
+               for case in load_cases(CORPUS / f'{cohort}.jsonl')]
+    for case, cohort in cohorts:
         u, f = (case.source_for(a).splitlines() for a in ('U', 'F'))
         if len(u) != len(f):
             raise ValueError('Recheck the equal-coordinate calibration construction')
         different = {i for i, (a, b) in enumerate(zip(u, f, strict=True), 1) if a != b}
         same = [i for i in range(1, len(u) + 1) if i not in different]
-        reduced = [i for i, line in enumerate(u, 1) if 'print' not in line and 'free(' not in line]
+        essential = sorted({n for e in case.referent['elements'] if e['essential'] for n in e['lines']})
+        reduced = context_lines(case.source_for('U'), essential)
         views = [('complete_U', 'U', list(range(1, len(u) + 1)), 'adequate'),
                  ('complete_F', 'F', list(range(1, len(f) + 1)), 'inadequate'),
                  ('reduced_sufficient_U', 'U', reduced, 'adequate'),
@@ -50,6 +55,11 @@ def bank():
                       case.referent['repair'] if kind == 'complete_F' else
                       f'Lines {sorted(different)} distinguishing U from F are absent. The exact view is compatible with both; the documented entry-path flaw is not justified.')
             key.append({'review_id': rid, 'case_id': case.case_id, 'kind': kind, 'expected': expected,
+                        'cohort': cohort,
+                        'construction': ('production_context_renderer_over_essential_facts'
+                                         if kind == 'reduced_sufficient_U' else
+                                         'post_render_discriminating_line_mask_stress_control'
+                                         if kind == 'indistinguishable_incomplete' else 'complete_source'),
                         'source_reason': reason, 'removed_discriminating_lines': sorted(different) if kind == 'indistinguishable_incomplete' else [],
                         'source_sha256': {a: digest(case.source_for(a)) for a in ('U', 'F')}})
     order = list(packets)
@@ -61,6 +71,7 @@ def prepare(config):
     from .setup import (
         CORPUS,
         ROOT,
+        assessment_code_contract,
         corpus_contract,
         load_config,
         verify_corpus,
@@ -70,13 +81,21 @@ def prepare(config):
     verify_implementation()
     cfg = load_config(config)
     root = (ROOT / cfg['rq1_calibration_file']).parent
-    witnessed = root.parent / 'development'
-    require_witnesses(witnessed, load_cases(CORPUS / 'development.jsonl'))
+    witness_files = {}
+    for cohort in ('development', 'assessor_holdout'):
+        witnessed = root.parent / cohort
+        require_witnesses(witnessed, load_cases(CORPUS / f'{cohort}.jsonl'))
+        witness_files[cohort] = file_digest(witnessed / 'witness_validation.jsonl')
     packets, key = bank()
     expected = {'assessment_contract_sha256': contract()['contract_sha256'],
-                'corpus_contract': corpus_contract(), 'development_witness_sha256': file_digest(witnessed / 'witness_validation.jsonl'),
-                'seed': SEED, 'n': 12, 'adequate': 6, 'inadequate': 6,
-                'limit': 'AI-assisted source answer key, not independent human validation; no Q outputs.'}
+                'assessment_code_contract': assessment_code_contract(),
+                'corpus_contract': corpus_contract(), 'witness_sha256': witness_files,
+                'seed': SEED, 'n': 20, 'adequate': 10, 'inadequate': 10,
+                'cohorts': {'development': 12, 'assessor_holdout': 8},
+                'history': 'Three development cases informed v1/v2 repairs. R15/R17 have no prior assessor outputs; all v3 prompts/settings freeze before either cohort is acquired. No tuning between cohorts.',
+                'coverage_limit': 'Five source mechanisms; related packets are not independent trials. String-copy/loop reserves improve 50/100 coverage; snprintf/strncat-specific calibration remains absent.',
+                'limit': 'AI-assisted source answer key and source audit, not independent human validation or population accuracy; no Q outputs.'}
+    expected['assessor_plan'] = json.loads((CORPUS / 'assessor.example.json').read_text())
     manifest = root / 'bank.json'
     if manifest.exists():
         if json.loads(manifest.read_text()) != expected or index_jsonl(root / 'public/packets.jsonl', 'review_id') != packets or read_jsonl(root / 'private/answer_key.jsonl') != key:
@@ -95,19 +114,35 @@ def prepare(config):
             'Do not supply the private answer key, full source, sibling packets, prior responses or diagnostic archive to the grader.\n'
             'Initial responses are immutable. Source support is checked separately after import.\n')
     export(packets, root / 'public/requests.jsonl', pass_id='calibration')
-    print(f'RQ1_CALIBRATION_PREPARED: 12 development anchors (6 adequate / 6 inadequate); {root}; grading PENDING')
+    print(f'RQ1_CALIBRATION_PREPARED: 20 anchors (12 reused-development / 8 fresh-held-out); {root}; grading PENDING')
     return root
 
 
 def evaluate(root):
+    from .providers import identity
+    from .setup import CORPUS, assessment_code_contract, corpus_contract
     packets, expected_key = bank()
     key = index_jsonl(root / 'private/answer_key.jsonl', 'review_id')
     if key != {r['review_id']: r for r in expected_key} or index_jsonl(root / 'public/packets.jsonl', 'review_id') != packets:
         raise ValueError('Calibration key or public packets changed')
     grades = verify_provenance(root / 'assessments.initial.jsonl', packets, pass_id='calibration')
+    manifest = json.loads((root / 'bank.json').read_text())
+    plan = json.loads((CORPUS / 'assessor.example.json').read_text())
+    if (manifest.get('assessor_plan') != plan or
+            manifest.get('assessment_code_contract') != assessment_code_contract() or
+            manifest.get('corpus_contract') != corpus_contract()):
+        raise ValueError('The calibration instrument changed after the bank was frozen')
+    expected_identity = identity(plan, {'model': plan['model']})
+    expected_identity.pop('reported_model')
+    profile_hash = digest(json.dumps({k: v for k, v in plan.items() if k != 'api_key_env'}, sort_keys=True))
+    if any(r.get('profile_sha256') != profile_hash for r in read_jsonl(root / 'responses.jsonl')):
+        raise ValueError('Raw calibration responses must bind the frozen assessor profile')
+    for grade in grades.values():
+        if {k: v for k, v in grade['assessor_identity'].items() if k != 'reported_model'} != expected_identity:
+            raise ValueError('Calibration must use the one predeclared assessor and settings')
     audit = index_jsonl(root / 'source_audit.jsonl', 'review_id')
     if audit.keys() != key.keys():
-        raise ValueError('Audit the source proof for all 12 calibration judgments')
+        raise ValueError('Audit the source proof for all 20 calibration judgments')
     rows = []
     for rid, expected in key.items():
         r, grade = audit[rid], grades[rid]
@@ -120,16 +155,21 @@ def evaluate(root):
         if utc_stamp(r.get('audited_utc')) < utc_stamp(grade['assessed_utc']):
             raise ValueError('Inspect the actual response before its source-proof audit')
         rows.append({'review_id': rid, 'kind': expected['kind'], 'expected': expected['expected'],
+                     'cohort': expected['cohort'], 'case_id': expected['case_id'],
                      'observed': grade['adequacy'], 'label_correct': grade['adequacy'] == expected['expected'],
                      'proof_supported': r['source_proof_supported']})
     proof = json.loads((root / 'assessments.initial.provenance.json').read_text())
     return {'accepted': all(r['label_correct'] and r['proof_supported'] == 'yes' for r in rows),
             'assessor_signature': proof['assessor_signatures'][0], 'n': len(rows), 'records': rows,
-            'meaning': 'All 12 predeclared labels and source-proof audits must pass; calibration is not population accuracy or human validation.'}
+            'cohorts': {cohort: {'n': sum(r['cohort'] == cohort for r in rows),
+                               'passed': all(r['label_correct'] and r['proof_supported'] == 'yes'
+                                             for r in rows if r['cohort'] == cohort)}
+                        for cohort in ('development', 'assessor_holdout')},
+            'meaning': 'All 20 predeclared labels and source-proof audits must pass, with reused and held-out cohorts separately reported. This is an instrument screen, not population accuracy or human validation.'}
 
 
 def accept(config):
-    from .setup import ROOT, corpus_contract, load_config
+    from .setup import ROOT, assessment_code_contract, corpus_contract, load_config
     cfg = load_config(config)
     path = ROOT / cfg['rq1_calibration_file']
     root = prepare(config)
@@ -138,6 +178,7 @@ def accept(config):
     if not result['accepted']:
         raise ValueError('Calibration failed; retain responses, diagnose on development only, and predeclare a new assessor/protocol version before retesting')
     receipt = {**result, 'assessment_contract_sha256': contract()['contract_sha256'],
+               'assessment_code_contract': assessment_code_contract(),
                'corpus_contract': corpus_contract(), 'files': {name: file_digest(root / name) for name in (
                    'bank.json', 'public/packets.jsonl', 'public/requests.jsonl', 'private/answer_key.jsonl',
                    'assessments.initial.jsonl', 'assessments.initial.provenance.json', 'source_audit.jsonl')},
@@ -151,11 +192,12 @@ def accept(config):
 
 
 def require_calibration(cfg):
-    from .setup import ROOT, corpus_contract
+    from .setup import ROOT, assessment_code_contract, corpus_contract
     path = ROOT / cfg['rq1_calibration_file']
     receipt = json.loads(path.read_text())
-    if (receipt.get('accepted') is not True or receipt.get('n') != 12 or
+    if (receipt.get('accepted') is not True or receipt.get('n') != 20 or
             receipt.get('assessment_contract_sha256') != contract()['contract_sha256'] or
+            receipt.get('assessment_code_contract') != assessment_code_contract() or
             receipt.get('corpus_contract') != corpus_contract()):
         raise ValueError('Current source-checked assessor calibration is required')
     for name, sha in receipt.get('files', {}).items():

@@ -14,8 +14,9 @@ from .schema import file_digest, index_jsonl, run_specs, write_json
 
 ROOT = Path(__file__).resolve().parents[1]
 DEPLOYMENT_SETTINGS = {"joern_host", "joern_port", "joern_input_dir", "server_input_dir",
-                       "rq1_freeze_file", "rq1_token_audit_file", "joern_capability_file", "rq1_calibration_file"}
-LOCK_VERSION = 6
+                       "rq1_freeze_file", "rq1_token_audit_file", "joern_capability_file", "rq1_calibration_file",
+                       "rq1_acquisition_freeze_file"}
+LOCK_VERSION = 7
 
 
 def now():
@@ -71,11 +72,9 @@ def acquisition_fingerprint(manifest, config, cases, repeats, work):
     from rq1.setup import corpus_contract
 
     from .schema import digest
-    calibration_path = ROOT / config["rq1_calibration_file"]
     return digest(json.dumps({"code_and_corpus": corpus_contract(), "policy": policy(config),
           "manifest": file_digest(manifest), "runs": run_specs(cases, repeats),
-          "witnesses": file_digest(work / "witness_validation.jsonl"),
-          "calibration": file_digest(calibration_path) if calibration_path.is_file() else None}, sort_keys=True))
+          "witnesses": file_digest(work / "witness_validation.jsonl")}, sort_keys=True))
 
 
 def require_witnesses(work, cases):
@@ -100,11 +99,13 @@ def lock_inputs(work, manifest, config, cases, repeats=1, *, phase="query"):
     fingerprint = acquisition_fingerprint(manifest, cfg, cases, repeats, work)
     path = work / "experiment_lock.json"
     if not path.exists():
+        from rq1.setup import corpus_contract
         if any((work / name).exists() for name in (
                 "queries.jsonl", "slices.jsonl", "slice_attempts.jsonl", "query_sessions.jsonl",
                 "stage_receipts.json", "blind_review_packets.jsonl", "analysis.json")):
             raise ValueError("Orphan outputs: restore their original lock or use a fresh work directory")
         lock = {"lock_version": LOCK_VERSION, "fingerprint": fingerprint,
+                'acquisition_contract': corpus_contract(),
                 "created_utc": now(), "provenance": git_provenance(),
                 "policy": policy(cfg), "stage_environments": {},
                 "calibration_file": cfg["rq1_calibration_file"]}

@@ -63,6 +63,10 @@ def preflight(api_key, profile_path, report_path, *, get=None):
 
 
 def main():
+    raise SystemExit('Historical v1/v2 assessor route. Current v3 uses ops.rq1_api_calibration for grading and ops.rq1_q_handoff for Q. No model or paid request was started.')
+
+
+def historical_main():
     from rq1.setup import (
         DEFAULT_CONFIG,
         ROOT,

@@ -13,7 +13,7 @@ from .conftest import replace_record
 
 
 def test_corpus_sources_maps_abi_and_disjoint_blocks():
-    assert verify_corpus() == {'development': 3, 'main': 12}
+    assert verify_corpus() == {'development': 3, 'main': 12, 'assessor_holdout': 2}
     dev, main = (load_cases(CORPUS / f'{s}.jsonl') for s in ('development', 'main'))
     assert not {c.cluster_id for c in dev} & {c.cluster_id for c in main}
     assert len({c.cluster_id for c in main}) == 12
@@ -21,7 +21,7 @@ def test_corpus_sources_maps_abi_and_disjoint_blocks():
 
 
 def test_implementation_contract():
-    assert verify_implementation()['implementation_id'] == 'rq1-v6'
+    assert verify_implementation()['implementation_id'] == 'rq1-v7'
 
 
 def test_config_legacy_or_changed_design_rejected(tmp_path, cfg):

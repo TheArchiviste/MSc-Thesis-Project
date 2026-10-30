@@ -37,7 +37,7 @@ def export(packets, destination, *, pass_id='initial', not_before=None):
         return rows
     destination.parent.mkdir(parents=True, exist_ok=True)
     for row in rows:
-        append_jsonl(destination, row)
+        append_jsonl(destination, row, sort_keys=False)
     destination.touch(exist_ok=True)
     return rows
 
@@ -46,10 +46,12 @@ def validate_request(req):
     messages = req['messages']
     if len(messages) != 2 or [m['role'] for m in messages] != ['system', 'user']:
         raise ValueError('Each request must have exactly one fixed task and one excerpt-only message')
-    packet = json.loads(messages[1]['content'])['task']
+    packet = req['packet']
     if packet != public_packet(packet['claim'], packet['code']):
         raise ValueError('Only the public excerpt and fixed contract may enter a request')
     expected = request_for(packet, pass_id=req['pass_id'])
+    if json.dumps(req.get('decode_schema')) != json.dumps(expected['decode_schema']):
+        raise ValueError('Preserve the declared evidence-before-verdict schema order')
     if any(req.get(k) != v for k, v in expected.items()):
         raise ValueError('Request does not reproduce from the public grading task')
     return packet
@@ -58,10 +60,8 @@ def validate_request(req):
 def execute(request_path, profile_path, output):
     import requests
     cfg = json.loads(profile_path.read_text())
-    if (not cfg.get('provider') or cfg['provider'].startswith('SET_') or not cfg.get('model') or
-            cfg['model'].startswith('SET_') or cfg['model'].lower().rstrip('/') == 'qcri/llmxcpg-q' or cfg.get('temperature') != 0 or
-            not 1 <= cfg.get('max_tokens', 0) <= 8192):
-        raise ValueError('Configure the real assessor identity and fixed sampling before execution')
+    from . import providers
+    providers.validate_profile(cfg)
     required = index_jsonl(request_path, 'request_id')
     done = index_jsonl(output, 'request_id')
     if set(done) - required.keys():
@@ -69,10 +69,7 @@ def execute(request_path, profile_path, output):
     profile_hash = digest(json.dumps({k: v for k, v in cfg.items() if k != 'api_key_env'}, sort_keys=True))
     if any(r.get('profile_sha256') != profile_hash for r in done.values()):
         raise ValueError('Assessor configuration changed during this response set')
-    headers = {'Content-Type': 'application/json'}
-    key = os.environ.get(cfg.get('api_key_env', ''), '')
-    if key:
-        headers['Authorization'] = 'Bearer ' + key
+    headers = providers.headers(cfg)
     for rid, request in required.items():
         validate_request(request)
         if rid in done:
@@ -82,28 +79,26 @@ def execute(request_path, profile_path, output):
         if request.get('not_before_utc'):
             utc_stamp(request['not_before_utc'])
         started = time.monotonic()
-        body = {'model': cfg['model'], 'temperature': 0., 'max_tokens': cfg['max_tokens'], 'messages': request['messages']}
+        url, body = providers.wire_request(request, cfg)
+        response = None
         try:
-            response = requests.post(cfg['chat_completions_url'], headers=headers, json=body,
+            response = requests.post(url, headers=headers, json=body,
                                      timeout=cfg.get('timeout_seconds', 180))
             response.raise_for_status()
             raw = response.json()
-            content = raw['choices'][0]['message']['content']
-            finish = raw['choices'][0].get('finish_reason')
+            content, finish = providers.unpack(raw, cfg)
         except Exception as exc:  # noqa: BLE001 - diagnostic without URLs, headers, credentials or response bodies
             append_jsonl(output.with_suffix('.errors.jsonl'), {'request_id': rid, 'utc': now(),
-                'error_type': type(exc).__name__, 'elapsed_seconds': time.monotonic() - started,
+                'error_type': type(exc).__name__, 'http_status': getattr(response, 'status_code', None),
+                'elapsed_seconds': time.monotonic() - started,
                 'meaning': 'Transport/response-envelope failure; no content-based retry selection.'})
             raise RuntimeError('Assessor transport/envelope failure; diagnostic saved without credentials') from None
-        identity = {'provider': cfg['provider'], 'requested_model': cfg['model'],
-                    'reported_model': raw.get('model') or 'not_exposed',
-                    'revision_note': cfg.get('revision_note') or 'not_exposed',
-                    'route': 'stateless_chat_completions',
-                    'sampling': {'temperature': 0., 'max_tokens': cfg['max_tokens']}}
+        identity = providers.identity(cfg, raw)
         append_jsonl(output, {**{k: request[k] for k in ('request_id', 'review_id', 'request_sha256', 'pass_id')},
             'assessed_utc': now(), 'assessor_identity': identity, 'profile_sha256': profile_hash,
             'content': content, 'finish_reason': finish, 'elapsed_seconds': time.monotonic() - started,
-            'response_metadata': {'id': raw.get('id'), 'model': raw.get('model'), 'usage': raw.get('usage')},
+            'response_metadata': {'id': raw.get('id'), 'model': raw.get('model'), 'usage': raw.get('usage'),
+                                  'raw': raw},
             'synthetic': False})
         if finish not in {None, 'stop'}:
             raise RuntimeError('Truncated assessor response saved; no automatic content repair/retry')
@@ -112,6 +107,8 @@ def execute(request_path, profile_path, output):
 
 def validated_grades(request_path, response_path):
     from evidence_experiment.review import validate_assessment
+
+    from .assessment_protocol import response_schema
     requests = index_jsonl(request_path, 'request_id')
     responses = index_jsonl(response_path, 'request_id')
     if responses.keys() != requests.keys():
@@ -129,6 +126,10 @@ def validated_grades(request_path, response_path):
             raise ValueError('Delayed response was produced before its frozen deadline')
         signatures.add(validate_identity(row.get('assessor_identity')))
         parsed = json.loads(row['content'])
+        if not isinstance(parsed, dict) or set(parsed) != set(response_schema(req['review_id'])['required']):
+            raise ValueError('Assessment must contain exactly the required response fields')
+        if list(parsed)[-1] != 'adequacy':
+            raise ValueError('Write cited evidence and explanation before the final verdict')
         if parsed.get('review_id') != req['review_id']:
             raise ValueError('Assessor answered a different packet')
         grade = {**parsed, 'assessor_id': 'calibrated_ai_assessor', 'assessment_origin': ORIGIN,

@@ -7,7 +7,7 @@ import os
 from dataclasses import dataclass
 from pathlib import Path
 
-IMPLEMENTATION_ID = "rq1-v6"
+IMPLEMENTATION_ID = "rq1-v7"
 ARMS = ("U", "F")
 
 
@@ -36,10 +36,10 @@ def index_jsonl(path: Path, key: str) -> dict:
     return result
 
 
-def append_jsonl(path: Path, row: dict) -> None:
+def append_jsonl(path: Path, row: dict, *, sort_keys=True) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     with path.open("a", encoding="utf-8") as stream:
-        stream.write(json.dumps(row, sort_keys=True, ensure_ascii=False) + "\n")
+        stream.write(json.dumps(row, sort_keys=sort_keys, ensure_ascii=False) + "\n")
         stream.flush()
         os.fsync(stream.fileno())
 

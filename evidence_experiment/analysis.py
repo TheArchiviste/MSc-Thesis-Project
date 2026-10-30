@@ -23,7 +23,8 @@ def consistency_status(work, packets):
 
 def calibration_for_work(work):
     from rq1.calibration import require_calibration
-    lock = json.loads((work / 'experiment_lock.json').read_text())
+    from rq1.sealing import require_release
+    lock = require_release(work)
     return require_calibration({'rq1_calibration_file': lock['calibration_file']})
 
 
