@@ -52,15 +52,32 @@ Return the inspection output and pause before model download. Two separate BF16 
 
 ## 3. Load the assessor and run calibration — after VM inspection
 
-The prepared launcher is:
+The 30 October VM inspection passed on clean main `fd03c5b`: 79.2 GiB CUDA/BF16 capacity, 216.6 GiB cache disk space, Python 3.11.18, Torch 2.5.1, vLLM 0.6.6.post1 and Transformers 4.47.1. Model loading and calibration are still untested/pending. Use the same packages; this is a technical acceptance, not a calibration result.
+
+The current session runner combines startup and acquisition so the model is not left waiting during assistant review:
+
+```bash
+cd ~/rq1-project
+git fetch origin
+git switch main
+git pull --ff-only origin main
+export HF_HOME="$HOME/rq1-storage/huggingface"
+.venv-q/bin/python -m ops.rq1_vm_calibration
+```
+
+Run only after the inspection checkpoint is accepted. The runner checks the transferred inputs and unchanged VM environment, verifies vLLM server imports with `--help` before any weights, and launches the exact pinned command in a new owned process group. It waits at most 30 minutes for startup using GET-only model metadata, runs exactly the 12 frozen stateless calibration requests, imports valid grades and stops its own server/workers even if generation or import fails. Existing raw responses/errors are never overwritten or automatically resumed. Neither source answer keys nor earlier answers enter the grading requests.
+
+It exports actual inputs, responses/errors, import provenance and startup/session logs under `work/rq1-v5/calibration-exports`, with portable SHA256 files. Download and verify the archive into `D:\Dissertation-RQ1\exports`, then stop the VM in the Nebius console and return the archive. `calibration_accepted` remains false until the separate source-proof audit, even when all 12 responses/imports succeed. The command stops the model server, not the cloud VM. Its startup timeout may preserve partial cached weights for diagnosis.
+
+The underlying foreground launcher remains available for diagnosis at an explicitly accepted checkpoint:
 
 ```bash
 .venv-q/bin/python -m ops.rq1_vm_checkpoint serve-assessor
 ```
 
-Use it only at the accepted checkpoint, inside tmux. It requires the recorded GPU inspection and unchanged packages, checks that another model is not occupying GPU memory, and serves only on `127.0.0.1:8001`. Its exact model/tokenizer revision, BF16 dtype, seed, context, one-sequence limit and eager-mode command are recorded. It does not open a public API port.
+It requires the recorded GPU inspection and unchanged packages, checks that another model is not occupying GPU memory, and serves only on `127.0.0.1:8001`. Its exact model/tokenizer revision, BF16 dtype, seed, context, one-sequence limit and eager-mode command are recorded. It does not open a public API port. Prefer the bounded session runner above for normal calibration.
 
-In another SSH terminal, run the existing `rq1.judge run/import` interface against `work/rq1-v5/assessor.vm.json` and the 12 public calibration requests. Exact commands will be issued after the server is ready. Keep raw responses unchanged; do not retry malformed or unwanted grades for a better answer. A failure returns diagnostics and leaves calibration pending.
+The session runner uses the existing `rq1.judge` execute/import functions against `work/rq1-v5/assessor.vm.json` and the 12 public calibration requests. Keep raw responses unchanged; do not retry malformed or unwanted grades for a better answer. A failure returns diagnostics and leaves calibration pending.
 
 Stop the owned server, download/checksum-verify its logs, raw responses, imported grades and provenance to D:, and stop the VM while the assistant audits the actual source proofs. All 12 predeclared labels and proof checks must pass. The private source key is used only in this separate audit, never in the grader's requests.
 

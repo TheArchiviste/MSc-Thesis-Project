@@ -8,22 +8,23 @@ The returned v4 run passed both real selector fixtures. Its 30 graph results wer
 
 Read [the execution runbook](rq1/RUNBOOK.md), [protocol](rq1/PROTOCOL.md), [assessment procedure](rq1/ASSESSMENT.md), [implementation contract](rq1/REFERENCE_CONTRACT.md), and [current readiness](rq1/READINESS.md). The [source references](rq1/SOURCE_REFERENTS.md) explain each case's mechanism and required relationships.
 
-## Next checkpoint: prepare the existing VM handoff
+## Next checkpoint: acquire assessor calibration on the existing VM
 
-The laptop CPU checkpoint is accepted. Continue with the [VM-only checkpoint guide](docs/RQ1_VM_ONLY_CHECKPOINTS.md): the existing H100 will host Q and a separately calibrated assessor sequentially, while Joern stays on laptop CPU. Token Factory is optional.
+The laptop CPU checkpoint, input transfer and VM technical inspection are accepted. Continue with the [VM-only checkpoint guide](docs/RQ1_VM_ONLY_CHECKPOINTS.md): the existing H100 will host Q and a separately calibrated assessor sequentially, while Joern stays on laptop CPU. Token Factory is optional. The VM has 79.2 GiB CUDA/BF16 capacity and 216.6 GiB free cache storage; actual model loading and calibration are still pending.
 
-Keep the VM stopped and run in D-backed Ubuntu-24.04:
+After starting the existing VM and connecting by SSH, run there:
 
 ```bash
 set -euo pipefail
-cd ~/projects/MSc-Thesis-Project
+cd ~/rq1-project
 git fetch origin
 git switch main
 git pull --ff-only origin main
-.venv/bin/python -m ops.rq1_vm_checkpoint prepare
+export HF_HOME="$HOME/rq1-storage/huggingface"
+.venv-q/bin/python -m ops.rq1_vm_calibration
 ```
 
-Return the JSON summary or `.summary.json` file from `D:\Dissertation-RQ1\exports`, then pause. This checks the assessor tokenizer and creates a small checksummed transfer bundle. It starts no VM, downloads no model weights and generates no grades. The accepted CPU source contract is unchanged; no scan rerun is needed.
+The runner checks server imports before downloading weights, loads the pinned assessor, acquires the 12 frozen stateless calibration responses, imports valid grades, stops its owned model server and exports actual evidence/diagnostics. Download/checksum-verify its archive from `work/rq1-v5/calibration-exports` into `D:\Dissertation-RQ1\exports`, then stop the VM in the Nebius console and return the archive. Calibration remains pending until the assistant audits all labels and source proofs. Preserve failures and do not rerun acquired answers. The accepted scientific core and CPU evidence are unchanged; no scan rerun is needed.
 
 ## Developer checks
 

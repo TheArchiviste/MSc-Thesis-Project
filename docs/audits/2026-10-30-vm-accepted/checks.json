@@ -1,0 +1,25 @@
+{
+  "GPU_capacity_GiB": 79.2,
+  "Q_generations": 0,
+  "all_doctor_checks_passed": true,
+  "calibration_accepted": false,
+  "checkpoint": "Accepted VM technical inspection; not model-load or calibration acceptance",
+  "clean_checkout": true,
+  "free_cache_GiB": 216.6,
+  "inspection_utc": "2026-10-30T14:51:39.664860+00:00",
+  "model_load_tested": false,
+  "next_checkpoint": "Bounded pinned-assessor startup and 12 frozen calibration responses; separate source-proof audit still required",
+  "pip_check_passed": true,
+  "scientific_core_matches": true,
+  "source_commit": "fd03c5b0c56e25203c10e4f1e08617bd15556862",
+  "source_files_sha256": {
+    "rq1-vm-inspection.log": "52f3a55961f1ef0bbe9a0130cf75ccd58de59d26a8c55580dc23c4328a704e03",
+    "rq1-vm-preflight.json": "2a788c758a216a60f787c69d820983860eb41068756c1d3c868a66162f1dc3bb"
+  },
+  "versions": {
+    "python": "3.11.18",
+    "torch": "2.5.1",
+    "transformers": "4.47.1",
+    "vllm": "0.6.6.post1"
+  }
+}
