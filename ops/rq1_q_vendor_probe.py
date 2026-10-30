@@ -17,6 +17,8 @@ from evidence_experiment.locks import environment
 from ops.rq1_q_diagnose import digest, provenance_checks
 from rq1.setup import DEFAULT_CONFIG, corpus_contract, load_config, require_acquisition_freeze
 
+PROTOCOL = 'rq1-v7-bundled-metadata-probe-v2'
+
 
 class ProbeBlocked(ValueError):
     pass
@@ -57,6 +59,19 @@ def work_hashes(work):
     return result
 
 
+def expose_metadata_paths(setuptools_vendor, ray_thirdparty):
+    """Reproduce upstream path registration, without importing either library."""
+    saved_path = sys.path[:]
+    try:
+        sys.path.append(str(setuptools_vendor))
+        setuptools_only = environment()
+        sys.path.insert(0, str(ray_thirdparty))
+        combined = environment()
+    finally:
+        sys.path[:] = saved_path
+    return setuptools_only, combined
+
+
 def probe(work, archive, expected_archive, expected_receipt):
     require(digest(archive) == expected_archive, 'original_archive_checksum_mismatch')
     require_acquisition_freeze(load_config(DEFAULT_CONFIG))
@@ -93,30 +108,30 @@ def probe(work, archive, expected_archive, expected_receipt):
     original_hashes = work_hashes(work)
     physical_before = distribution_manifest()
     vendor = Path(metadata.distribution('setuptools').locate_file('setuptools/_vendor')).resolve()
-    require(vendor.is_dir() and str(vendor) not in sys.path, 'vendor_path_not_separate')
-    vendor_manifest = distribution_manifest(vendor)
-    require(bool(vendor_manifest), 'vendor_metadata_absent')
-    saved_path = sys.path[:]
-    try:
-        # Exactly the sys.path append used upstream by setuptools; no library import,
-        # package installation, model download, engine construction or inference.
-        sys.path.append(str(vendor))
-        exposed = environment()
-    finally:
-        sys.path[:] = saved_path
+    ray_root = Path(metadata.distribution('ray').locate_file('ray')).resolve()
+    ray_thirdparty = ray_root / 'thirdparty_files'
+    require(all(path.is_dir() and str(path) not in sys.path for path in (vendor, ray_thirdparty)),
+            'bundled_path_not_separate')
+    ray_init = ray_root / '__init__.py'
+    require('sys.path.insert(0, thirdparty_files)' in ray_init.read_text() and
+            '"thirdparty_files"' in ray_init.read_text(), 'ray_path_registration_unverified')
+    vendor_manifest = {'setuptools_vendor': distribution_manifest(vendor),
+                       'ray_thirdparty': distribution_manifest(ray_thirdparty)}
+    require(all(vendor_manifest.values()), 'bundled_metadata_absent')
+    setuptools_only, exposed = expose_metadata_paths(vendor, ray_thirdparty)
     restored = environment()
     physical_after = distribution_manifest()
     unchanged = original_hashes == work_hashes(work)
     require(unchanged and digest(archive) == expected_archive, 'original_files_changed')
     checks = {
         'current_inventory_matches_accepted': True,
-        'vendor_path_exactly_reproduces_recorded_runtime': exposed == recorded,
+        'bundled_paths_exactly_reproduce_recorded_runtime': exposed == recorded,
         'restoring_path_restores_accepted_inventory': restored == before,
         'installed_metadata_unchanged_during_probe': physical_before == physical_after,
         'original_records_and_archive_unchanged': unchanged,
     }
     return {
-        'protocol': 'rq1-v7-setuptools-vendor-probe-v1',
+        'protocol': PROTOCOL,
         'utc': datetime.now(UTC).isoformat(), 'probe_passed': all(checks.values()), 'checks': checks,
         'model_loaded': False, 'generation_repeated': False, 'query_record_count': 6,
         'original_archive_sha256': expected_archive, 'original_file_hashes': original_hashes,
@@ -128,6 +143,11 @@ def probe(work, archive, expected_archive, expected_receipt):
         'exposed_inventory_sha256': canonical_digest(exposed),
         'installed_metadata_manifest_sha256': canonical_digest(physical_before),
         'vendor_metadata': vendor_manifest,
+        'bootstrap_source_sha256': {'setuptools': digest(vendor.parent / '__init__.py'),
+                                   'ray': digest(ray_init)},
+        'setuptools_only_unexplained_package_names': sorted(
+            k for k in set(setuptools_only['packages']) | set(recorded['packages'])
+            if setuptools_only['packages'].get(k) != recorded['packages'].get(k)),
         'changed_package_count': sum(before['packages'].get(k) != recorded['packages'].get(k)
                                      for k in set(before['packages']) | set(recorded['packages'])),
         'unexplained_package_names': sorted(k for k in set(exposed['packages']) | set(recorded['packages'])
@@ -152,10 +172,10 @@ def main():
             fcntl.flock(stream, fcntl.LOCK_EX | fcntl.LOCK_NB)
             result = probe(work, args.archive, args.archive_sha256, args.inspection_receipt_sha256)
     except ProbeBlocked as exc:
-        result = {'protocol': 'rq1-v7-setuptools-vendor-probe-v1', 'probe_passed': False,
+        result = {'protocol': PROTOCOL, 'probe_passed': False,
                   'blocked_check': str(exc), 'model_loaded': False, 'generation_repeated': False}
     except Exception as exc:  # noqa: BLE001 - record only the failure class; private data stays hidden
-        result = {'protocol': 'rq1-v7-setuptools-vendor-probe-v1', 'probe_passed': False,
+        result = {'protocol': PROTOCOL, 'probe_passed': False,
                   'blocked_check': 'probe_infrastructure_failure', 'exception_category': type(exc).__name__,
                   'model_loaded': False, 'generation_repeated': False}
     args.output.parent.mkdir(parents=True, exist_ok=True)

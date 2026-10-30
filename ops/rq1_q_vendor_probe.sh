@@ -62,6 +62,7 @@ if proof.is_file() and summary.is_file():
                 archived_hashes = {name: hashlib.sha256(tar.extractfile('work/rq1-v7/development/' + name).read()).hexdigest()
                                    for name in body['original_file_hashes']}
             verified = (verified and body['original_archive_sha256'] == original_sha and
+                        body['protocol'] == 'rq1-v7-bundled-metadata-probe-v2' and
                         digest(archive) == original_sha and archived_hashes == body['original_file_hashes'] and
                         body['accepted_inspection_receipt_sha256'] == receipt_sha and
                         body['probe_code_sha256'] == digest(Path('ops/rq1_q_vendor_probe.py')) and
@@ -69,7 +70,7 @@ if proof.is_file() and summary.is_file():
                         body['checks'] and all(value is True for value in body['checks'].values()))
         result['local_proof_checksum_verified'] = bool(verified)
         if verified:
-            for key in ('probe_passed', 'checks', 'blocked_check', 'model_loaded', 'generation_repeated',
+            for key in ('protocol', 'probe_passed', 'checks', 'blocked_check', 'model_loaded', 'generation_repeated',
                         'query_record_count', 'changed_package_count', 'original_archive_sha256', 'unexplained_package_names'):
                 if key in body:
                     result[key] = body[key]
