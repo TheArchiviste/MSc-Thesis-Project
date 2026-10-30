@@ -4,9 +4,9 @@ Original pretrained **LLMxCPG-Q** generates CPGQL, **Joern** retrieves excerpts,
 
 The active implementation is **rq1-v7**, with public assessor task **rq1-excerpt-v3** and new outputs in `work/rq1-v7`. Preserve all v5/v6 evidence. Three development blocks and twelve main blocks remain enrolled, each with U/F sources: six development and twenty-four main primary Q/slice runs. Two unused blocks, R15 and R17, now supply assessor-only source anchors; they do not enter the main denominator or Q census.
 
-## Current action: inspect the existing Q host
+## Current action: sealed development Q acquisition
 
-The first wrapper attempt stopped at the initial SSH TCP connection (port 22 timeout), before file transfer or remote commands. No GPU receipt or Q output was produced. [Redacted diagnostic record](docs/audits/2026-10-30-q-host-connection-blocked/checks.json). Privately verify the VM is Running and use its current public IP before retrying this technical checkpoint; preserve the failed ZIP. The CPU and assessor acceptances remain valid.
+The Q-host technical inspection is accepted; the detailed hardware/software receipt remains private. [Inspection receipt and checks](docs/audits/2026-10-30-q-host-accepted/checks.json). The earlier pre-transfer SSH timeout is retained as [history](docs/audits/2026-10-30-q-host-connection-blocked/checks.json). Original Q loading and experiment acquisition have not yet occurred.
 
 V1 and v2 assessor calibration failed. [The v3 amendment](docs/RQ1_V3_AMENDMENT_2026-10-30.md) repairs the interface and anchor design, declares one GPT-6 Astra API candidate, and separates sealed acquisition from grading. The original Q checkpoint/settings and all thirty experiment C inputs are unchanged. Source dependency references were improved before any Q output. Fresh v7 CPU receipts and the v3 assessor calibration are now accepted; no v6 receipts were relabelled.
 
@@ -14,7 +14,7 @@ The fresh v7 laptop CPU checkpoint is accepted. The returned archive verifies 34
 
 The one declared Astra attempt completed all twenty requests and strict imports. The separate source-proof audit accepts 20/20 labels and 20/20 proofs: 12/12 reused-development and 8/8 fresh held-out response checks. See [the complete audit](docs/RQ1_ASSESSOR_V3_RESULT_2026-10-30.md) and [acceptance records](docs/audits/2026-10-30-assessor-v3-accepted/checks.json). Recorded usage estimates $1.53385 including cache writes; the provider billing dashboard is authoritative. This is a small curated instrument screen, not population accuracy or human validation.
 
-The user returned local status screenshots confirming the accepted receipt verifies against the unchanged calibration artifacts. No further API calibration request is needed. The Q-input archive `rq1-q-inputs-20261030T204312205833Z.tgz` is already verified: all 167 files match accepted CPU evidence. Follow [runbook checkpoint 4](rq1/RUNBOOK.md) to start the existing H100 for a bounded transfer/technical inspection, run `bash ops/rq1_q_vm_inspect.sh CURRENT_VM_PUBLIC_IP` locally, stop the VM, and return its D: inspection ZIP. Use the current console IP if it changes. No Q output or experiment slice has yet been collected.
+The local assessor receipt also verifies. Start the existing GPU VM for [runbook checkpoint 4](rq1/RUNBOOK.md) and run `bash ops/rq1_q_development.sh CURRENT_VM_PUBLIC_IP PRIVATE_INSPECTION_ZIP EXPECTED_ZIP_SHA256` from the accepted laptop. It loads/downloads the pinned original Q and collects the six fixed development U/F inputs once, then transfers the full unopened archive with a checksum. Stop the VM after the wrapper returns and return only its `rq1-q-development-session-*.summary.json` from D: exports. Keep the raw `.tgz` archive unopened on D:; no repeated CPU preparation or assessor calibration is needed.
 
 ## Subsequent checkpoints
 

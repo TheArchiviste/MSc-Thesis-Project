@@ -87,13 +87,32 @@ The original acquisition procedure below is retained as history. It has already 
 
 After access and funding are checked, use the provided exact command for `ops.rq1_api_calibration run`. It acquires the twenty fixed stateless requests once, preserving errors and raw output. Return its D: ZIP and pause for the assistant's source-proof audit. All labels/proofs must pass; no automatic repairs, candidate search or threshold relaxation. See ASSESSMENT.md. A failure does not authorize opening already sealed main outcomes for instrument tuning.
 
-## 4. Sealed development acquisition — next: Q-host technical inspection
+## 4. Sealed development acquisition — current action
+
+The successful follow-up VM inspection is accepted. Detailed hardware, disk and software receipts remain private; the returned acquisition contract and technical checks passed. [Accepted host receipt](../docs/audits/2026-10-30-q-host-accepted/checks.json). The missing assessor directory on this acquisition-only host is expected. Original Q loading and generation remain pending.
+
+Start the existing GPU VM for the original-Q checkpoint and wait for Running. Read its current public IP from the console. From the existing laptop's Ubuntu terminal:
+
+```bash
+set -euo pipefail
+cd ~/projects/MSc-Thesis-Project
+git pull --ff-only origin main
+bash ops/rq1_q_development.sh CURRENT_VM_PUBLIC_IP PRIVATE_INSPECTION_ZIP EXPECTED_ZIP_SHA256
+```
+
+The wrapper verifies the accepted acquisition freeze/calibration locally and the exact approved Q-host receipt, current environment, GPU and disk headroom remotely. It preserves a first-attempt marker and refuses an existing development acquisition. It invokes the unchanged `ops.rq1_collect` for six original-Q inputs with the frozen BF16/settings. This may download the pinned Q checkpoint into the existing cache. Native model logs and generated queries remain sealed; only progress counts and metadata are printed. All six terminal inputs, including semantic parse failures, remain in the census. There is no automatic model retry or preferred-result selection.
+
+The full unopened archive and checksum are transferred mechanically to **D:\Dissertation-RQ1\exports\sealed** and verified without displaying their contents. Failed/partial raw outputs are also preserved if the collector can export them. The wrapper returns a separate safe **rq1-q-development-session-*.summary.json** under **D:\Dissertation-RQ1\exports**. Return only that summary, including on failure; do not upload the sealed archive or private logs. If no summary exists, return the visible terminal error. A failed attempt requires review, not rerunning the wrapper.
+
+After the wrapper returns, **Stop the VM in the Nebius console and verify Stopped**. Keep the laptop awake and terminal open during collection/transfer. The wrapper does not control VM power. Local slicing follows after the safe summary is accepted; the transferred archive remains unopened meanwhile.
+
+The technical-inspection procedure below is completed history, not a command to repeat.
 
 The first technical-wrapper attempt returned exit 255 because its initial SSH connection to port 22 timed out. It did not transfer inputs or execute remote commands; the archive contains no GPU inspection receipt. Preserve that failed archive. Verify the existing VM is Running and use the current public IP shown by the console. Check connectivity before retrying the same technical wrapper. This failure does not justify changing the frozen corpus, Q, selector or assessor. [Redacted failure record](../docs/audits/2026-10-30-q-host-connection-blocked/checks.json).
 
 The exact Q-input bundle is accepted, the assessor has passed, and the user returned screenshots confirming its local acceptance receipt verifies (`accepted: true`, `n: 20`, both cohorts pass). Keep the current VM address and account balance private. The Nebius resource estimate and balance are checked in its console separately from API credits.
 
-Start the existing H100 in Nebius only for this technical checkpoint and wait for Running. Check the current console address; if it has changed, use that address in the command. On the existing laptop's Ubuntu terminal:
+Start the existing GPU VM in Nebius only for this technical checkpoint and wait for Running. Check the current console address; if it has changed, use that address in the command. On the existing laptop's Ubuntu terminal:
 
 ```bash
 set -euo pipefail
