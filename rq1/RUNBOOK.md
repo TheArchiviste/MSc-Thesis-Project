@@ -89,6 +89,8 @@ After access and funding are checked, use the provided exact command for `ops.rq
 
 ## 4. Sealed development acquisition — next: Q-host technical inspection
 
+The first technical-wrapper attempt returned exit 255 because its initial SSH connection to port 22 timed out. It did not transfer inputs or execute remote commands; the archive contains no GPU inspection receipt. Preserve that failed archive. Verify the existing VM is Running and use the current public IP shown by the console. Check connectivity before retrying the same technical wrapper. This failure does not justify changing the frozen corpus, Q, selector or assessor. [Redacted failure record](../docs/audits/2026-10-30-q-host-connection-blocked/checks.json).
+
 The exact Q-input bundle is accepted, the assessor has passed, and the user returned screenshots confirming its local acceptance receipt verifies (`accepted: true`, `n: 20`, both cohorts pass). Keep the current VM address and account balance private. The Nebius resource estimate and balance are checked in its console separately from API credits.
 
 Start the existing H100 in Nebius only for this technical checkpoint and wait for Running. Check the current console address; if it has changed, use that address in the command. On the existing laptop's Ubuntu terminal:

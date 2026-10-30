@@ -6,6 +6,8 @@ The active implementation is **rq1-v7**, with public assessor task **rq1-excerpt
 
 ## Current action: inspect the existing Q host
 
+The first wrapper attempt stopped at the initial SSH TCP connection (port 22 timeout), before file transfer or remote commands. No GPU receipt or Q output was produced. [Redacted diagnostic record](docs/audits/2026-10-30-q-host-connection-blocked/checks.json). Privately verify the VM is Running and use its current public IP before retrying this technical checkpoint; preserve the failed ZIP. The CPU and assessor acceptances remain valid.
+
 V1 and v2 assessor calibration failed. [The v3 amendment](docs/RQ1_V3_AMENDMENT_2026-10-30.md) repairs the interface and anchor design, declares one GPT-6 Astra API candidate, and separates sealed acquisition from grading. The original Q checkpoint/settings and all thirty experiment C inputs are unchanged. Source dependency references were improved before any Q output. Fresh v7 CPU receipts and the v3 assessor calibration are now accepted; no v6 receipts were relabelled.
 
 The fresh v7 laptop CPU checkpoint is accepted. The returned archive verifies 34 U/F source witnesses, 30 fitting Q prompts, both real selector fixtures, all 30 source graphs and the acquisition freeze. See [the checkpoint record](docs/RQ1_V7_CPU_CHECKPOINT_2026-10-30.md) and [checks](docs/audits/2026-10-30-v7-cpu-accepted/checks.json). Assessor access/calibration and Q acquisition remain pending; no experiment outcome is inferred from technical readiness.

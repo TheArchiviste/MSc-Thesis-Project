@@ -12,7 +12,7 @@ Implementation **rq1-v7**, assessor task **rq1-excerpt-v3**, declared 30 October
 | CPU apparatus | Accepted v7 laptop checkpoint: 34 U/F witnesses, 30 fitting Q prompts, 2 full-selector fixtures and 30 source graphs; freeze and environment hashes verified |
 | Grading | Calibration accepted: development 12/12 and held-out 8/8 labels/proofs pass; original answers unchanged; experiment excerpts still ungraded |
 | Acquisition | Separate pre-output freeze and immutable stage seals; calibration no longer a dependency of sealed Q/Joern collection |
-| Q handoff | Exact 167-file archive and checksum accepted; all bytes match CPU evidence; VM transfer and GPU inspection pending |
+| Q handoff | Exact 167-file archive and checksum accepted; first transfer blocked by SSH port 22 timeout before authentication; GPU inspection pending |
 | Release | Accepted calibration before development release; audited development and assessment freeze before main release |
 | Main completion | 24 U/F primary inputs, source-confirmed first judgments, delayed 25% check at least 48 hours later |
 | Validation limitation | AI-assisted references/grader/auditor; no independent human validation or population-accuracy claim |

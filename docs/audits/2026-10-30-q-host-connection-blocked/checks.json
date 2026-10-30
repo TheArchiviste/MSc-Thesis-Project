@@ -1,0 +1,21 @@
+{
+  "GPU_readiness_receipt_present": false,
+  "Q_VM_inspection_receipt_present": false,
+  "VM_remote_commands_executed": false,
+  "available_archive_files": [
+    "checkpoint.json",
+    "command.log"
+  ],
+  "checkpoint_completed": false,
+  "diagnostic_redacted": "ssh: connect to host [private address omitted] port 22: Connection timed out; scp: Connection closed",
+  "failure_stage": "initial SCP SSH TCP connection before authentication",
+  "input_transfer_completed": false,
+  "new_Q_generations": 0,
+  "new_experiment_slices": 0,
+  "next_action": "Privately verify Running status and the current public IP in the Nebius console. Test SSH connectivity before retrying the technical checkpoint; keep the original failed archive. No model/selector/rubric change.",
+  "privacy": "Public record omits VM address, account balance, raw connection log and SSH credentials.",
+  "scientific_interpretation": "Connectivity failure before apparatus inspection, not a query-generation, slicing or adequacy result. Existing CPU and assessor acceptances are unchanged.",
+  "source_archive": "rq1-q-vm-inspection-20261030T213357Z-6g8ccl.zip",
+  "source_archive_sha256": "d96c057b0bfa7a5ae250632cf6b2bbb9411c0d181443cfbb91b487452b2d85ae",
+  "wrapper_execution_exit_code": 255
+}
