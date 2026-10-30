@@ -1,0 +1,23 @@
+{
+  "source_archive": "local-attempt-20261030T134928Z-PIK59P.zip",
+  "archive_sha256": "ac120adf1e87f5f0f70a02a0e36b865730b9b3a2617076623c67ff55bf16dc70",
+  "observed_utc": "2026-10-30T13:50:12.631936+00:00",
+  "source_commit": "e2b1c3f0ef82e5537a0d10242fe86dcad5022d59",
+  "implementation_id": "rq1-v5",
+  "modified_tracked_files": "",
+  "CPU_checkpoint_accepted": true,
+  "technical_ready": true,
+  "full_experiment_ready": false,
+  "pending_requirement": "assessor_calibration",
+  "source_witnesses_verified": 30,
+  "graph_outputs_verified": 30,
+  "full_selector_fixtures_passed": 2,
+  "fresh_diagnostic_probe": "passed",
+  "tokenized_prompts_fit": 30,
+  "ungraded_calibration_tasks_verified": 12,
+  "actual_assessor_responses": 0,
+  "actual_Q_runs": 0,
+  "capability_receipt_sha256": "45f2813653b8bd984271caa953933507d91a6df8b8eceb9d9636ead09d171af1",
+  "core_contract_sha256": "164fba6dab2a47d80f8a443f9aa811b1c6a717381154e566c6e5e5940dffa63a",
+  "next_action": "Read-only Nebius Token Factory model-access preflight; do not start the rented VM."
+}

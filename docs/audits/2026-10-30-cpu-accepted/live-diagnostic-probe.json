@@ -1,0 +1,21 @@
+{
+  "arm": "U",
+  "caller_lines": [
+    15
+  ],
+  "calls_stdout": "\u001b[33mval\u001b[0m \u001b[36mrq1_calls\u001b[0m: \u001b[32mString\u001b[0m = \"RQ1_CALLS=<operator>.alloc,<operator>.arrayInitializer,<operator>.assignment,<operator>.cast,<operator>.indirectIndexAccess,<operator>.multiplication,<operator>.sizeOf,ALLOCA,case_sink,memcpy,printIntLine\"\n",
+  "calls_success": true,
+  "case_id": "D01",
+  "method_call_parameter_counts": [
+    1,
+    1,
+    1,
+    1
+  ],
+  "query": "val rq1_graph = \"RQ1_GRAPH=\" + List(cpg.method.nameExact(\"case_entry\").size, cpg.method.nameExact(\"case_sink\").size, cpg.call.nameExact(\"case_sink\").size, cpg.method.nameExact(\"case_sink\").parameter.index(1).size).mkString(\",\") + \"|\" + cpg.call.nameExact(\"case_sink\").lineNumber.l.toSet.toList.sorted.mkString(\",\")",
+  "query_success": true,
+  "reset_ok": true,
+  "source_sha256": "d1d18c9c816dafb9e9f5423194e9056e4011693bf051a3aa7e461e593b1efcbf",
+  "status": "ok",
+  "stdout": "\u001b[33mval\u001b[0m \u001b[36mrq1_graph\u001b[0m: \u001b[32mString\u001b[0m = \"RQ1_GRAPH=1,1,1,1|15\"\n"
+}

@@ -1,0 +1,71 @@
+{
+  "assessor_calibration": "pending: [Errno 2] No such file or directory: '/home/ivan0/projects/MSc-Thesis-Project/work/rq1-v5/calibration/acceptance.json'",
+  "checks": [
+    {
+      "check": "corpus",
+      "detail": "Verified",
+      "ok": true
+    },
+    {
+      "check": "implementation",
+      "detail": "Verified",
+      "ok": true
+    },
+    {
+      "check": "config_tokenizer_selector",
+      "detail": "Current full-selector receipt and 30-input tokenizer audit",
+      "ok": true
+    },
+    {
+      "check": "gcc",
+      "detail": "gcc (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0\nCopyright (C) 2023 Free Software Foundation, Inc.\nThis is free software; see the source for copying conditions.  There is NO\nwarranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.",
+      "ok": true
+    },
+    {
+      "check": "compose",
+      "detail": "Docker Compose version v5.6.1",
+      "ok": true
+    }
+  ],
+  "environment": {
+    "implementation": "CPython",
+    "machine": "x86_64",
+    "packages": {
+      "certifi": "2026.10.23",
+      "charset-normalizer": "3.5.2",
+      "cpgqls-client": "0.0.9",
+      "filelock": "4.2.4",
+      "fsspec": "2026.9.0",
+      "hf-xet": "1.7.1",
+      "huggingface-hub": "0.36.2",
+      "idna": "3.20",
+      "jinja2": "3.1.6",
+      "llmxcpg": "0.4.0",
+      "markupsafe": "3.0.4",
+      "numpy": "2.3.5",
+      "packaging": "26.3",
+      "pip": "24.0",
+      "pyyaml": "6.0.3",
+      "regex": "2026.9.29",
+      "requests": "2.34.2",
+      "safetensors": "0.8.0",
+      "tokenizers": "0.21.4",
+      "tqdm": "4.70.1",
+      "transformers": "4.47.1",
+      "typing-extensions": "4.16.0",
+      "urllib3": "2.8.0",
+      "websocket-client": "1.9.2",
+      "websockets": "17.3"
+    },
+    "python": "3.12.3"
+  },
+  "meaning": "Readiness only; no Q model load or experiment result.",
+  "profile": "local",
+  "provenance": {
+    "commit": "e2b1c3f0ef82e5537a0d10242fe86dcad5022d59",
+    "modified_tracked_files": ""
+  },
+  "ready": false,
+  "technical_ready": true,
+  "utc": "2026-10-30T13:50:12.631936+00:00"
+}
