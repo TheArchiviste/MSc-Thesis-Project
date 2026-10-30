@@ -2,6 +2,7 @@
 # Collect original Q once on six development inputs; return only safe metadata.
 set -euo pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")/.."
+source ops/rq1_ssh_ready.sh
 rq1_vm_ip=${1:?Usage: bash ops/rq1_q_development.sh CURRENT_VM_PUBLIC_IP PRIVATE_INSPECTION_ZIP EXPECTED_ZIP_SHA256}
 rq1_inspection_zip=${2:?Supply the privately accepted inspection ZIP on D:}
 rq1_inspection_sha=${3:?Supply the independently accepted inspection ZIP checksum}
@@ -67,6 +68,8 @@ if path.is_file():
     except (ValueError, OSError):
         result['remote_summary_readable'] = False
 result['local_archive_checksum_verified'] = (attempt / 'checksum-verified').is_file()
+result['ssh_readiness_passed'] = (attempt / 'ssh-ready').is_file()
+result['remote_launch_requested'] = (attempt / 'remote-launch-requested').is_file()
 out = attempt.with_suffix('.summary.json')
 out.write_text(json.dumps(result, indent=2) + '\n')
 print(json.dumps(result, indent=2))
@@ -76,8 +79,11 @@ PY
     exit "$rq1_exit"
 }
 trap rq1_finish EXIT
+rq1_wait_for_ssh "$rq1_vm_ip" "$rq1_key" "$rq1_attempt/ssh-readiness.log"
+touch "$rq1_attempt/ssh-ready"
 rq1_ssh=(-i "$rq1_key" -o ConnectTimeout=20 -o ServerAliveInterval=15 -o ServerAliveCountMax=3)
 rq1_remote_exit=0
+touch "$rq1_attempt/remote-launch-requested"
 ssh "${rq1_ssh[@]}" "rq1@$rq1_vm_ip" "bash -s -- $rq1_receipt_sha" <<'REMOTE' || rq1_remote_exit=$?
 set -euo pipefail
 cd "$HOME/rq1-project"

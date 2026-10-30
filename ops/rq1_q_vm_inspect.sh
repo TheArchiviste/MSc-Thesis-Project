@@ -2,6 +2,7 @@
 # One existing-VM technical checkpoint. No Q load, downloads or inference.
 set -euo pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")/.."
+source ops/rq1_ssh_ready.sh
 rq1_vm_ip=${1:?Usage: bash ops/rq1_q_vm_inspect.sh CURRENT_VM_PUBLIC_IP}
 [[ "$rq1_vm_ip" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo 'Supply the current IPv4 address from the Nebius console.' >&2; exit 2; }
 rq1_key="$HOME/.ssh/nebius_rq1"
@@ -48,6 +49,7 @@ PY
 }
 trap rq1_finish EXIT
 
+rq1_wait_for_ssh "$rq1_vm_ip" "$rq1_key" "$rq1_attempt/ssh-readiness.log"
 rq1_ssh=(-i "$rq1_key" -o ConnectTimeout=20 -o ServerAliveInterval=15 -o ServerAliveCountMax=3)
 scp "${rq1_ssh[@]}" "$rq1_bundle" "$rq1_bundle.sha256" "rq1@$rq1_vm_ip:~/"
 rq1_remote_exit=0
